@@ -1,0 +1,188 @@
+<?php
+require_once __DIR__ . '/includes/header.php';
+
+$pdo = getDB();
+$user = currentUser();
+$message = '';
+$error = '';
+$reporteCierre = null;
+
+// Procesar Apertura / Cierre / Movimientos de Caja
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verifyCsrf();
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'apertura') {
+        $montoApertura = (int)($_POST['monto_apertura'] ?? 0);
+        try {
+            $stmtChk = $pdo->prepare("SELECT TurnoID FROM Turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' LIMIT 1");
+            $stmtChk->execute([':uid' => $user['id']]);
+            if ($stmtChk->fetch()) {
+                throw new Exception('Ya tienes un turno de caja abierto. Ciérralo antes de abrir uno nuevo.');
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO Turnos (CajaID, UsuarioID, MontoApertura, Estado) VALUES (1, :uid, :monto, 'Abierto')");
+            $stmt->execute([':uid' => $user['id'], ':monto' => $montoApertura]);
+            $message = 'Caja abierta exitosamente con ' . formatCLP($montoApertura);
+        } catch (Exception $e) {
+            $error = 'Error al abrir caja: ' . $e->getMessage();
+        }
+    } elseif ($action === 'cierre') {
+        $turnoID = (int)($_POST['turno_id'] ?? 0);
+        $efectivoReal = (int)($_POST['efectivo_real'] ?? 0);
+        $tarjetaReal = (int)($_POST['tarjeta_real'] ?? 0);
+        $transferenciaReal = (int)($_POST['transferencia_real'] ?? 0);
+        $observaciones = trim($_POST['observaciones'] ?? '');
+
+        try {
+            // 1. Obtener Monto de Apertura del Turno y validar dueño/estado
+            $stmtTurnInfo = $pdo->prepare("SELECT MontoApertura, UsuarioID, Estado FROM Turnos WHERE TurnoID = :tid");
+            $stmtTurnInfo->execute([':tid' => $turnoID]);
+            $turnoInfo = $stmtTurnInfo->fetch();
+
+            if (!$turnoInfo) {
+                throw new Exception('El turno indicado no existe.');
+            }
+            $esAdminCaja = in_array($user['rol'], ['Administrador', 'Supervisor'], true);
+            if ((int)$turnoInfo['UsuarioID'] !== (int)$user['id'] && !$esAdminCaja) {
+                throw new Exception('No puedes cerrar el turno de otro usuario.');
+            }
+            if ($turnoInfo['Estado'] !== 'Abierto') {
+                throw new Exception('Este turno ya fue cerrado anteriormente.');
+            }
+            $montoApertura = (int)$turnoInfo['MontoApertura'];
+
+            // 2. Obtener Totales de Ventas del Turno
+            $stmtVentas = $pdo->prepare("
+                SELECT 
+                    COALESCE(SUM(CASE WHEN p.MetodoPago = 'Efectivo' THEN p.Monto ELSE 0 END), 0) AS total_efectivo,
+                    COALESCE(SUM(CASE WHEN p.MetodoPago IN ('Tarjeta Debito', 'Tarjeta Credito') THEN p.Monto ELSE 0 END), 0) AS total_tarjeta,
+                    COALESCE(SUM(CASE WHEN p.MetodoPago = 'Transferencia' THEN p.Monto ELSE 0 END), 0) AS total_transferencia
+                FROM Ventas v
+                JOIN PagosVenta p ON v.VentaID = p.VentaID
+                WHERE v.TurnoID = :tid AND v.Estado = 'Completada'
+            ");
+            $stmtVentas->execute([':tid' => $turnoID]);
+            $totales = $stmtVentas->fetch();
+
+            // 3. Obtener Totales de Movimientos Manuales (Ingresos / Retiros)
+            $stmtMovs = $pdo->prepare("
+                SELECT 
+                    COALESCE(SUM(CASE WHEN TipoMovimiento = 'INGRESO' THEN Monto ELSE 0 END), 0) AS total_ingresos,
+                    COALESCE(SUM(CASE WHEN TipoMovimiento = 'RETIRO' THEN Monto ELSE 0 END), 0) AS total_retiros
+                FROM MovimientosCaja
+                WHERE TurnoID = :tid
+            ");
+            $stmtMovs->execute([':tid' => $turnoID]);
+            $movs = $stmtMovs->fetch();
+
+            // Calcular el total del sistema: Apertura + Efectivo Ventas + Ingresos Manuales - Retiros Manuales + Tarjetas + Transferencia
+            $efectivoEsperado = $montoApertura + $totales['total_efectivo'] + $movs['total_ingresos'] - $movs['total_retiros'];
+            $sistemaTotal = $efectivoEsperado + $totales['total_tarjeta'] + $totales['total_transferencia'];
+
+            $stmtUpd = $pdo->prepare("
+                UPDATE Turnos SET 
+                    FechaCierre = CURRENT_TIMESTAMP(),
+                    MontoCierreEfectivo = :efec,
+                    MontoCierreTarjeta = :tarj,
+                    MontoCierreTransferencia = :trans,
+                    MontoCierreSistema = :sistema,
+                    Estado = 'Cerrado',
+                    Observaciones = :obs
+                WHERE TurnoID = :tid
+            ");
+            $stmtUpd->execute([
+                ':efec' => $efectivoReal,
+                ':tarj' => $tarjetaReal,
+                ':trans' => $transferenciaReal,
+                ':sistema' => $sistemaTotal,
+                ':obs' => $observaciones,
+                ':tid' => $turnoID
+            ]);
+
+            // Cargar datos para el reporte de cierre inmediato
+            $stmtReporte = $pdo->prepare("
+                SELECT t.*, u.Nombre AS Cajero, c.Nombre AS CajaName 
+                FROM Turnos t 
+                JOIN Usuarios u ON t.UsuarioID = u.UsuarioID 
+                JOIN Cajas c ON t.CajaID = c.CajaID 
+                WHERE t.TurnoID = :tid
+            ");
+            $stmtReporte->execute([':tid' => $turnoID]);
+            $reporteCierre = $stmtReporte->fetch();
+
+            if ($reporteCierre) {
+                $reporteCierre['ventas_efectivo'] = (int)$totales['total_efectivo'];
+                $reporteCierre['ventas_tarjeta'] = (int)$totales['total_tarjeta'];
+                $reporteCierre['ventas_transferencia'] = (int)$totales['total_transferencia'];
+                $reporteCierre['ingresos_manuales'] = (int)$movs['total_ingresos'];
+                $reporteCierre['retiros_manuales'] = (int)$movs['total_retiros'];
+                $reporteCierre['efectivo_esperado'] = $efectivoEsperado;
+                
+                $reporteCierre['tarjeta_real'] = $tarjetaReal;
+                $reporteCierre['transferencia_real'] = $transferenciaReal;
+                $reporteCierre['diferencia_efectivo'] = $efectivoReal - $efectivoEsperado;
+                $reporteCierre['diferencia_tarjeta'] = $tarjetaReal - (int)$totales['total_tarjeta'];
+                $reporteCierre['diferencia_transferencia'] = $transferenciaReal - (int)$totales['total_transferencia'];
+                $reporteCierre['diferencia_neta'] = $reporteCierre['diferencia_efectivo'] + $reporteCierre['diferencia_tarjeta'] + $reporteCierre['diferencia_transferencia'];
+            }
+
+            $message = 'Caja cerrada y arqueo registrado correctamente.';
+        } catch (Exception $e) {
+            $error = 'Error al cerrar caja: ' . $e->getMessage();
+        }
+    }
+}
+
+// Consultar Turno Activo
+$stmtTurno = $pdo->prepare("SELECT * FROM Turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' ORDER BY TurnoID DESC LIMIT 1");
+$stmtTurno->execute([':uid' => $user['id']]);
+$turnoActivo = $stmtTurno->fetch();
+
+$ventasTurno = ['total_efectivo' => 0, 'total_tarjeta' => 0, 'total_transferencia' => 0, 'total_ventas' => 0];
+$movimientosTurno = ['total_ingresos' => 0, 'total_retiros' => 0];
+$efectivoEsperado = 0;
+
+if ($turnoActivo) {
+    // 1. Totales de Ventas
+    $stmtV = $pdo->prepare("
+        SELECT 
+            COALESCE(SUM(CASE WHEN p.MetodoPago = 'Efectivo' THEN p.Monto ELSE 0 END), 0) AS total_efectivo,
+            COALESCE(SUM(CASE WHEN p.MetodoPago IN ('Tarjeta Debito', 'Tarjeta Credito') THEN p.Monto ELSE 0 END), 0) AS total_tarjeta,
+            COALESCE(SUM(CASE WHEN p.MetodoPago = 'Transferencia' THEN p.Monto ELSE 0 END), 0) AS total_transferencia,
+            COUNT(DISTINCT v.VentaID) AS total_ventas
+        FROM Ventas v
+        JOIN PagosVenta p ON v.VentaID = p.VentaID
+        WHERE v.TurnoID = :tid AND v.Estado = 'Completada'
+    ");
+    $stmtV->execute([':tid' => $turnoActivo['TurnoID']]);
+    $ventasTurno = $stmtV->fetch();
+
+    // 2. Totales de Movimientos Manuales (Ingresos / Retiros)
+    $stmtM = $pdo->prepare("
+        SELECT 
+            COALESCE(SUM(CASE WHEN TipoMovimiento = 'INGRESO' THEN Monto ELSE 0 END), 0) AS total_ingresos,
+            COALESCE(SUM(CASE WHEN TipoMovimiento = 'RETIRO' THEN Monto ELSE 0 END), 0) AS total_retiros
+        FROM MovimientosCaja
+        WHERE TurnoID = :tid
+    ");
+    $stmtM->execute([':tid' => $turnoActivo['TurnoID']]);
+    $movimientosTurno = $stmtM->fetch();
+
+    // Calcular Efectivo Esperado en Caja (Apertura + Ventas Efectivo + Ingresos Manuales - Retiros Manuales)
+    $efectivoEsperado = $turnoActivo['MontoApertura'] + $ventasTurno['total_efectivo'] + $movimientosTurno['total_ingresos'] - $movimientosTurno['total_retiros'];
+}
+
+// Historial de últimos turnos
+$stmtHist = $pdo->query("
+    SELECT t.*, u.Nombre AS Usuario 
+    FROM Turnos t 
+    JOIN Usuarios u ON t.UsuarioID = u.UsuarioID 
+    ORDER BY t.TurnoID DESC LIMIT 10
+");
+$historialTurnos = $stmtHist->fetchAll();
+
+// Cargar la vista HTML
+include __DIR__ . '/views/caja.view.php';
+
+require_once __DIR__ . '/includes/footer.php';
