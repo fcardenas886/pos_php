@@ -321,7 +321,7 @@ async function guardarRecepcion() {
   try {
     const res = await fetch('api/registrar_compra.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN },
       body: JSON.stringify({
         proveedor_id: provId,
         numero_documento: numDoc,
@@ -410,7 +410,7 @@ async function actualizarPreciosVenta() {
   try {
     const res = await fetch('api/actualizar_precios_compra.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN },
       body: JSON.stringify({
         precios: preciosPayload
       })

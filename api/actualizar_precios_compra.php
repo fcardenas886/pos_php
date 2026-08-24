@@ -8,6 +8,7 @@ if (empty($_SESSION['usuario']) || !in_array($_SESSION['usuario']['rol'], ['Admi
     echo json_encode(['success' => false, 'error' => 'No autorizado']);
     exit;
 }
+verifyCsrfApi();
 
 $input = json_decode(file_get_contents('php://input'), true);
 
