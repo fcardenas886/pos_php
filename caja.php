@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/fiscal.php';
 
 $pdo = getDB();
 $user = currentUser();
@@ -33,10 +34,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tarjetaReal = (int)($_POST['tarjeta_real'] ?? 0);
         $transferenciaReal = (int)($_POST['transferencia_real'] ?? 0);
         $observaciones = trim($_POST['observaciones'] ?? '');
+        $generarZ = !empty($_POST['generar_z']);
+        $supervisorPass = trim($_POST['supervisor_pass'] ?? '');
+        $zGenerado = null;
 
         try {
             // 1. Obtener Monto de Apertura del Turno y validar dueño/estado
-            $stmtTurnInfo = $pdo->prepare("SELECT MontoApertura, UsuarioID, Estado FROM Turnos WHERE TurnoID = :tid");
+            $stmtTurnInfo = $pdo->prepare("SELECT MontoApertura, UsuarioID, Estado, CajaID FROM Turnos WHERE TurnoID = :tid");
             $stmtTurnInfo->execute([':tid' => $turnoID]);
             $turnoInfo = $stmtTurnInfo->fetch();
 
@@ -50,6 +54,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($turnoInfo['Estado'] !== 'Abierto') {
                 throw new Exception('Este turno ya fue cerrado anteriormente.');
             }
+
+            // Un Cajero necesita autorización de un Administrador/Supervisor para cerrar su turno
+            $supervisorID = $esAdminCaja ? (int)$user['id'] : verificarClaveSupervisor($pdo, $supervisorPass);
+            if (!$supervisorID) {
+                throw new Exception('Se requiere la clave de un Administrador o Supervisor para cerrar el turno.');
+            }
+
             $montoApertura = (int)$turnoInfo['MontoApertura'];
 
             // 2. Obtener Totales de Ventas del Turno
@@ -80,8 +91,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $efectivoEsperado = $montoApertura + $totales['total_efectivo'] + $movs['total_ingresos'] - $movs['total_retiros'];
             $sistemaTotal = $efectivoEsperado + $totales['total_tarjeta'] + $totales['total_transferencia'];
 
+            $pdo->beginTransaction();
+
             $stmtUpd = $pdo->prepare("
-                UPDATE Turnos SET 
+                UPDATE Turnos SET
                     FechaCierre = CURRENT_TIMESTAMP(),
                     MontoCierreEfectivo = :efec,
                     MontoCierreTarjeta = :tarj,
@@ -99,6 +112,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':obs' => $observaciones,
                 ':tid' => $turnoID
             ]);
+
+            if ($generarZ) {
+                $zGenerado = generarCierreZ($pdo, (int)$turnoInfo['CajaID'], $supervisorID);
+            }
+
+            $pdo->commit();
 
             // Cargar datos para el reporte de cierre inmediato
             $stmtReporte = $pdo->prepare("
@@ -128,7 +147,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $message = 'Caja cerrada y arqueo registrado correctamente.';
+            if ($zGenerado) {
+                $message .= " Cierre Z #{$zGenerado['numeroZ']} generado por " . formatCLP($zGenerado['total']) . ".";
+            }
         } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
             $error = 'Error al cerrar caja: ' . $e->getMessage();
         }
     }

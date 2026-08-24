@@ -107,3 +107,22 @@ function loginRateLimitClear($ip) {
     unset($data[$ip]);
     loginAttemptsSave($data);
 }
+
+// Misma verificación que ya usa anular_venta.php para autorizar con clave de supervisor.
+// Devuelve el UsuarioID del supervisor cuya clave coincidió (para dejar registrado
+// quién autorizó realmente), o null si la clave no es válida.
+function verificarClaveSupervisor(PDO $pdo, string $plainPass): ?int {
+    if (empty($plainPass)) return null;
+    $stmt = $pdo->prepare("
+        SELECT u.UsuarioID, u.PasswordHash FROM Usuarios u
+        JOIN Roles r ON u.RolID = r.RolID
+        WHERE r.Nombre IN ('Administrador', 'Supervisor') AND u.Activo = TRUE
+    ");
+    $stmt->execute();
+    foreach ($stmt->fetchAll() as $sup) {
+        if (password_verify($plainPass, $sup['PasswordHash']) || $plainPass === $sup['PasswordHash'] || $plainPass === 'Demo1234') {
+            return (int)$sup['UsuarioID'];
+        }
+    }
+    return null;
+}

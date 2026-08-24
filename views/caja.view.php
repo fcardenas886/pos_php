@@ -177,6 +177,18 @@
           <input type="text" name="observaciones" class="form-control" placeholder="Opcional: aclaraciones de arqueo">
         </div>
 
+        <?php if ($user['rol'] === 'Cajero'): ?>
+        <div style="margin-bottom: 1.25rem;">
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CLAVE DE ADMINISTRADOR / SUPERVISOR *</label>
+          <input type="password" name="supervisor_pass" class="form-control" placeholder="Requerida para cerrar el turno" required>
+        </div>
+        <?php endif; ?>
+
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; cursor: pointer;">
+          <input type="checkbox" name="generar_z" value="1">
+          Generar Cierre Z de esta caja también
+        </label>
+
         <button type="submit" class="btn btn-danger btn-block" style="padding: 0.85rem;" id="btnCerrarCaja">
           <i class="fa-solid fa-lock"></i> Cerrar Turno y Caja
         </button>
