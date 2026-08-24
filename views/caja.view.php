@@ -184,8 +184,8 @@
         </div>
         <?php endif; ?>
 
-        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; cursor: pointer;">
-          <input type="checkbox" name="generar_z" value="1">
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #fff; font-weight: 600; margin-bottom: 1.25rem; cursor: pointer; background: rgba(79, 70, 229, 0.15); border: 1px solid var(--primary); border-radius: 8px; padding: 0.6rem 0.75rem;">
+          <input type="checkbox" name="generar_z" value="1" checked style="width: 16px; height: 16px;">
           Generar Cierre Z de esta caja también
         </label>
 
