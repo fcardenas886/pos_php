@@ -122,7 +122,12 @@ function agregarAlCarrito(producto) {
       Nombre: producto.Nombre,
       PrecioVenta: parseInt(producto.PrecioVenta),
       Stock: parseFloat(producto.Stock),
-      cantidad: 1
+      cantidad: 1,
+      PromocionID: producto.PromocionID || null,
+      PromoTipo: producto.PromoTipo || null,
+      PromoCantMin: parseFloat(producto.PromoCantMin) || 0,
+      PromoDescPorc: parseFloat(producto.PromoDescPorc) || 0,
+      PromoPrecioOf: parseInt(producto.PromoPrecioOf) || 0
     });
   }
 
@@ -147,6 +152,27 @@ function cambiarCantidad(index, delta) {
   renderCart();
 }
 
+function calcularDescuentoItem(item) {
+  if (!item.PromocionID || !item.PromoTipo) return 0;
+  
+  if (item.PromoTipo === 'DESCUENTO_UNIT') {
+    const descUnit = Math.round(item.PrecioVenta * (item.PromoDescPorc / 100));
+    return Math.round(item.cantidad * descUnit);
+  } else if (item.PromoTipo === 'MULTIBUY') {
+    const cantMin = item.PromoCantMin;
+    const precioOf = item.PromoPrecioOf;
+    
+    if (item.cantidad >= cantMin) {
+      const packs = Math.floor(item.cantidad / cantMin);
+      const resto = item.cantidad % cantMin;
+      const subtotalConPromo = (packs * precioOf) + (resto * item.PrecioVenta);
+      const subtotalNormal = item.cantidad * item.PrecioVenta;
+      return Math.max(0, subtotalNormal - subtotalConPromo);
+    }
+  }
+  return 0;
+}
+
 function renderCart() {
   const container = document.getElementById('cartItems');
   const totalEl = document.getElementById('cartTotal');
@@ -168,12 +194,26 @@ function renderCart() {
   let totalFinal = Math.max(0, subtotalBruto - descGlobal);
 
   container.innerHTML = cart.map((item, idx) => {
-    const subtotal = item.cantidad * item.PrecioVenta;
+    const subtotalNormal = item.cantidad * item.PrecioVenta;
+    const desc = calcularDescuentoItem(item);
+    const subtotalFinal = subtotalNormal - desc;
+
+    let promoBadgeHtml = '';
+    let subtotalHtml = `$${formatNumber(subtotalFinal)}`;
+
+    if (desc > 0) {
+      if (item.PromoTipo === 'DESCUENTO_UNIT') {
+        promoBadgeHtml = `<span style="background: var(--success); color: #fff; font-size: 0.7rem; font-weight: bold; padding: 0.1rem 0.3rem; border-radius: 4px; margin-left: 0.5rem;">-${item.PromoDescPorc}% Dcto</span>`;
+      } else if (item.PromoTipo === 'MULTIBUY') {
+        promoBadgeHtml = `<span style="background: var(--warning); color: #000; font-size: 0.7rem; font-weight: bold; padding: 0.1rem 0.3rem; border-radius: 4px; margin-left: 0.5rem;">Promo Pack</span>`;
+      }
+      subtotalHtml = `<span style="text-decoration: line-through; color: var(--text-muted); font-size: 0.8rem; margin-right: 0.4rem;">$${formatNumber(subtotalNormal)}</span> $${formatNumber(subtotalFinal)}`;
+    }
 
     return `
       <div class="cart-item">
         <div style="flex: 1;">
-          <div class="cart-item-title">${escapeHtml(item.Nombre)}</div>
+          <div class="cart-item-title">${escapeHtml(item.Nombre)} ${promoBadgeHtml}</div>
           <div style="font-size: 0.8rem; color: var(--text-muted);">$${formatNumber(item.PrecioVenta)} c/u</div>
         </div>
 
@@ -183,8 +223,8 @@ function renderCart() {
           <button class="btn-qty" onclick="cambiarCantidad(${idx}, 1)">+</button>
         </div>
 
-        <div style="font-weight: 700; color: var(--success); width: 80px; text-align: right;">
-          $${formatNumber(subtotal)}
+        <div style="font-weight: 700; color: var(--success); text-align: right;">
+          ${subtotalHtml}
         </div>
       </div>
     `;
@@ -194,7 +234,7 @@ function renderCart() {
 }
 
 function getCartSubtotal() {
-  return cart.reduce((sum, item) => sum + (item.cantidad * item.PrecioVenta), 0);
+  return cart.reduce((sum, item) => sum + (item.cantidad * item.PrecioVenta) - calcularDescuentoItem(item), 0);
 }
 
 function getCartTotal() {

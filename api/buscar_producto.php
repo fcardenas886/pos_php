@@ -13,15 +13,25 @@ $query = trim($_GET['q'] ?? '');
 try {
     $pdo = getDB();
     if (empty($query)) {
-        // Retornar los primeros 30 productos si no hay búsqueda
-        $stmt = $pdo->query("SELECT ProductoID, CodigoBarras, Nombre, PrecioVenta, Stock, StockMinimo, UnidadMedida FROM Productos WHERE Activo = TRUE ORDER BY Nombre ASC LIMIT 30");
+        // Retornar los primeros 30 productos con promociones activas
+        $stmt = $pdo->query("
+            SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.Stock, p.StockMinimo, p.UnidadMedida,
+                   pr.PromocionID, pr.Tipo AS PromoTipo, pr.CantidadMinima AS PromoCantMin, pr.DescuentoPorcentaje AS PromoDescPorc, pr.PrecioOferta AS PromoPrecioOf
+            FROM Productos p
+            LEFT JOIN Promociones pr ON p.ProductoID = pr.ProductoID AND pr.Activa = TRUE AND pr.FechaInicio <= NOW() AND pr.FechaFin >= NOW()
+            WHERE p.Activo = TRUE 
+            ORDER BY p.Nombre ASC 
+            LIMIT 30
+        ");
     } else {
-        // Búsqueda por código de barras exacto o coincidencia por nombre
+        // Búsqueda con promociones activas
         $stmt = $pdo->prepare("
-            SELECT ProductoID, CodigoBarras, Nombre, PrecioVenta, Stock, StockMinimo, UnidadMedida 
-            FROM Productos 
-            WHERE Activo = TRUE AND (CodigoBarras = :q1 OR Nombre LIKE :like_q)
-            ORDER BY (CodigoBarras = :q2) DESC, Nombre ASC 
+            SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.Stock, p.StockMinimo, p.UnidadMedida,
+                   pr.PromocionID, pr.Tipo AS PromoTipo, pr.CantidadMinima AS PromoCantMin, pr.DescuentoPorcentaje AS PromoDescPorc, pr.PrecioOferta AS PromoPrecioOf
+            FROM Productos p
+            LEFT JOIN Promociones pr ON p.ProductoID = pr.ProductoID AND pr.Activa = TRUE AND pr.FechaInicio <= NOW() AND pr.FechaFin >= NOW()
+            WHERE p.Activo = TRUE AND (p.CodigoBarras = :q1 OR p.Nombre LIKE :like_q)
+            ORDER BY (p.CodigoBarras = :q2) DESC, p.Nombre ASC 
             LIMIT 30
         ");
         $stmt->execute([':q1' => $query, ':like_q' => "%$query%", ':q2' => $query]);
