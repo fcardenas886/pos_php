@@ -26,6 +26,9 @@
       <button type="button" id="btnCotizaciones" onclick="abrirModalCotizaciones()" class="btn btn-secondary" style="padding: 0.75rem 1rem; font-size: 0.9rem;" title="Ventas Pausadas / Cotizaciones">
         <i class="fa-solid fa-clock-rotate-left"></i> Pendientes
       </button>
+      <button type="button" id="btnMovimientoCaja" onclick="abrirModalMovimiento()" class="btn btn-secondary" style="padding: 0.75rem 1rem; font-size: 0.9rem;" title="Registrar Ingreso o Retiro de Caja">
+        <i class="fa-solid fa-cash-register"></i> Retiro / Ingreso
+      </button>
     </div>
 
     <!-- Grilla de Productos -->
@@ -206,6 +209,36 @@
     </div>
     <div id="cotizacionesLista" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem;">
       <p style="text-align: center; color: var(--text-muted);">Cargando pendientes...</p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Movimiento de Caja (Ingreso / Retiro) -->
+<div id="movimientoModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
+  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 16px; width: 400px; padding: 1.75rem; box-shadow: var(--shadow-lg);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+      <h2 style="font-size: 1.2rem; font-weight: 700;">Ingreso / Retiro de Caja</h2>
+      <button onclick="cerrarModalMovimiento()" class="btn btn-secondary" style="padding: 0.3rem 0.6rem;">&times;</button>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+      <div>
+        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">TIPO</label>
+        <select id="posMovTipo" class="form-control">
+          <option value="RETIRO">Retiro (-)</option>
+          <option value="INGRESO">Ingreso (+)</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">MONTO ($)</label>
+        <input type="number" id="posMovMonto" class="form-control" placeholder="10000" style="font-size: 1.1rem; font-weight: bold;">
+      </div>
+      <div>
+        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CONCEPTO / MOTIVO</label>
+        <input type="text" id="posMovConcepto" class="form-control" placeholder="Ej: Pago de panadería / Retiro parcial">
+      </div>
+      <button type="button" id="btnRegistrarMovimientoPos" onclick="registrarMovimientoPos()" class="btn btn-primary btn-block" style="padding: 0.75rem;">
+        <i class="fa-solid fa-floppy-disk"></i> Registrar
+      </button>
     </div>
   </div>
 </div>

@@ -434,6 +434,47 @@ function cerrarModalCotizaciones() {
   document.getElementById('cotizacionesModal').style.display = 'none';
 }
 
+function abrirModalMovimiento() {
+  document.getElementById('posMovMonto').value = '';
+  document.getElementById('posMovConcepto').value = '';
+  document.getElementById('movimientoModal').style.display = 'flex';
+}
+
+function cerrarModalMovimiento() {
+  document.getElementById('movimientoModal').style.display = 'none';
+}
+
+async function registrarMovimientoPos() {
+  const tipo = document.getElementById('posMovTipo').value;
+  const monto = parseInt(document.getElementById('posMovMonto').value) || 0;
+  const concepto = document.getElementById('posMovConcepto').value.trim();
+
+  if (monto <= 0) {
+    alert('Ingresa un monto válido mayor a 0.');
+    return;
+  }
+
+  const btn = document.getElementById('btnRegistrarMovimientoPos');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('api/movimiento_caja.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN },
+      body: JSON.stringify({ tipo, monto, concepto })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    alert(data.mensaje);
+    cerrarModalMovimiento();
+  } catch (err) {
+    alert('Error al registrar movimiento: ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function mostrarTicket(data, items, total, pagado, vuelto) {
   document.getElementById('ticketFecha').textContent = data.fecha;
   
