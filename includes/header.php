@@ -122,6 +122,13 @@ $esSupervisorNav = in_array($user['rol'], ['Administrador', 'Supervisor'], true)
       </ul>
     </li>
     <?php endif; ?>
+
+    <!-- Ayuda -->
+    <li class="nav-item">
+      <a href="ayuda.php" class="nav-link <?= $currentPage == 'ayuda.php' ? 'active' : '' ?>">
+        <i class="fa-solid fa-circle-question"></i> Ayuda
+      </a>
+    </li>
   </ul>
 
   <div class="user-pill">
