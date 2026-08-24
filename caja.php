@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("INSERT INTO Turnos (CajaID, UsuarioID, MontoApertura, Estado) VALUES (1, :uid, :monto, 'Abierto')");
             $stmt->execute([':uid' => $user['id'], ':monto' => $montoApertura]);
             $message = 'Caja abierta exitosamente con ' . formatCLP($montoApertura);
+            $redirigirPos = true;
         } catch (Exception $e) {
             $error = 'Error al abrir caja: ' . $e->getMessage();
         }

@@ -1,3 +1,7 @@
+<?php if (!empty($redirigirPos)): ?>
+  <script>window.location.replace('pos.php');</script>
+<?php endif; ?>
+
 <div style="margin-bottom: 1.5rem;">
   <h1 style="font-size: 1.5rem; font-weight: 700;">Gestión y Arqueo de Caja</h1>
   <p style="color: var(--text-muted); font-size: 0.9rem;">Apertura, cierre, conteo de dinero por billetes/monedas y registro de gastos/retiros</p>
