@@ -3,9 +3,11 @@
     <h1 style="font-size: 1.5rem; font-weight: 700;">Alertas de Stock y Sugerencias de Reabastecimiento</h1>
     <p style="color: var(--text-muted); font-size: 0.9rem;">Algoritmo inteligente de compras según rotación de ventas a 7, 15 y 30 días</p>
   </div>
+  <?php if ($esSupervisorNav): ?>
   <a href="compras.php" class="btn btn-primary">
     <i class="fa-solid fa-truck-ramp-box"></i> Ir a Ingreso de Compras
   </a>
+  <?php endif; ?>
 </div>
 
 <div class="table-card">

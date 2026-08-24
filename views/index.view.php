@@ -58,15 +58,19 @@
       <a href="pos.php" class="btn btn-primary" style="justify-content: flex-start; padding: 0.75rem 1rem;">
         <i class="fa-solid fa-cart-shopping" style="font-size: 1.1rem;"></i> Caja Registradora (POS)
       </a>
+      <?php if ($esSupervisorNav): ?>
       <a href="compras.php" class="btn btn-secondary" style="justify-content: flex-start; padding: 0.75rem 1rem;">
         <i class="fa-solid fa-truck-ramp-box" style="font-size: 1.1rem;"></i> Recepción de Compras
       </a>
+      <?php endif; ?>
       <a href="caja.php" class="btn btn-secondary" style="justify-content: flex-start; padding: 0.75rem 1rem;">
         <i class="fa-solid fa-vault" style="font-size: 1.1rem;"></i> Turnos y Arqueo de Caja
       </a>
+      <?php if ($esSupervisorNav): ?>
       <a href="productos.php" class="btn btn-secondary" style="justify-content: flex-start; padding: 0.75rem 1rem;">
         <i class="fa-solid fa-boxes-stacked" style="font-size: 1.1rem;"></i> Catálogo de Productos
       </a>
+      <?php endif; ?>
       <a href="clientes.php" class="btn btn-secondary" style="justify-content: flex-start; padding: 0.75rem 1rem;">
         <i class="fa-solid fa-users" style="font-size: 1.1rem;"></i> Clientes y Puntos
       </a>
