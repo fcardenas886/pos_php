@@ -46,15 +46,13 @@ try {
 
     $pdo->beginTransaction();
 
-    // 1. Verificar stock y procesar ítems del carrito
+    // 1. Verificar stock y procesar ítems del carrito (aplicando promociones activas en backend)
     $subtotalBruto = 0;
-    $totalDescuentoItems = 0;
     $itemsProcesados = [];
 
     foreach ($input['items'] as $item) {
         $pid = (int)$item['producto_id'];
         $cant = (float)$item['cantidad'];
-        $descItem = (int)($item['descuento'] ?? 0);
         
         $stmtP = $pdo->prepare("SELECT ProductoID, Nombre, PrecioVenta, CostoCompra, Stock, EsAfecto FROM Productos WHERE ProductoID = :pid FOR UPDATE");
         $stmtP->execute([':pid' => $pid]);
@@ -68,10 +66,38 @@ try {
             throw new Exception("Stock insuficiente para '{$prod['Nombre']}'. Disponible: {$prod['Stock']}");
         }
 
+        // Consultar promoción activa para este producto
+        $stmtPromo = $pdo->prepare("
+            SELECT Tipo, CantidadMinima, DescuentoPorcentaje, PrecioOferta 
+            FROM Promociones 
+            WHERE ProductoID = :pid AND Activa = TRUE AND FechaInicio <= NOW() AND FechaFin >= NOW() 
+            LIMIT 1
+        ");
+        $stmtPromo->execute([':pid' => $pid]);
+        $promo = $stmtPromo->fetch();
+
         $precioUnitario = (int)$prod['PrecioVenta'];
+        $descItem = 0;
+
+        if ($promo) {
+            if ($promo['Tipo'] === 'DESCUENTO_UNIT') {
+                $descUnit = (int)round($precioUnitario * ((float)$promo['DescuentoPorcentaje'] / 100));
+                $descItem = (int)round($cant * $descUnit);
+            } elseif ($promo['Tipo'] === 'MULTIBUY') {
+                $cantMin = (int)$promo['CantidadMinima'];
+                $precioOf = (int)$promo['PrecioOferta'];
+                if ($cant >= $cantMin) {
+                    $packs = (int)floor($cant / $cantMin);
+                    $resto = $cant % $cantMin;
+                    $subtotalConPromo = ($packs * $precioOf) + ($resto * $precioUnitario);
+                    $subtotalNormal = $cant * $precioUnitario;
+                    $descItem = max(0, $subtotalNormal - $subtotalConPromo);
+                }
+            }
+        }
+
         $subtotalItem = max(0, (int)round(($cant * $precioUnitario) - $descItem));
         $subtotalBruto += $subtotalItem;
-        $totalDescuentoItems += $descItem;
 
         $itemsProcesados[] = [
             'prod' => $prod,
@@ -85,9 +111,11 @@ try {
 
     $montoTotal = max(0, $subtotalBruto - $descuentoGlobal);
 
-    // Descuentos grandes requieren autorización de un Administrador/Supervisor,
-    // igual que la anulación de ventas. El umbral evita pedir clave por ajustes menores.
-    $descuentoTotal = $totalDescuentoItems + $descuentoGlobal;
+    // Descuentos globales grandes requieren autorización de un Administrador/Supervisor,
+    // igual que la anulación de ventas. Los descuentos por promoción no cuentan aquí:
+    // ya fueron pre-aprobados por un Admin/Supervisor al crear la promoción, así que
+    // exigir clave de nuevo en cada venta con promo sería fricción sin sentido.
+    $descuentoTotal = $descuentoGlobal;
     if ($user['rol'] === 'Cajero' && $descuentoTotal > 0) {
         $umbralDescuento = max(1000, (int)round($subtotalBruto * 0.10));
         if ($descuentoTotal > $umbralDescuento) {
