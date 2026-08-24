@@ -48,7 +48,7 @@
             <td style="font-weight: 600; color: #fff;"><?= htmlspecialchars($aj['ProductoName'] ?: 'Múltiples') ?></td>
             <td>
               <span class="badge <?= $aj['TipoMovimiento'] == 'ENTRADA' ? 'badge-success' : 'badge-danger' ?>">
-                <?= $aj['TipoMovimiento'] ?>
+                <?= htmlspecialchars($aj['TipoMovimiento']) ?>
               </span>
             </td>
             <td style="font-weight: bold;"><?= $aj['Cantidad'] ?></td>

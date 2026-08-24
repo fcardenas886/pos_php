@@ -10,7 +10,7 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
     $productoID = (int)($_POST['producto_id'] ?? 0);
-    $tipoMovimiento = $_POST['tipo_movimiento'] ?? 'ENTRADA'; // ENTRADA o SALIDA
+    $tipoMovimiento = ($_POST['tipo_movimiento'] ?? '') === 'SALIDA' ? 'SALIDA' : 'ENTRADA';
     $cantidad = (float)($_POST['cantidad'] ?? 0);
     $motivo = trim($_POST['motivo'] ?? 'Ajuste de inventario');
 

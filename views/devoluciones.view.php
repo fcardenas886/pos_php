@@ -48,7 +48,7 @@
             <td><?= date('d/m/Y H:i', strtotime($d['FechaDevolucion'])) ?></td>
             <td><strong>#<?= $d['VentaID'] ?></strong></td>
             <td style="font-weight: 600; color: #fff;"><?= htmlspecialchars($d['ItemsDevueltos'] ?: 'Devolución parcial') ?></td>
-            <td><span class="badge badge-warning"><?= $d['MetodoDevolucion'] ?></span></td>
+            <td><span class="badge badge-warning"><?= htmlspecialchars($d['MetodoDevolucion']) ?></span></td>
             <td style="font-weight: 700; color: var(--danger);"><?= formatCLP($d['MontoDevuelto']) ?></td>
             <td style="color: var(--text-muted); font-size: 0.85rem;"><?= htmlspecialchars($d['Motivo']) ?></td>
           </tr>

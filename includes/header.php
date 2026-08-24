@@ -12,7 +12,7 @@ $esSupervisorNav = in_array($user['rol'], ['Administrador', 'Supervisor'], true)
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Minimarket POS - Sistema Web Completo</title>
   <link rel="stylesheet" href="assets/css/style.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
   <meta name="csrf-token" content="<?= htmlspecialchars(csrfToken()) ?>">
 </head>
 <body>

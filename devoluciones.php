@@ -12,7 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ventaID = (int)($_POST['venta_id'] ?? 0);
     $productoID = (int)($_POST['producto_id'] ?? 0);
     $cantidad = (float)($_POST['cantidad'] ?? 0);
-    $metodoDevolucion = $_POST['metodo_devolucion'] ?? 'Efectivo';
+    $metodosValidos = ['Efectivo', 'Tarjeta', 'Nota de Credito'];
+    $metodoDevolucion = in_array($_POST['metodo_devolucion'] ?? '', $metodosValidos, true) ? $_POST['metodo_devolucion'] : 'Efectivo';
     $motivo = trim($_POST['motivo'] ?? 'Devolución de cliente');
 
     if ($ventaID > 0 && $productoID > 0 && $cantidad > 0) {
