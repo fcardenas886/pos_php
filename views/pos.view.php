@@ -150,6 +150,9 @@
       <button type="button" class="btn btn-secondary btn-metodo" data-metodo="Mixto" onclick="setFormaPago('Mixto', this)">
         <i class="fa-solid fa-layer-group"></i> Pago Mixto
       </button>
+      <button type="button" class="btn btn-secondary btn-metodo" data-metodo="Vale" onclick="setFormaPago('Vale', this)">
+        <i class="fa-solid fa-ticket"></i> Vale Devolución
+      </button>
     </div>
 
     <!-- Panel Dinámico Efectivo / Botones Rápido -->
@@ -192,6 +195,12 @@
           <input type="number" id="mixtoTransf" class="form-control" placeholder="0">
         </div>
       </div>
+    </div>
+
+    <!-- Panel Dinámico Vale de Devolución -->
+    <div id="panelValeModal" style="display: none; background: rgba(15,23,42,0.6); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-dark); margin-bottom: 1.25rem;">
+      <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">CÓDIGO DEL VALE</label>
+      <input type="text" id="valeCodigoModal" class="form-control" placeholder="Ej: VALE-A1B2C3D4" style="text-transform: uppercase; font-weight: bold;">
     </div>
 
     <button type="button" id="btnConfirmarPagoModal" onclick="confirmarPagoModal()" class="btn btn-success btn-block" style="padding: 1rem; font-size: 1.2rem;">

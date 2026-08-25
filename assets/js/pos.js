@@ -270,17 +270,11 @@ function setFormaPago(metodo, btn) {
 
   const pnlEfec = document.getElementById('panelEfectivoModal');
   const pnlMix = document.getElementById('panelMixtoModal');
+  const pnlVale = document.getElementById('panelValeModal');
 
-  if (metodo === 'Efectivo') {
-    pnlEfec.style.display = 'block';
-    pnlMix.style.display = 'none';
-  } else if (metodo === 'Mixto') {
-    pnlEfec.style.display = 'none';
-    pnlMix.style.display = 'block';
-  } else {
-    pnlEfec.style.display = 'none';
-    pnlMix.style.display = 'none';
-  }
+  pnlEfec.style.display = metodo === 'Efectivo' ? 'block' : 'none';
+  pnlMix.style.display = metodo === 'Mixto' ? 'block' : 'none';
+  pnlVale.style.display = metodo === 'Vale' ? 'block' : 'none';
 }
 
 function setMontoQuick(val) {
@@ -345,6 +339,13 @@ async function confirmarPagoModal() {
     }
     const metodoDb = metodoSeleccionadoModal === 'Credito' ? 'Credito Interno' : 'Puntos';
     pagos.push({ metodo: metodoDb, monto: total });
+  } else if (metodoSeleccionadoModal === 'Vale') {
+    const codigoVale = document.getElementById('valeCodigoModal').value.trim();
+    if (!codigoVale) {
+      alert('Ingresa el código del vale de devolución.');
+      return;
+    }
+    pagos.push({ metodo: 'Vale Devolucion', monto: total, vale_codigo: codigoVale });
   } else {
     pagos.push({ metodo: metodoSeleccionadoModal, monto: total });
   }

@@ -242,10 +242,12 @@ try {
     }
     $creditoUsado = 0;
     $puntosUsados = 0;
+    $stmtCanje = $pdo->prepare("INSERT INTO valescanjes (ValeID, VentaID, Monto) VALUES (:vale, :vid, :monto)");
 
     foreach ($pagosList as $pago) {
         $metodo = $pago['metodo'];
         $montoPago = (int)($pago['monto'] > 0 ? $pago['monto'] : $montoTotal);
+        $vale = null;
 
         if ($metodo === 'Credito' || $metodo === 'Fiado' || $metodo === 'Credito Interno') {
             $creditoUsado += $montoPago;
@@ -259,6 +261,20 @@ try {
             $puntosDisponibles = (int)($cliente['PuntosAcumulados'] ?? 0);
             if ($puntosUsados > $puntosDisponibles) {
                 throw new Exception("El cliente no tiene suficientes puntos acumulados (disponibles: $puntosDisponibles).");
+            }
+        } elseif ($metodo === 'Vale Devolucion') {
+            $codigoVale = trim($pago['vale_codigo'] ?? '');
+            if (empty($codigoVale)) {
+                throw new Exception("Debes ingresar el código del vale de devolución.");
+            }
+            $stmtVale = $pdo->prepare("SELECT ValeID, MontoDisponible, Estado FROM valesdevolucion WHERE CodigoVale = :codigo FOR UPDATE");
+            $stmtVale->execute([':codigo' => $codigoVale]);
+            $vale = $stmtVale->fetch();
+            if (!$vale || $vale['Estado'] !== 'Activo') {
+                throw new Exception("El vale '$codigoVale' no es válido, ya fue utilizado o no existe.");
+            }
+            if ($montoPago > (int)$vale['MontoDisponible']) {
+                throw new Exception("El vale '$codigoVale' solo tiene " . formatCLP($vale['MontoDisponible']) . " disponible.");
             }
         }
 
@@ -277,6 +293,24 @@ try {
                 $stmtPts = $pdo->prepare("UPDATE clientes SET PuntosAcumulados = GREATEST(0, COALESCE(PuntosAcumulados, 0) - :pts) WHERE ClienteID = :cid");
                 $stmtPts->execute([':pts' => $montoPago, ':cid' => $clienteID]);
             }
+        }
+
+        // Descontar el vale usado y dejar registro de en qué venta se canjeó
+        if ($metodo === 'Vale Devolucion' && $vale) {
+            $nuevoDisponible = (int)$vale['MontoDisponible'] - $montoPago;
+            $stmtUpdVale = $pdo->prepare("
+                UPDATE valesdevolucion SET MontoDisponible = :disp, Estado = :estado WHERE ValeID = :vale
+            ");
+            $stmtUpdVale->execute([
+                ':disp' => $nuevoDisponible,
+                ':estado' => $nuevoDisponible <= 0 ? 'Usado' : 'Activo',
+                ':vale' => $vale['ValeID']
+            ]);
+            $stmtCanje->execute([
+                ':vale' => $vale['ValeID'],
+                ':vid' => $ventaID,
+                ':monto' => $montoPago
+            ]);
         }
     }
 
