@@ -186,12 +186,21 @@ async function buscarBoletaDevolucion() {
       throw new Error('La boleta no registra ningún producto.');
     }
 
-    // Poblar select
+    if (data.detalles.every(i => i.disponible <= 0)) {
+      throw new Error('Esta boleta ya no tiene productos disponibles para devolver (todo fue devuelto anteriormente).');
+    }
+
+    // Poblar select. Los productos ya devueltos por completo se muestran deshabilitados,
+    // para que quede claro por qué no se pueden elegir en vez de dejarlo ambiguo.
     selectEl.innerHTML = data.detalles.map(i => `
-      <option value="${i.producto_id}" data-cant="${i.cantidad}" data-precio="${i.precio}">
-        ${i.nombre} (Comprado: ${i.cantidad} - Precio: $${new Intl.NumberFormat('es-CL').format(i.precio)})
+      <option value="${i.producto_id}" data-disponible="${i.disponible}" data-precio="${i.precio}" ${i.disponible <= 0 ? 'disabled' : ''}>
+        ${i.nombre} (Comprado: ${i.cantidad}${i.ya_devuelto > 0 ? `, ya devuelto: ${i.ya_devuelto}` : ''} - Disponible: ${i.disponible})
       </option>
     `).join('');
+
+    // Dejar seleccionado el primer producto que todavía tenga disponible, no el primero de la lista
+    const primeraOpcionDisponible = Array.from(selectEl.options).findIndex(o => !o.disabled);
+    if (primeraOpcionDisponible >= 0) selectEl.selectedIndex = primeraOpcionDisponible;
 
     hiddenVId.value = ventaId;
     formEl.style.display = 'flex';
@@ -208,9 +217,9 @@ function actualizarInfoProductoDev() {
   const option = select.options[select.selectedIndex];
   if (!option) return;
 
-  const maxCant = option.getAttribute('data-cant');
-  document.getElementById('devCantidadInput').max = maxCant;
-  document.getElementById('devCantidadInput').value = maxCant;
-  document.getElementById('devMaxCantLabel').textContent = `Máx. disponible: ${maxCant}`;
+  const disponible = option.getAttribute('data-disponible');
+  document.getElementById('devCantidadInput').max = disponible;
+  document.getElementById('devCantidadInput').value = disponible > 0 ? disponible : '';
+  document.getElementById('devMaxCantLabel').textContent = `Máx. disponible: ${disponible}`;
 }
 </script>

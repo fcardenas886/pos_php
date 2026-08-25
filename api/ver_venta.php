@@ -31,9 +31,15 @@ try {
         exit;
     }
 
-    // Obtener el detalle de los productos vendidos
+    // Obtener el detalle de los productos vendidos, junto con lo que ya se devolvió de cada uno
     $stmtD = $pdo->prepare("
-        SELECT dv.ProductoID, dv.Cantidad, dv.PrecioUnitario, dv.Descuento, dv.Subtotal, p.Nombre 
+        SELECT dv.ProductoID, dv.Cantidad, dv.PrecioUnitario, dv.Descuento, dv.Subtotal, p.Nombre,
+               COALESCE((
+                   SELECT SUM(dd.Cantidad)
+                   FROM detalledevoluciones dd
+                   JOIN devoluciones d ON dd.DevolucionID = d.DevolucionID
+                   WHERE d.VentaID = dv.VentaID AND dd.ProductoID = dv.ProductoID
+               ), 0) AS CantidadYaDevuelta
         FROM detalleventas dv
         JOIN productos p ON dv.ProductoID = p.ProductoID
         WHERE dv.VentaID = :id
@@ -53,10 +59,13 @@ try {
             'estado' => $venta['Estado']
         ],
         'detalles' => array_map(function($d) {
+            $disponible = max(0, (float)$d['Cantidad'] - (float)$d['CantidadYaDevuelta']);
             return [
                 'producto_id' => (int)$d['ProductoID'],
                 'nombre' => $d['Nombre'],
                 'cantidad' => (float)$d['Cantidad'],
+                'ya_devuelto' => (float)$d['CantidadYaDevuelta'],
+                'disponible' => $disponible,
                 'precio' => (int)$d['PrecioUnitario'],
                 'descuento' => (int)$d['Descuento'],
                 'subtotal' => (int)$d['Subtotal']
