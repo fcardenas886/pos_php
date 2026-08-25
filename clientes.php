@@ -72,17 +72,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ]);
                 }
 
-                // 3. Registrar en abonoscredito
+                // 3. Aplicar el abono a las ventas al fiado más antiguas primero (FIFO),
+                // para que el estado de cuenta sepa cuál venta quedó pagada y cuál no.
+                $stmtDeudas = $pdo->prepare("
+                    SELECT v.VentaID, pv.Monto AS MontoCredito,
+                           COALESCE((SELECT SUM(ac.Monto) FROM abonoscredito ac WHERE ac.VentaID = v.VentaID), 0) AS YaAbonado
+                    FROM ventas v
+                    JOIN pagosventa pv ON v.VentaID = pv.VentaID AND pv.MetodoPago = 'Credito Interno'
+                    WHERE v.ClienteID = :cid AND v.Estado = 'Completada'
+                    ORDER BY v.VentaID ASC
+                    FOR UPDATE
+                ");
+                $stmtDeudas->execute([':cid' => $clienteID]);
+                $deudas = $stmtDeudas->fetchAll();
+
                 $stmtAbono = $pdo->prepare("
                     INSERT INTO abonoscredito (ClienteID, FechaAbono, Monto, MetodoPago, TurnoID, VentaID)
-                    VALUES (:cid, NOW(), :monto, :metodo, :tid, NULL)
+                    VALUES (:cid, NOW(), :monto, :metodo, :tid, :vid)
                 ");
-                $stmtAbono->execute([
-                    ':cid' => $clienteID,
-                    ':monto' => $montoAbono,
-                    ':metodo' => $metodoPago,
-                    ':tid' => $turnoID
-                ]);
+
+                $restante = $montoAbono;
+                foreach ($deudas as $d) {
+                    if ($restante <= 0) break;
+                    $pendiente = (int)$d['MontoCredito'] - (int)$d['YaAbonado'];
+                    if ($pendiente <= 0) continue;
+                    $aplicar = min($pendiente, $restante);
+                    $stmtAbono->execute([
+                        ':cid' => $clienteID, ':monto' => $aplicar, ':metodo' => $metodoPago,
+                        ':tid' => $turnoID, ':vid' => $d['VentaID']
+                    ]);
+                    $restante -= $aplicar;
+                }
+
+                // Si sobra abono sin deuda por venta que lo explique (ej. anticipo, o
+                // desfase con el saldo global historico), se registra sin venta asociada.
+                if ($restante > 0) {
+                    $stmtAbono->execute([
+                        ':cid' => $clienteID, ':monto' => $restante, ':metodo' => $metodoPago,
+                        ':tid' => $turnoID, ':vid' => null
+                    ]);
+                }
 
                 $pdo->commit();
                 $message = "Abono de " . formatCLP($montoAbono) . " registrado correctamente al saldo del cliente.";

@@ -187,19 +187,21 @@
         <th>N° Abono</th>
         <th>Fecha y Hora</th>
         <th>Cliente</th>
+        <th>Aplicado a</th>
         <th>Método de Pago</th>
         <th>Monto Abonado</th>
       </tr>
     </thead>
     <tbody>
       <?php if (empty($abonos)): ?>
-        <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay abonos registrados en el sistema.</td></tr>
+        <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay abonos registrados en el sistema.</td></tr>
       <?php else: ?>
         <?php foreach ($abonos as $ab): ?>
           <tr>
             <td>#<?= $ab['AbonoID'] ?></td>
             <td><?= date('d/m/Y H:i:s', strtotime($ab['FechaAbono'])) ?></td>
             <td style="font-weight: 600; color: #fff;"><?= htmlspecialchars($ab['ClienteNombre']) ?></td>
+            <td><?= $ab['VentaID'] ? 'Venta #' . $ab['VentaID'] : '<span style="color: var(--text-muted);">General</span>' ?></td>
             <td><span class="badge badge-success"><?= htmlspecialchars($ab['MetodoPago']) ?></span></td>
             <td style="font-weight: 700; color: var(--success);"><?= formatCLP($ab['Monto']) ?></td>
           </tr>
@@ -226,30 +228,33 @@ async function verCuentaCliente(id) {
     document.getElementById('cuentaSaldoDeudor').textContent = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.cliente.saldo_deudor);
     document.getElementById('cuentaLimiteCredito').textContent = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.cliente.limite_credito);
 
-    // Poblar deudas
+    // Poblar deudas, con el estado real de cada venta (Pagado / Parcial / Pendiente)
     const tbodyDeudas = document.getElementById('cuentaTablaDeudas');
     if (data.deudas.length === 0) {
-      tbodyDeudas.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No registra deudas (ventas al fiado).</td></tr>`;
+      tbodyDeudas.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1rem;">No registra deudas (ventas al fiado).</td></tr>`;
     } else {
+      const badgeEstado = { 'Pagado': 'badge-success', 'Parcial': 'badge-warning', 'Pendiente': 'badge-danger' };
       tbodyDeudas.innerHTML = data.deudas.map(d => `
         <tr>
           <td><strong>#${d.venta_id}</strong></td>
           <td>${d.fecha}</td>
-          <td style="font-weight: 700; color: #fff;">$${new Intl.NumberFormat('es-CL').format(d.total)}</td>
-          <td style="font-weight: 700; color: var(--danger);">$${new Intl.NumberFormat('es-CL').format(d.credito)}</td>
+          <td style="font-weight: 700; color: #fff;">$${new Intl.NumberFormat('es-CL').format(d.credito)}</td>
+          <td style="font-weight: 700; color: var(--danger);">$${new Intl.NumberFormat('es-CL').format(d.pendiente)}</td>
+          <td><span class="badge ${badgeEstado[d.estado]}">${d.estado}</span></td>
         </tr>
       `).join('');
     }
 
-    // Poblar abonos
+    // Poblar abonos, con la venta a la que quedaron aplicados
     const tbodyAbonos = document.getElementById('cuentaTablaAbonos');
     if (data.abonos.length === 0) {
-      tbodyAbonos.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No registra abonos de pago.</td></tr>`;
+      tbodyAbonos.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1rem;">No registra abonos de pago.</td></tr>`;
     } else {
       tbodyAbonos.innerHTML = data.abonos.map(a => `
         <tr>
           <td>#${a.abono_id}</td>
           <td>${a.fecha}</td>
+          <td>${a.venta_id ? `Venta #${a.venta_id}` : `<span style="color: var(--text-muted);">General</span>`}</td>
           <td><span class="badge badge-success">${a.metodo}</span></td>
           <td style="font-weight: 700; color: var(--success);">$${new Intl.NumberFormat('es-CL').format(a.monto)}</td>
         </tr>
@@ -295,8 +300,9 @@ function cerrarCuentaModal() {
           <tr>
             <th>N° Venta</th>
             <th>Fecha</th>
-            <th>Total Venta</th>
             <th>Monto al Fiado</th>
+            <th>Saldo Pendiente</th>
+            <th>Estado</th>
           </tr>
         </thead>
         <tbody id="cuentaTablaDeudas">
@@ -312,6 +318,7 @@ function cerrarCuentaModal() {
           <tr>
             <th>N° Abono</th>
             <th>Fecha</th>
+            <th>Aplicado a</th>
             <th>Método Pago</th>
             <th>Monto Abonado</th>
           </tr>

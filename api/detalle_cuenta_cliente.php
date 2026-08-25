@@ -27,9 +27,10 @@ try {
         exit;
     }
 
-    // Obtener historial de deudas (ventas al fiado)
+    // Obtener historial de deudas (ventas al fiado), con lo ya abonado a cada una
     $stmtDeudas = $pdo->prepare("
-        SELECT v.VentaID, v.FechaVenta, v.MontoTotal, pv.Monto AS MontoCredito
+        SELECT v.VentaID, v.FechaVenta, v.MontoTotal, pv.Monto AS MontoCredito,
+               COALESCE((SELECT SUM(ac.Monto) FROM abonoscredito ac WHERE ac.VentaID = v.VentaID), 0) AS Abonado
         FROM ventas v
         JOIN pagosventa pv ON v.VentaID = pv.VentaID
         WHERE v.ClienteID = :cid AND pv.MetodoPago = 'Credito Interno' AND v.Estado = 'Completada'
@@ -38,9 +39,9 @@ try {
     $stmtDeudas->execute([':cid' => $id]);
     $deudas = $stmtDeudas->fetchAll();
 
-    // Obtener historial de abonos
+    // Obtener historial de abonos, con la venta a la que quedaron aplicados (si corresponde)
     $stmtAbonos = $pdo->prepare("
-        SELECT AbonoID, FechaAbono, Monto, MetodoPago
+        SELECT AbonoID, FechaAbono, Monto, MetodoPago, VentaID
         FROM abonoscredito
         WHERE ClienteID = :cid
         ORDER BY AbonoID DESC
@@ -56,11 +57,16 @@ try {
             'limite_credito' => (int)$cliente['LimiteCredito']
         ],
         'deudas' => array_map(function($d) {
+            $pendiente = max(0, (int)$d['MontoCredito'] - (int)$d['Abonado']);
+            $estado = $pendiente <= 0 ? 'Pagado' : (((int)$d['Abonado'] > 0) ? 'Parcial' : 'Pendiente');
             return [
                 'venta_id' => $d['VentaID'],
                 'fecha' => date('d/m/Y H:i', strtotime($d['FechaVenta'])),
                 'total' => (int)$d['MontoTotal'],
-                'credito' => (int)$d['MontoCredito']
+                'credito' => (int)$d['MontoCredito'],
+                'abonado' => (int)$d['Abonado'],
+                'pendiente' => $pendiente,
+                'estado' => $estado
             ];
         }, $deudas),
         'abonos' => array_map(function($a) {
@@ -68,7 +74,8 @@ try {
                 'abono_id' => $a['AbonoID'],
                 'fecha' => date('d/m/Y H:i', strtotime($a['FechaAbono'])),
                 'monto' => (int)$a['Monto'],
-                'metodo' => $a['MetodoPago']
+                'metodo' => $a['MetodoPago'],
+                'venta_id' => $a['VentaID']
             ];
         }, $abonos)
     ]);
