@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($nombre) && !empty($username) && !empty($pass)) {
         try {
             $stmt = $pdo->prepare("
-                INSERT INTO Usuarios (Nombre, RutCuerpo, RutDv, NombreUsuario, PasswordHash, RolID, Activo)
+                INSERT INTO usuarios (Nombre, RutCuerpo, RutDv, NombreUsuario, PasswordHash, RolID, Activo)
                 VALUES (:nombre, 11111111, '1', :username, :pass, :rol, TRUE)
             ");
             $stmt->execute([
@@ -36,12 +36,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $usuarios = $pdo->query("
     SELECT u.*, r.Nombre AS Rol 
-    FROM Usuarios u 
-    JOIN Roles r ON u.RolID = r.RolID 
+    FROM usuarios u 
+    JOIN roles r ON u.RolID = r.RolID 
     ORDER BY u.Nombre ASC
 ")->fetchAll();
 
-$roles = $pdo->query("SELECT * FROM Roles ORDER BY RolID ASC")->fetchAll();
+$roles = $pdo->query("SELECT * FROM roles ORDER BY RolID ASC")->fetchAll();
 
 include __DIR__ . '/views/usuarios.view.php';
 require_once __DIR__ . '/includes/footer.php';

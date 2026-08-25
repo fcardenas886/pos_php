@@ -27,9 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Historial de Cierres Z
 $stmtReportesZ = $pdo->query("
     SELECT z.*, u.Nombre AS Usuario, c.Nombre AS CajaName
-    FROM ReportesZ z
-    JOIN Usuarios u ON z.UsuarioID = u.UsuarioID
-    JOIN Cajas c ON z.CajaID = c.CajaID
+    FROM reportesz z
+    JOIN usuarios u ON z.UsuarioID = u.UsuarioID
+    JOIN cajas c ON z.CajaID = c.CajaID
     ORDER BY z.ReporteZID DESC LIMIT 20
 ");
 $cierresZ = $stmtReportesZ->fetchAll();

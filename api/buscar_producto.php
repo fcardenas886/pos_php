@@ -17,8 +17,8 @@ try {
         $stmt = $pdo->query("
             SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.Stock, p.StockMinimo, p.UnidadMedida,
                    pr.PromocionID, pr.Tipo AS PromoTipo, pr.CantidadMinima AS PromoCantMin, pr.DescuentoPorcentaje AS PromoDescPorc, pr.PrecioOferta AS PromoPrecioOf
-            FROM Productos p
-            LEFT JOIN Promociones pr ON p.ProductoID = pr.ProductoID AND pr.Activa = TRUE AND pr.FechaInicio <= NOW() AND pr.FechaFin >= NOW()
+            FROM productos p
+            LEFT JOIN promociones pr ON p.ProductoID = pr.ProductoID AND pr.Activa = TRUE AND pr.FechaInicio <= NOW() AND pr.FechaFin >= NOW()
             WHERE p.Activo = TRUE 
             ORDER BY p.Nombre ASC 
             LIMIT 30
@@ -28,8 +28,8 @@ try {
         $stmt = $pdo->prepare("
             SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.Stock, p.StockMinimo, p.UnidadMedida,
                    pr.PromocionID, pr.Tipo AS PromoTipo, pr.CantidadMinima AS PromoCantMin, pr.DescuentoPorcentaje AS PromoDescPorc, pr.PrecioOferta AS PromoPrecioOf
-            FROM Productos p
-            LEFT JOIN Promociones pr ON p.ProductoID = pr.ProductoID AND pr.Activa = TRUE AND pr.FechaInicio <= NOW() AND pr.FechaFin >= NOW()
+            FROM productos p
+            LEFT JOIN promociones pr ON p.ProductoID = pr.ProductoID AND pr.Activa = TRUE AND pr.FechaInicio <= NOW() AND pr.FechaFin >= NOW()
             WHERE p.Activo = TRUE AND (p.CodigoBarras = :q1 OR p.Nombre LIKE :like_q)
             ORDER BY (p.CodigoBarras = :q2) DESC, p.Nombre ASC 
             LIMIT 30

@@ -21,7 +21,7 @@ try {
     $pdo = getDB();
     $pdo->beginTransaction();
 
-    $stmtUpd = $pdo->prepare("UPDATE Productos SET PrecioVenta = :precio WHERE ProductoID = :pid");
+    $stmtUpd = $pdo->prepare("UPDATE productos SET PrecioVenta = :precio WHERE ProductoID = :pid");
 
     foreach ($input['precios'] as $item) {
         $pid = (int)$item['producto_id'];

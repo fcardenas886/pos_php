@@ -39,7 +39,7 @@ try {
         }
 
         // Obtener datos actuales del producto para validar y retornar
-        $stmtP = $pdo->prepare("SELECT ProductoID, Nombre, PrecioVenta, Stock FROM Productos WHERE ProductoID = :pid FOR UPDATE");
+        $stmtP = $pdo->prepare("SELECT ProductoID, Nombre, PrecioVenta, Stock FROM productos WHERE ProductoID = :pid FOR UPDATE");
         $stmtP->execute([':pid' => $pid]);
         $prod = $stmtP->fetch();
 
@@ -63,7 +63,7 @@ try {
 
     // 2. Insertar cabecera de Compra
     $stmtC = $pdo->prepare("
-        INSERT INTO Compras (ProveedorID, UsuarioID, NumeroDocumento, MontoNeto, MontoIva, MontoTotal, Estado)
+        INSERT INTO compras (ProveedorID, UsuarioID, NumeroDocumento, MontoNeto, MontoIva, MontoTotal, Estado)
         VALUES (:prov, :uid, :numdoc, :neto, :iva, :total, 'Completada')
     ");
     $stmtC->execute([
@@ -78,16 +78,16 @@ try {
 
     // 3. Registrar detalles de compra, actualizar stock, actualizar costo y registrar Kardex
     $stmtDC = $pdo->prepare("
-        INSERT INTO DetalleCompras (CompraID, ProductoID, Cantidad, CostoUnitario, Subtotal)
+        INSERT INTO detallecompras (CompraID, ProductoID, Cantidad, CostoUnitario, Subtotal)
         VALUES (:cid, :pid, :cant, :costo, :subtotal)
     ");
 
     $stmtUpdStock = $pdo->prepare("
-        UPDATE Productos SET Stock = Stock + :cant, CostoCompra = :costo WHERE ProductoID = :pid
+        UPDATE productos SET Stock = Stock + :cant, CostoCompra = :costo WHERE ProductoID = :pid
     ");
 
     $stmtKardex = $pdo->prepare("
-        INSERT INTO Kardex (ProductoID, TipoTransaccion, CompraID, CantidadEntrada, StockSaldo, ValorUnitario)
+        INSERT INTO kardex (ProductoID, TipoTransaccion, CompraID, CantidadEntrada, StockSaldo, ValorUnitario)
         VALUES (:pid, 'COMPRA', :cid, :cant, :saldo, :val)
     ");
 

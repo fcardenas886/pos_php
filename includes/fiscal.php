@@ -4,17 +4,17 @@
 // llamarla dentro de una transacción ya abierta (usa FOR UPDATE para
 // serializar cierres concurrentes de la misma caja).
 function generarCierreZ(PDO $pdo, int $cajaID, int $usuarioID): array {
-    $stmtLock = $pdo->prepare("SELECT CajaID FROM Cajas WHERE CajaID = :caja FOR UPDATE");
+    $stmtLock = $pdo->prepare("SELECT CajaID FROM cajas WHERE CajaID = :caja FOR UPDATE");
     $stmtLock->execute([':caja' => $cajaID]);
     if (!$stmtLock->fetch()) {
         throw new Exception("La caja #$cajaID no existe.");
     }
 
-    $stmtZ = $pdo->prepare("SELECT COALESCE(MAX(NumeroZ), 0) + 1 FROM ReportesZ WHERE CajaID = :caja");
+    $stmtZ = $pdo->prepare("SELECT COALESCE(MAX(NumeroZ), 0) + 1 FROM reportesz WHERE CajaID = :caja");
     $stmtZ->execute([':caja' => $cajaID]);
     $nextZ = (int)$stmtZ->fetchColumn();
 
-    $stmtLastZ = $pdo->prepare("SELECT FechaEmision FROM ReportesZ WHERE CajaID = :caja ORDER BY ReporteZID DESC LIMIT 1");
+    $stmtLastZ = $pdo->prepare("SELECT FechaEmision FROM reportesz WHERE CajaID = :caja ORDER BY ReporteZID DESC LIMIT 1");
     $stmtLastZ->execute([':caja' => $cajaID]);
     $fechaInicio = $stmtLastZ->fetchColumn() ?: date('Y-m-d 00:00:00');
 
@@ -30,15 +30,15 @@ function generarCierreZ(PDO $pdo, int $cajaID, int $usuarioID): array {
             MAX(CASE WHEN v.TipoDocumento = 'Boleta' THEN v.Folio END) AS UltimoFolioB,
             MIN(CASE WHEN v.TipoDocumento = 'Factura' THEN v.Folio END) AS PrimerFolioF,
             MAX(CASE WHEN v.TipoDocumento = 'Factura' THEN v.Folio END) AS UltimoFolioF
-        FROM Ventas v
-        JOIN Turnos t ON v.TurnoID = t.TurnoID
+        FROM ventas v
+        JOIN turnos t ON v.TurnoID = t.TurnoID
         WHERE v.ReporteZID IS NULL AND v.Estado = 'Completada' AND t.CajaID = :caja
     ");
     $stmtTot->execute([':caja' => $cajaID]);
     $tot = $stmtTot->fetch();
 
     $stmtInsZ = $pdo->prepare("
-        INSERT INTO ReportesZ (
+        INSERT INTO reportesz (
             CajaID, NumeroZ, UsuarioID, FechaInicio, MontoNeto, MontoIva, MontoExento, MontoTotal,
             CantidadBoletas, CantidadFacturas, PrimerFolioBoleta, UltimoFolioBoleta, PrimerFolioFactura, UltimoFolioFactura
         ) VALUES (
@@ -65,8 +65,8 @@ function generarCierreZ(PDO $pdo, int $cajaID, int $usuarioID): array {
     $reporteZID = $pdo->lastInsertId();
 
     $stmtUpdV = $pdo->prepare("
-        UPDATE Ventas v
-        JOIN Turnos t ON v.TurnoID = t.TurnoID
+        UPDATE ventas v
+        JOIN turnos t ON v.TurnoID = t.TurnoID
         SET v.ReporteZID = :zid
         WHERE v.ReporteZID IS NULL AND v.Estado = 'Completada' AND t.CajaID = :caja
     ");

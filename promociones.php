@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $finFormatted = date('Y-m-d 23:59:59', strtotime($fechaFin));
 
             $stmt = $pdo->prepare("
-                INSERT INTO Promociones (ProductoID, Tipo, CantidadMinima, DescuentoPorcentaje, PrecioOferta, FechaInicio, FechaFin, Activa)
+                INSERT INTO promociones (ProductoID, Tipo, CantidadMinima, DescuentoPorcentaje, PrecioOferta, FechaInicio, FechaFin, Activa)
                 VALUES (:pid, :tipo, :cant_min, :desc_porc, :precio_of, :inicio, :fin, TRUE)
             ");
             $stmt->execute([
@@ -57,8 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 try {
     $stmtPromo = $pdo->query("
         SELECT pr.*, p.Nombre AS ProductoName, p.PrecioVenta 
-        FROM Promociones pr
-        JOIN Productos p ON pr.ProductoID = p.ProductoID
+        FROM promociones pr
+        JOIN productos p ON pr.ProductoID = p.ProductoID
         ORDER BY pr.PromocionID DESC
     ");
     $promociones = $stmtPromo->fetchAll();
@@ -66,7 +66,7 @@ try {
     $promociones = [];
 }
 
-$productosList = $pdo->query("SELECT ProductoID, Nombre, PrecioVenta FROM Productos WHERE Activo = TRUE ORDER BY Nombre ASC")->fetchAll();
+$productosList = $pdo->query("SELECT ProductoID, Nombre, PrecioVenta FROM productos WHERE Activo = TRUE ORDER BY Nombre ASC")->fetchAll();
 
 include __DIR__ . '/views/promociones.view.php';
 require_once __DIR__ . '/includes/footer.php';

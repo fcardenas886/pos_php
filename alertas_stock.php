@@ -9,10 +9,10 @@ $stmt = $pdo->query("
            COALESCE(SUM(CASE WHEN v.FechaVenta >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY) THEN dv.Cantidad ELSE 0 END), 0) AS Ventas7Dias,
            COALESCE(SUM(CASE WHEN v.FechaVenta >= DATE_SUB(CURRENT_DATE(), INTERVAL 15 DAY) THEN dv.Cantidad ELSE 0 END), 0) AS Ventas15Dias,
            COALESCE(SUM(CASE WHEN v.FechaVenta >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) THEN dv.Cantidad ELSE 0 END), 0) AS Ventas30Dias
-    FROM Productos p
-    LEFT JOIN Categorias c ON p.CategoriaID = c.CategoriaID
-    LEFT JOIN DetalleVentas dv ON p.ProductoID = dv.ProductoID
-    LEFT JOIN Ventas v ON dv.VentaID = v.VentaID AND v.Estado = 'Completada'
+    FROM productos p
+    LEFT JOIN categorias c ON p.CategoriaID = c.CategoriaID
+    LEFT JOIN detalleventas dv ON p.ProductoID = dv.ProductoID
+    LEFT JOIN ventas v ON dv.VentaID = v.VentaID AND v.Estado = 'Completada'
     WHERE p.Activo = TRUE AND p.Stock <= p.StockMinimo
     GROUP BY p.ProductoID
     ORDER BY p.Stock ASC

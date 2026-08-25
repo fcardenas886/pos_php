@@ -20,8 +20,8 @@ try {
         if ($esSupervisor) {
             $stmt = $pdo->query("
                 SELECT c.*, u.Nombre AS Usuario
-                FROM Cotizaciones c
-                JOIN Usuarios u ON c.UsuarioID = u.UsuarioID
+                FROM cotizaciones c
+                JOIN usuarios u ON c.UsuarioID = u.UsuarioID
                 WHERE c.Estado = 'Pendiente'
                 ORDER BY c.CotizacionID DESC
             ");
@@ -29,8 +29,8 @@ try {
         } else {
             $stmt = $pdo->prepare("
                 SELECT c.*, u.Nombre AS Usuario
-                FROM Cotizaciones c
-                JOIN Usuarios u ON c.UsuarioID = u.UsuarioID
+                FROM cotizaciones c
+                JOIN usuarios u ON c.UsuarioID = u.UsuarioID
                 WHERE c.Estado = 'Pendiente' AND c.UsuarioID = :uid
                 ORDER BY c.CotizacionID DESC
             ");
@@ -43,7 +43,7 @@ try {
 
     if ($action === 'get') {
         $id = (int)($_GET['id'] ?? 0);
-        $stmt = $pdo->prepare("SELECT * FROM Cotizaciones WHERE CotizacionID = :id");
+        $stmt = $pdo->prepare("SELECT * FROM cotizaciones WHERE CotizacionID = :id");
         $stmt->execute([':id' => $id]);
         $cotizacion = $stmt->fetch();
 
@@ -58,13 +58,15 @@ try {
         }
 
         // Marcar cotización como restaurada en la DB
-        $stmtUpd = $pdo->prepare("UPDATE Cotizaciones SET Estado = 'Restaurada' WHERE CotizacionID = :id");
+        $stmtUpd = $pdo->prepare("UPDATE cotizaciones SET Estado = 'Restaurada' WHERE CotizacionID = :id");
         $stmtUpd->execute([':id' => $id]);
 
         $stmtD = $pdo->prepare("
-            SELECT cd.*, p.Nombre, p.CodigoBarras, p.Stock 
-            FROM CotizacionesDetalle cd
-            JOIN Productos p ON cd.ProductoID = p.ProductoID
+            SELECT cd.*, p.Nombre, p.CodigoBarras, p.Stock,
+                   pr.PromocionID, pr.Tipo AS PromoTipo, pr.CantidadMinima AS PromoCantMin, pr.DescuentoPorcentaje AS PromoDescPorc, pr.PrecioOferta AS PromoPrecioOf
+            FROM cotizacionesdetalle cd
+            JOIN productos p ON cd.ProductoID = p.ProductoID
+            LEFT JOIN Promociones pr ON p.ProductoID = pr.ProductoID AND pr.Activa = TRUE AND pr.FechaInicio <= NOW() AND pr.FechaFin >= NOW()
             WHERE cd.CotizacionID = :id
         ");
         $stmtD->execute([':id' => $id]);
@@ -88,7 +90,7 @@ try {
         $pdo->beginTransaction();
 
         $stmtC = $pdo->prepare("
-            INSERT INTO Cotizaciones (UsuarioID, ClienteNombre, MontoTotal, Estado)
+            INSERT INTO cotizaciones (UsuarioID, ClienteNombre, MontoTotal, Estado)
             VALUES (:uid, :cnombre, :total, 'Pendiente')
         ");
         $stmtC->execute([
@@ -99,7 +101,7 @@ try {
         $cotizacionID = $pdo->lastInsertId();
 
         $stmtD = $pdo->prepare("
-            INSERT INTO CotizacionesDetalle (CotizacionID, ProductoID, Cantidad, PrecioUnitario, Subtotal)
+            INSERT INTO cotizacionesdetalle (CotizacionID, ProductoID, Cantidad, PrecioUnitario, Subtotal)
             VALUES (:cid, :pid, :cant, :precio, :subtotal)
         ");
 

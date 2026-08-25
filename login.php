@@ -25,8 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo = getDB();
                 $stmt = $pdo->prepare("
                     SELECT u.UsuarioID, u.Nombre, u.NombreUsuario, u.PasswordHash, u.Activo, r.Nombre AS Rol
-                    FROM Usuarios u
-                    JOIN Roles r ON u.RolID = r.RolID
+                    FROM usuarios u
+                    JOIN roles r ON u.RolID = r.RolID
                     WHERE u.NombreUsuario = :user
                     LIMIT 1
                 ");

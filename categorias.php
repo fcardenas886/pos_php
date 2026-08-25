@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!empty($nombre)) {
         try {
-            $stmt = $pdo->prepare("INSERT INTO Categorias (Nombre, Descripcion) VALUES (:nombre, :desc)");
+            $stmt = $pdo->prepare("INSERT INTO categorias (Nombre, Descripcion) VALUES (:nombre, :desc)");
             $stmt->execute([':nombre' => $nombre, ':desc' => $descripcion]);
             $message = 'Categoría creada exitosamente.';
         } catch (Exception $e) {
@@ -23,8 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $categorias = $pdo->query("
-    SELECT c.*, (SELECT COUNT(*) FROM Productos p WHERE p.CategoriaID = c.CategoriaID AND p.Activo = TRUE) AS TotalProductos
-    FROM Categorias c ORDER BY c.Nombre ASC
+    SELECT c.*, (SELECT COUNT(*) FROM productos p WHERE p.CategoriaID = c.CategoriaID AND p.Activo = TRUE) AS TotalProductos
+    FROM categorias c ORDER BY c.Nombre ASC
 ")->fetchAll();
 
 include __DIR__ . '/views/categorias.view.php';

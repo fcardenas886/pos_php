@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'save_config') {
         try {
-            $stmt = $pdo->prepare("INSERT INTO Configuraciones (Clave, Valor) VALUES (:clave, :valor) ON DUPLICATE KEY UPDATE Valor = VALUES(Valor)");
+            $stmt = $pdo->prepare("INSERT INTO configuraciones (Clave, Valor) VALUES (:clave, :valor) ON DUPLICATE KEY UPDATE Valor = VALUES(Valor)");
             
             foreach ($_POST['config'] as $clave => $valor) {
                 $stmt->execute([':clave' => $clave, ':valor' => trim($valor)]);
@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!empty($nombreEquipo)) {
             try {
-                $stmt = $pdo->prepare("INSERT INTO TerminalesCaja (NombreEquipo, CajaID, Activo) VALUES (:equipo, :caja, TRUE)");
+                $stmt = $pdo->prepare("INSERT INTO terminalescaja (NombreEquipo, CajaID, Activo) VALUES (:equipo, :caja, TRUE)");
                 $stmt->execute([':equipo' => $nombreEquipo, ':caja' => $cajaID]);
                 $message = "Terminal '$nombreEquipo' vinculada a la Caja #$cajaID correctamente.";
             } catch (Exception $e) {
@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'delete_terminal') {
         $termID = (int)($_POST['terminal_id'] ?? 0);
         try {
-            $stmt = $pdo->prepare("DELETE FROM TerminalesCaja WHERE TerminalID = :tid");
+            $stmt = $pdo->prepare("DELETE FROM terminalescaja WHERE TerminalID = :tid");
             $stmt->execute([':tid' => $termID]);
             $message = 'Terminal desvinculada correctamente.';
         } catch (Exception $e) {
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Cargar todas las configuraciones existentes
-$rows = $pdo->query("SELECT Clave, Valor FROM Configuraciones")->fetchAll();
+$rows = $pdo->query("SELECT Clave, Valor FROM configuraciones")->fetchAll();
 $config = [];
 foreach ($rows as $r) {
     $config[$r['Clave']] = $r['Valor'];
@@ -57,12 +57,12 @@ foreach ($rows as $r) {
 // Cargar Terminales y Cajas
 $terminales = $pdo->query("
     SELECT t.*, c.Nombre AS CajaName 
-    FROM TerminalesCaja t 
-    JOIN Cajas c ON t.CajaID = c.CajaID 
+    FROM terminalescaja t 
+    JOIN cajas c ON t.CajaID = c.CajaID 
     ORDER BY t.TerminalID DESC
 ")->fetchAll();
 
-$cajas = $pdo->query("SELECT * FROM Cajas WHERE Activa = TRUE ORDER BY CajaID ASC")->fetchAll();
+$cajas = $pdo->query("SELECT * FROM cajas WHERE Activa = TRUE ORDER BY CajaID ASC")->fetchAll();
 
 include __DIR__ . '/views/configuracion.view.php';
 require_once __DIR__ . '/includes/footer.php';

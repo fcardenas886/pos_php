@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($razonSocial) && $rutCuerpo > 0) {
         try {
             $stmt = $pdo->prepare("
-                INSERT INTO Proveedores (RutCuerpo, RutDv, RazonSocial, Giro, Telefono, Email)
+                INSERT INTO proveedores (RutCuerpo, RutDv, RazonSocial, Giro, Telefono, Email)
                 VALUES (:rut, :dv, :razon, :giro, :tel, :email)
             ");
             $stmt->execute([
@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$proveedores = $pdo->query("SELECT * FROM Proveedores WHERE Activo = TRUE ORDER BY RazonSocial ASC")->fetchAll();
+$proveedores = $pdo->query("SELECT * FROM proveedores WHERE Activo = TRUE ORDER BY RazonSocial ASC")->fetchAll();
 
 include __DIR__ . '/views/proveedores.view.php';
 require_once __DIR__ . '/includes/footer.php';

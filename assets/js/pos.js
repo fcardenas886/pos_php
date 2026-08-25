@@ -460,7 +460,12 @@ async function cargarCotizacion(id) {
       Nombre: d.Nombre,
       PrecioVenta: parseInt(d.PrecioUnitario),
       Stock: parseFloat(d.Stock),
-      cantidad: parseFloat(d.Cantidad)
+      cantidad: parseFloat(d.Cantidad),
+      PromocionID: d.PromocionID || null,
+      PromoTipo: d.PromoTipo || null,
+      PromoCantMin: parseFloat(d.PromoCantMin) || 0,
+      PromoDescPorc: parseFloat(d.PromoDescPorc) || 0,
+      PromoPrecioOf: parseInt(d.PromoPrecioOf) || 0
     }));
 
     renderCart();

@@ -37,7 +37,7 @@ try {
     // 1. Verificar existencia del turno
     $stmtT = $pdo->prepare("
         SELECT TurnoID, MontoApertura, Estado, MontoCierreEfectivo, MontoCierreTarjeta, MontoCierreTransferencia
-        FROM Turnos WHERE TurnoID = :tid FOR UPDATE
+        FROM turnos WHERE TurnoID = :tid FOR UPDATE
     ");
     $stmtT->execute([':tid' => $turnoID]);
     $turno = $stmtT->fetch();
@@ -53,7 +53,7 @@ try {
         $concepto = trim($nuevoMov['concepto']);
 
         $stmtInsMov = $pdo->prepare("
-            INSERT INTO MovimientosCaja (TurnoID, TipoMovimiento, Monto, Descripcion)
+            INSERT INTO movimientoscaja (TurnoID, TipoMovimiento, Monto, Descripcion)
             VALUES (:tid, :tipo, :monto, :desc)
         ");
         $stmtInsMov->execute([
@@ -71,8 +71,8 @@ try {
             COALESCE(SUM(CASE WHEN p.MetodoPago = 'Efectivo' THEN p.Monto ELSE 0 END), 0) AS total_efectivo,
             COALESCE(SUM(CASE WHEN p.MetodoPago IN ('Tarjeta Debito', 'Tarjeta Credito') THEN p.Monto ELSE 0 END), 0) AS total_tarjeta,
             COALESCE(SUM(CASE WHEN p.MetodoPago = 'Transferencia' THEN p.Monto ELSE 0 END), 0) AS total_transferencia
-        FROM Ventas v
-        JOIN PagosVenta p ON v.VentaID = p.VentaID
+        FROM ventas v
+        JOIN pagosventa p ON v.VentaID = p.VentaID
         WHERE v.TurnoID = :tid AND v.Estado = 'Completada'
     ");
     $stmtVentas->execute([':tid' => $turnoID]);
@@ -83,7 +83,7 @@ try {
         SELECT 
             COALESCE(SUM(CASE WHEN TipoMovimiento = 'INGRESO' THEN Monto ELSE 0 END), 0) AS total_ingresos,
             COALESCE(SUM(CASE WHEN TipoMovimiento = 'RETIRO' THEN Monto ELSE 0 END), 0) AS total_retiros
-        FROM MovimientosCaja
+        FROM movimientoscaja
         WHERE TurnoID = :tid
     ");
     $stmtMovs->execute([':tid' => $turnoID]);
@@ -96,7 +96,7 @@ try {
 
     // 4. Actualizar Turno con nuevos datos de auditoría
     $stmtUpd = $pdo->prepare("
-        UPDATE Turnos SET 
+        UPDATE turnos SET 
             MontoCierreEfectivo = :efec,
             MontoCierreTarjeta = :tarj,
             MontoCierreTransferencia = :trans,
@@ -121,7 +121,7 @@ try {
             'transferencia' => ['antes' => (int)$turno['MontoCierreTransferencia'], 'despues' => $transferenciaReal],
         ], JSON_UNESCAPED_UNICODE);
         $stmtAud = $pdo->prepare("
-            INSERT INTO AuditoriaEventos (UsuarioID, TipoEvento, Descripcion)
+            INSERT INTO auditoriaeventos (UsuarioID, TipoEvento, Descripcion)
             VALUES (:uid, 'AUDITORIA_TURNO', :desc)
         ");
         $stmtAud->execute([

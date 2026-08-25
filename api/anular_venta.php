@@ -27,8 +27,8 @@ try {
         }
 
         $stmtSup = $pdo->prepare("
-            SELECT u.UsuarioID, u.PasswordHash FROM Usuarios u
-            JOIN Roles r ON u.RolID = r.RolID
+            SELECT u.UsuarioID, u.PasswordHash FROM usuarios u
+            JOIN roles r ON u.RolID = r.RolID
             WHERE r.Nombre IN ('Administrador', 'Supervisor') AND u.Activo = TRUE
         ");
         $stmtSup->execute();
@@ -49,7 +49,7 @@ try {
     }
 
     // Verificar venta
-    $stmtV = $pdo->prepare("SELECT * FROM Ventas WHERE VentaID = :vid FOR UPDATE");
+    $stmtV = $pdo->prepare("SELECT * FROM ventas WHERE VentaID = :vid FOR UPDATE");
     $stmtV->execute([':vid' => $ventaID]);
     $venta = $stmtV->fetch();
 
@@ -64,18 +64,18 @@ try {
     $pdo->beginTransaction();
 
     // 1. Cambiar estado de la venta
-    $stmtUpdV = $pdo->prepare("UPDATE Ventas SET Estado = 'Anulada' WHERE VentaID = :vid");
+    $stmtUpdV = $pdo->prepare("UPDATE ventas SET Estado = 'Anulada' WHERE VentaID = :vid");
     $stmtUpdV->execute([':vid' => $ventaID]);
 
     // 2. Obtener detalles de la venta para devolver el stock
-    $stmtD = $pdo->prepare("SELECT ProductoID, Cantidad, PrecioUnitario FROM DetalleVentas WHERE VentaID = :vid");
+    $stmtD = $pdo->prepare("SELECT ProductoID, Cantidad, PrecioUnitario FROM detalleventas WHERE VentaID = :vid");
     $stmtD->execute([':vid' => $ventaID]);
     $detalles = $stmtD->fetchAll();
 
-    $stmtUpdStock = $pdo->prepare("UPDATE Productos SET Stock = Stock + :cant WHERE ProductoID = :pid");
+    $stmtUpdStock = $pdo->prepare("UPDATE productos SET Stock = Stock + :cant WHERE ProductoID = :pid");
     $stmtKardex = $pdo->prepare("
-        INSERT INTO Kardex (ProductoID, TipoTransaccion, VentaID, CantidadEntrada, StockSaldo, ValorUnitario)
-        SELECT :pid, 'ANULACION_VENTA', :vid, :cant, (Stock + :cant), :val FROM Productos WHERE ProductoID = :pid
+        INSERT INTO kardex (ProductoID, TipoTransaccion, VentaID, CantidadEntrada, StockSaldo, ValorUnitario)
+        SELECT :pid, 'ANULACION_VENTA', :vid, :cant, (Stock + :cant), :val FROM productos WHERE ProductoID = :pid
     ");
 
     foreach ($detalles as $d) {
@@ -91,7 +91,7 @@ try {
     // 3. Registrar en AuditoriaEventos si existe la tabla
     try {
         $stmtAud = $pdo->prepare("
-            INSERT INTO AuditoriaEventos (UsuarioID, TipoEvento, Descripcion)
+            INSERT INTO auditoriaeventos (UsuarioID, TipoEvento, Descripcion)
             VALUES (:uid, 'ANULACION_VENTA', :desc)
         ");
         $stmtAud->execute([

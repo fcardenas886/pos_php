@@ -114,8 +114,8 @@ function loginRateLimitClear($ip) {
 function verificarClaveSupervisor(PDO $pdo, string $plainPass): ?int {
     if (empty($plainPass)) return null;
     $stmt = $pdo->prepare("
-        SELECT u.UsuarioID, u.PasswordHash FROM Usuarios u
-        JOIN Roles r ON u.RolID = r.RolID
+        SELECT u.UsuarioID, u.PasswordHash FROM usuarios u
+        JOIN roles r ON u.RolID = r.RolID
         WHERE r.Nombre IN ('Administrador', 'Supervisor') AND u.Activo = TRUE
     ");
     $stmt->execute();

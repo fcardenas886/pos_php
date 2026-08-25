@@ -24,7 +24,7 @@ if ($monto <= 0) {
 try {
     $pdo = getDB();
 
-    $stmtTurno = $pdo->prepare("SELECT TurnoID FROM Turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' ORDER BY TurnoID DESC LIMIT 1");
+    $stmtTurno = $pdo->prepare("SELECT TurnoID FROM turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' ORDER BY TurnoID DESC LIMIT 1");
     $stmtTurno->execute([':uid' => $user['id']]);
     $turno = $stmtTurno->fetch();
 
@@ -34,7 +34,7 @@ try {
     }
 
     $stmt = $pdo->prepare("
-        INSERT INTO MovimientosCaja (TurnoID, TipoMovimiento, Monto, Descripcion)
+        INSERT INTO movimientoscaja (TurnoID, TipoMovimiento, Monto, Descripcion)
         VALUES (:tid, :tipo, :monto, :desc)
     ");
     $stmt->execute([

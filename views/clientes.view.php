@@ -58,6 +58,9 @@
             <td style="color: var(--text-muted);"><?= formatCLP($cl['LimiteCredito'] ?? 50000) ?></td>
             <td style="font-weight: 700; color: var(--success);"><?= number_format($cl['PuntosAcumulados'], 0, ',', '.') ?> pts</td>
             <td>
+              <button onclick="verCuentaCliente(<?= $cl['ClienteID'] ?>)" class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; margin-right: 0.25rem;">
+                <i class="fa-solid fa-eye"></i> Cuenta
+              </button>
               <?php if (($cl['SaldoDeudor'] ?? 0) > 0): ?>
                 <button onclick="abrirAbonoCliente(<?= $cl['ClienteID'] ?>, '<?= htmlspecialchars($cl['Nombre'], ENT_QUOTES) ?>', <?= $cl['SaldoDeudor'] ?>)" class="btn btn-success" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
                   <i class="fa-solid fa-money-bill-transfer"></i> Abonar
@@ -142,9 +145,19 @@
         </select>
       </div>
 
-      <div>
-        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">MONTO DE ABONO ($) *</label>
-        <input type="number" name="monto_abono" class="form-control" required placeholder="Ej: 10000" style="font-size: 1.1rem; font-weight: bold;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        <div>
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">MONTO DE ABONO ($) *</label>
+          <input type="number" name="monto_abono" class="form-control" required placeholder="Ej: 10000" style="font-size: 1.1rem; font-weight: bold;">
+        </div>
+        <div>
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">MÉTODO PAGO *</label>
+          <select name="metodo_pago" class="form-control" required>
+            <option value="Efectivo">Efectivo</option>
+            <option value="Tarjeta">Tarjeta</option>
+            <option value="Transferencia">Transferencia</option>
+          </select>
+        </div>
       </div>
 
       <div>
@@ -160,10 +173,152 @@
   </div>
 </div>
 
+</div>
+
+<div class="table-card" style="margin-top: 2rem;">
+  <div class="table-header">
+    <h2 style="font-size: 1.1rem; font-weight: 600;">Historial de Abonos Recientes</h2>
+    <span style="color: var(--text-muted); font-size: 0.85rem;">Mostrando últimos 30 registros</span>
+  </div>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>N° Abono</th>
+        <th>Fecha y Hora</th>
+        <th>Cliente</th>
+        <th>Método de Pago</th>
+        <th>Monto Abonado</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php if (empty($abonos)): ?>
+        <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay abonos registrados en el sistema.</td></tr>
+      <?php else: ?>
+        <?php foreach ($abonos as $ab): ?>
+          <tr>
+            <td>#<?= $ab['AbonoID'] ?></td>
+            <td><?= date('d/m/Y H:i:s', strtotime($ab['FechaAbono'])) ?></td>
+            <td style="font-weight: 600; color: #fff;"><?= htmlspecialchars($ab['ClienteNombre']) ?></td>
+            <td><span class="badge badge-success"><?= htmlspecialchars($ab['MetodoPago']) ?></span></td>
+            <td style="font-weight: 700; color: var(--success);"><?= formatCLP($ab['Monto']) ?></td>
+          </tr>
+        <?php endforeach; ?>
+      <?php endif; ?>
+    </tbody>
+  </table>
+</div>
+
 <script>
 function abrirAbonoCliente(id, nombre, deuda) {
   const select = document.getElementById('abonoClienteSelect');
   if (select) select.value = id;
   document.getElementById('abonoModal').style.display = 'flex';
 }
+
+async function verCuentaCliente(id) {
+  try {
+    const res = await fetch(`api/detalle_cuenta_cliente.php?id=${id}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    document.getElementById('cuentaClienteNombre').textContent = data.cliente.nombre;
+    document.getElementById('cuentaSaldoDeudor').textContent = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.cliente.saldo_deudor);
+    document.getElementById('cuentaLimiteCredito').textContent = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.cliente.limite_credito);
+
+    // Poblar deudas
+    const tbodyDeudas = document.getElementById('cuentaTablaDeudas');
+    if (data.deudas.length === 0) {
+      tbodyDeudas.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No registra deudas (ventas al fiado).</td></tr>`;
+    } else {
+      tbodyDeudas.innerHTML = data.deudas.map(d => `
+        <tr>
+          <td><strong>#${d.venta_id}</strong></td>
+          <td>${d.fecha}</td>
+          <td style="font-weight: 700; color: #fff;">$${new Intl.NumberFormat('es-CL').format(d.total)}</td>
+          <td style="font-weight: 700; color: var(--danger);">$${new Intl.NumberFormat('es-CL').format(d.credito)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Poblar abonos
+    const tbodyAbonos = document.getElementById('cuentaTablaAbonos');
+    if (data.abonos.length === 0) {
+      tbodyAbonos.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No registra abonos de pago.</td></tr>`;
+    } else {
+      tbodyAbonos.innerHTML = data.abonos.map(a => `
+        <tr>
+          <td>#${a.abono_id}</td>
+          <td>${a.fecha}</td>
+          <td><span class="badge badge-success">${a.metodo}</span></td>
+          <td style="font-weight: 700; color: var(--success);">$${new Intl.NumberFormat('es-CL').format(a.monto)}</td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('cuentaModal').style.display = 'flex';
+  } catch (err) {
+    alert('Error al cargar detalle de cuenta: ' + err.message);
+  }
+}
+
+function cerrarCuentaModal() {
+  document.getElementById('cuentaModal').style.display = 'none';
+}
 </script>
+
+<!-- Modal Estado de Cuenta de Cliente -->
+<div id="cuentaModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
+  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 16px; width: 680px; max-width: 95%; padding: 1.75rem; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.75rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; color: #818cf8;">Estado de Cuenta: <span id="cuentaClienteNombre" style="color: #fff;"></span></h2>
+      <button onclick="cerrarCuentaModal()" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 1.2rem; line-height: 1;">&times;</button>
+    </div>
+
+    <!-- Resumen Financiero -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 10px; border: 1px solid var(--border-dark);">
+      <div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">SALDO DEUDOR ACTUAL (FIADO)</div>
+        <div id="cuentaSaldoDeudor" style="font-size: 1.5rem; font-weight: 700; color: var(--danger);"></div>
+      </div>
+      <div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">LÍMITE DE CRÉDITO AUTORIZADO</div>
+        <div id="cuentaLimiteCredito" style="font-size: 1.5rem; font-weight: 700; color: var(--text-muted);"></div>
+      </div>
+    </div>
+
+    <!-- Sección Deudas -->
+    <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; color: #f87171;"><i class="fa-solid fa-file-invoice-dollar"></i> Deudas / Compras al Fiado</h3>
+    <div style="max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem; border: 1px solid var(--border-dark); border-radius: 8px;">
+      <table class="table" style="margin-bottom: 0;">
+        <thead>
+          <tr>
+            <th>N° Venta</th>
+            <th>Fecha</th>
+            <th>Total Venta</th>
+            <th>Monto al Fiado</th>
+          </tr>
+        </thead>
+        <tbody id="cuentaTablaDeudas">
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Sección Abonos -->
+    <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; color: #34d399;"><i class="fa-solid fa-hand-holding-dollar"></i> Abonos / Pagos Realizados</h3>
+    <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-dark); border-radius: 8px;">
+      <table class="table" style="margin-bottom: 0;">
+        <thead>
+          <tr>
+            <th>N° Abono</th>
+            <th>Fecha</th>
+            <th>Método Pago</th>
+            <th>Monto Abonado</th>
+          </tr>
+        </thead>
+        <tbody id="cuentaTablaAbonos">
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

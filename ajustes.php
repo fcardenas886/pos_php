@@ -19,29 +19,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
 
             // 1. Crear AjusteStock
-            $stmtA = $pdo->prepare("INSERT INTO AjustesStock (UsuarioID, Motivo) VALUES (:uid, :motivo)");
+            $stmtA = $pdo->prepare("INSERT INTO ajustesstock (UsuarioID, Motivo) VALUES (:uid, :motivo)");
             $stmtA->execute([':uid' => $user['id'], ':motivo' => $motivo]);
             $ajusteID = $pdo->lastInsertId();
 
             // 2. Crear DetalleAjustesStock
             $stmtDA = $pdo->prepare("
-                INSERT INTO DetalleAjustesStock (AjusteStockID, ProductoID, Cantidad, TipoMovimiento)
+                INSERT INTO detalleajustesstock (AjusteStockID, ProductoID, Cantidad, TipoMovimiento)
                 VALUES (:aid, :pid, :cant, :tipo)
             ");
             $stmtDA->execute([':aid' => $ajusteID, ':pid' => $productoID, ':cant' => $cantidad, ':tipo' => $tipoMovimiento]);
 
             // 3. Actualizar Stock y registrar Kardex
             if ($tipoMovimiento === 'ENTRADA') {
-                $stmtUpd = $pdo->prepare("UPDATE Productos SET Stock = Stock + :cant WHERE ProductoID = :pid");
+                $stmtUpd = $pdo->prepare("UPDATE productos SET Stock = Stock + :cant WHERE ProductoID = :pid");
                 $stmtK = $pdo->prepare("
-                    INSERT INTO Kardex (ProductoID, TipoTransaccion, AjusteStockID, CantidadEntrada, StockSaldo, ValorUnitario)
-                    SELECT :pid, 'AJUSTE_ENTRADA', :aid, :cant, Stock, PrecioVenta FROM Productos WHERE ProductoID = :pid
+                    INSERT INTO kardex (ProductoID, TipoTransaccion, AjusteStockID, CantidadEntrada, StockSaldo, ValorUnitario)
+                    SELECT :pid, 'AJUSTE_ENTRADA', :aid, :cant, Stock, PrecioVenta FROM productos WHERE ProductoID = :pid
                 ");
             } else {
-                $stmtUpd = $pdo->prepare("UPDATE Productos SET Stock = GREATEST(0, Stock - :cant) WHERE ProductoID = :pid");
+                $stmtUpd = $pdo->prepare("UPDATE productos SET Stock = GREATEST(0, Stock - :cant) WHERE ProductoID = :pid");
                 $stmtK = $pdo->prepare("
-                    INSERT INTO Kardex (ProductoID, TipoTransaccion, AjusteStockID, CantidadSalida, StockSaldo, ValorUnitario)
-                    SELECT :pid, 'AJUSTE_SALIDA', :aid, :cant, Stock, PrecioVenta FROM Productos WHERE ProductoID = :pid
+                    INSERT INTO kardex (ProductoID, TipoTransaccion, AjusteStockID, CantidadSalida, StockSaldo, ValorUnitario)
+                    SELECT :pid, 'AJUSTE_SALIDA', :aid, :cant, Stock, PrecioVenta FROM productos WHERE ProductoID = :pid
                 ");
             }
 
@@ -59,14 +59,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$productosList = $pdo->query("SELECT ProductoID, Nombre, Stock FROM Productos WHERE Activo = TRUE ORDER BY Nombre ASC")->fetchAll();
+$productosList = $pdo->query("SELECT ProductoID, Nombre, Stock FROM productos WHERE Activo = TRUE ORDER BY Nombre ASC")->fetchAll();
 
 $stmtHist = $pdo->query("
     SELECT a.*, u.Nombre AS Usuario, da.Cantidad, da.TipoMovimiento, p.Nombre AS ProductoName
-    FROM AjustesStock a
-    JOIN Usuarios u ON a.UsuarioID = u.UsuarioID
-    LEFT JOIN DetalleAjustesStock da ON a.AjusteStockID = da.AjusteStockID
-    LEFT JOIN Productos p ON da.ProductoID = p.ProductoID
+    FROM ajustesstock a
+    JOIN usuarios u ON a.UsuarioID = u.UsuarioID
+    LEFT JOIN detalleajustesstock da ON a.AjusteStockID = da.AjusteStockID
+    LEFT JOIN productos p ON da.ProductoID = p.ProductoID
     ORDER BY a.AjusteStockID DESC LIMIT 20
 ");
 $historialAjustes = $stmtHist->fetchAll();

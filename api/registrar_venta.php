@@ -34,7 +34,7 @@ try {
     $pdo = getDB();
     
     // Obtener turno abierto para el usuario
-    $stmtTurno = $pdo->prepare("SELECT TurnoID FROM Turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' ORDER BY TurnoID DESC LIMIT 1");
+    $stmtTurno = $pdo->prepare("SELECT TurnoID FROM turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' ORDER BY TurnoID DESC LIMIT 1");
     $stmtTurno->execute([':uid' => $user['id']]);
     $turno = $stmtTurno->fetch();
     
@@ -54,7 +54,7 @@ try {
         $pid = (int)$item['producto_id'];
         $cant = (float)$item['cantidad'];
         
-        $stmtP = $pdo->prepare("SELECT ProductoID, Nombre, PrecioVenta, CostoCompra, Stock, EsAfecto FROM Productos WHERE ProductoID = :pid FOR UPDATE");
+        $stmtP = $pdo->prepare("SELECT ProductoID, Nombre, PrecioVenta, CostoCompra, Stock, EsAfecto FROM productos WHERE ProductoID = :pid FOR UPDATE");
         $stmtP->execute([':pid' => $pid]);
         $prod = $stmtP->fetch();
 
@@ -69,7 +69,7 @@ try {
         // Consultar promoción activa para este producto
         $stmtPromo = $pdo->prepare("
             SELECT Tipo, CantidadMinima, DescuentoPorcentaje, PrecioOferta 
-            FROM Promociones 
+            FROM promociones 
             WHERE ProductoID = :pid AND Activa = TRUE AND FechaInicio <= NOW() AND FechaFin >= NOW() 
             LIMIT 1
         ");
@@ -124,8 +124,8 @@ try {
                 throw new Exception("El descuento aplicado (" . formatCLP($descuentoTotal) . ") requiere la clave de un Administrador o Supervisor.");
             }
             $stmtSup = $pdo->prepare("
-                SELECT u.PasswordHash FROM Usuarios u
-                JOIN Roles r ON u.RolID = r.RolID
+                SELECT u.PasswordHash FROM usuarios u
+                JOIN roles r ON u.RolID = r.RolID
                 WHERE r.Nombre IN ('Administrador', 'Supervisor') AND u.Activo = TRUE
             ");
             $stmtSup->execute();
@@ -160,7 +160,7 @@ try {
 
     // 2. Insertar Venta
     $stmtVenta = $pdo->prepare("
-        INSERT INTO Ventas (TurnoID, ClienteID, TipoDocumento, MontoNeto, MontoIva, DescuentoGlobal, MontoTotal, MontoPagado, Vuelto, PuntosGanados, Estado)
+        INSERT INTO ventas (TurnoID, ClienteID, TipoDocumento, MontoNeto, MontoIva, DescuentoGlobal, MontoTotal, MontoPagado, Vuelto, PuntosGanados, Estado)
         VALUES (:turno, :cliente, :tipo, :neto, :iva, :desc, :total, :pagado, :vuelto, :puntos, 'Completada')
     ");
     $stmtVenta->execute([
@@ -179,14 +179,14 @@ try {
 
     // 3. Insertar DetalleVentas, Actualizar Stock y Kardex
     $stmtDetalle = $pdo->prepare("
-        INSERT INTO DetalleVentas (VentaID, ProductoID, Cantidad, PrecioUnitario, CostoUnitario, Descuento, EsAfecto, Subtotal)
+        INSERT INTO detalleventas (VentaID, ProductoID, Cantidad, PrecioUnitario, CostoUnitario, Descuento, EsAfecto, Subtotal)
         VALUES (:vid, :pid, :cant, :precio, :costo, :desc, :afecto, :subtotal)
     ");
     
-    $stmtUpdStock = $pdo->prepare("UPDATE Productos SET Stock = Stock - :cant WHERE ProductoID = :pid");
+    $stmtUpdStock = $pdo->prepare("UPDATE productos SET Stock = Stock - :cant WHERE ProductoID = :pid");
     
     $stmtKardex = $pdo->prepare("
-        INSERT INTO Kardex (ProductoID, TipoTransaccion, VentaID, CantidadSalida, StockSaldo, ValorUnitario)
+        INSERT INTO kardex (ProductoID, TipoTransaccion, VentaID, CantidadSalida, StockSaldo, ValorUnitario)
         VALUES (:pid, 'VENTA', :vid, :cant, :saldo, :val)
     ");
 
@@ -218,7 +218,7 @@ try {
     }
 
     // 4. Procesar Pagos (Múltiples / Pagos Mixtos / Crédito / Puntos)
-    $stmtPago = $pdo->prepare("INSERT INTO PagosVenta (VentaID, MetodoPago, Monto) VALUES (:vid, :metodo, :monto)");
+    $stmtPago = $pdo->prepare("INSERT INTO pagosventa (VentaID, MetodoPago, Monto) VALUES (:vid, :metodo, :monto)");
 
     // Cargar cupo/puntos reales del cliente si algún pago los necesita, antes de aplicar nada.
     $cliente = null;
@@ -233,7 +233,7 @@ try {
         if (!$clienteID) {
             throw new Exception("Debes seleccionar un cliente para pagos a crédito o con puntos.");
         }
-        $stmtCli = $pdo->prepare("SELECT LimiteCredito, SaldoDeudor, PuntosAcumulados FROM Clientes WHERE ClienteID = :cid FOR UPDATE");
+        $stmtCli = $pdo->prepare("SELECT LimiteCredito, SaldoDeudor, PuntosAcumulados FROM clientes WHERE ClienteID = :cid FOR UPDATE");
         $stmtCli->execute([':cid' => $clienteID]);
         $cliente = $stmtCli->fetch();
         if (!$cliente) {
@@ -271,10 +271,10 @@ try {
         // Manejar pago a Crédito/Fiado o Puntos para Clientes
         if ($clienteID) {
             if ($metodo === 'Credito' || $metodo === 'Fiado' || $metodo === 'Credito Interno') {
-                $stmtCred = $pdo->prepare("UPDATE Clientes SET SaldoDeudor = COALESCE(SaldoDeudor, 0) + :monto WHERE ClienteID = :cid");
+                $stmtCred = $pdo->prepare("UPDATE clientes SET SaldoDeudor = COALESCE(SaldoDeudor, 0) + :monto WHERE ClienteID = :cid");
                 $stmtCred->execute([':monto' => $montoPago, ':cid' => $clienteID]);
             } elseif ($metodo === 'Puntos') {
-                $stmtPts = $pdo->prepare("UPDATE Clientes SET PuntosAcumulados = GREATEST(0, COALESCE(PuntosAcumulados, 0) - :pts) WHERE ClienteID = :cid");
+                $stmtPts = $pdo->prepare("UPDATE clientes SET PuntosAcumulados = GREATEST(0, COALESCE(PuntosAcumulados, 0) - :pts) WHERE ClienteID = :cid");
                 $stmtPts->execute([':pts' => $montoPago, ':cid' => $clienteID]);
             }
         }
@@ -282,7 +282,7 @@ try {
 
     // Sumar Puntos Ganados al Cliente si aplica
     if ($clienteID && $puntosGanados > 0) {
-        $stmtAddPts = $pdo->prepare("UPDATE Clientes SET PuntosAcumulados = COALESCE(PuntosAcumulados, 0) + :pts WHERE ClienteID = :cid");
+        $stmtAddPts = $pdo->prepare("UPDATE clientes SET PuntosAcumulados = COALESCE(PuntosAcumulados, 0) + :pts WHERE ClienteID = :cid");
         $stmtAddPts->execute([':pts' => $puntosGanados, ':cid' => $clienteID]);
     }
 

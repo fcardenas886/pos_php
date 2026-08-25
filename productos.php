@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($nombre) && $precioVenta >= 0) {
         try {
             $stmt = $pdo->prepare("
-                INSERT INTO Productos (CodigoBarras, Nombre, CategoriaID, PrecioVenta, CostoCompra, Stock, StockMinimo)
+                INSERT INTO productos (CodigoBarras, Nombre, CategoriaID, PrecioVenta, CostoCompra, Stock, StockMinimo)
                 VALUES (:codigo, :nombre, :cat, :precio, :costo, :stock, :stockmin)
                 ON DUPLICATE KEY UPDATE 
                     Nombre = VALUES(Nombre),
@@ -53,8 +53,8 @@ $search = trim($_GET['q'] ?? '');
 if (!empty($search)) {
     $stmtP = $pdo->prepare("
         SELECT p.*, c.Nombre AS Categoria 
-        FROM Productos p
-        LEFT JOIN Categorias c ON p.CategoriaID = c.CategoriaID
+        FROM productos p
+        LEFT JOIN categorias c ON p.CategoriaID = c.CategoriaID
         WHERE p.Activo = TRUE AND (p.Nombre LIKE :q OR p.CodigoBarras = :exact_q)
         ORDER BY p.Nombre ASC
     ");
@@ -62,8 +62,8 @@ if (!empty($search)) {
 } else {
     $stmtP = $pdo->query("
         SELECT p.*, c.Nombre AS Categoria 
-        FROM Productos p
-        LEFT JOIN Categorias c ON p.CategoriaID = c.CategoriaID
+        FROM productos p
+        LEFT JOIN categorias c ON p.CategoriaID = c.CategoriaID
         WHERE p.Activo = TRUE
         ORDER BY p.Nombre ASC LIMIT 100
     ");
@@ -71,7 +71,7 @@ if (!empty($search)) {
 $productos = $stmtP->fetchAll();
 
 // Categorías para el selector
-$categorias = $pdo->query("SELECT * FROM Categorias ORDER BY Nombre ASC")->fetchAll();
+$categorias = $pdo->query("SELECT * FROM categorias ORDER BY Nombre ASC")->fetchAll();
 
 include __DIR__ . '/views/productos.view.php';
 require_once __DIR__ . '/includes/footer.php';

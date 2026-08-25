@@ -22,9 +22,9 @@ try {
     // 1. Obtener detalles del Turno
     $stmtTurno = $pdo->prepare("
         SELECT t.*, u.Nombre AS Cajero, c.Nombre AS CajaName 
-        FROM Turnos t 
-        JOIN Usuarios u ON t.UsuarioID = u.UsuarioID 
-        JOIN Cajas c ON t.CajaID = c.CajaID 
+        FROM turnos t 
+        JOIN usuarios u ON t.UsuarioID = u.UsuarioID 
+        JOIN cajas c ON t.CajaID = c.CajaID 
         WHERE t.TurnoID = :tid
     ");
     $stmtTurno->execute([':tid' => $turnoID]);
@@ -43,8 +43,8 @@ try {
     // 2. Obtener total de ventas por método de pago
     $stmtPagos = $pdo->prepare("
         SELECT pv.MetodoPago, COALESCE(SUM(pv.Monto), 0) AS Total 
-        FROM Ventas v 
-        JOIN PagosVenta pv ON v.VentaID = pv.VentaID 
+        FROM ventas v 
+        JOIN pagosventa pv ON v.VentaID = pv.VentaID 
         WHERE v.TurnoID = :tid AND v.Estado = 'Completada' 
         GROUP BY pv.MetodoPago
     ");
@@ -77,7 +77,7 @@ try {
     // 3. Obtener movimientos de caja manuales
     $stmtMovs = $pdo->prepare("
         SELECT TipoMovimiento, COALESCE(SUM(Monto), 0) AS Total 
-        FROM MovimientosCaja 
+        FROM movimientoscaja 
         WHERE TurnoID = :tid 
         GROUP BY TipoMovimiento
     ");
@@ -95,7 +95,7 @@ try {
     // Obtener la bitácora de movimientos individuales
     $stmtBitacora = $pdo->prepare("
         SELECT TipoMovimiento, Monto, Descripcion, DATE_FORMAT(FechaMovimiento, '%H:%i') AS Hora 
-        FROM MovimientosCaja 
+        FROM movimientoscaja 
         WHERE TurnoID = :tid 
         ORDER BY MovimientoCajaID ASC
     ");

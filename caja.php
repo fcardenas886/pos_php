@@ -16,13 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'apertura') {
         $montoApertura = (int)($_POST['monto_apertura'] ?? 0);
         try {
-            $stmtChk = $pdo->prepare("SELECT TurnoID FROM Turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' LIMIT 1");
+            $stmtChk = $pdo->prepare("SELECT TurnoID FROM turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' LIMIT 1");
             $stmtChk->execute([':uid' => $user['id']]);
             if ($stmtChk->fetch()) {
                 throw new Exception('Ya tienes un turno de caja abierto. Ciérralo antes de abrir uno nuevo.');
             }
 
-            $stmt = $pdo->prepare("INSERT INTO Turnos (CajaID, UsuarioID, MontoApertura, Estado) VALUES (1, :uid, :monto, 'Abierto')");
+            $stmt = $pdo->prepare("INSERT INTO turnos (CajaID, UsuarioID, MontoApertura, Estado) VALUES (1, :uid, :monto, 'Abierto')");
             $stmt->execute([':uid' => $user['id'], ':monto' => $montoApertura]);
             $message = 'Caja abierta exitosamente con ' . formatCLP($montoApertura);
             $redirigirPos = true;
@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             // 1. Obtener Monto de Apertura del Turno y validar dueño/estado
-            $stmtTurnInfo = $pdo->prepare("SELECT MontoApertura, UsuarioID, Estado, CajaID FROM Turnos WHERE TurnoID = :tid");
+            $stmtTurnInfo = $pdo->prepare("SELECT MontoApertura, UsuarioID, Estado, CajaID FROM turnos WHERE TurnoID = :tid");
             $stmtTurnInfo->execute([':tid' => $turnoID]);
             $turnoInfo = $stmtTurnInfo->fetch();
 
@@ -70,8 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     COALESCE(SUM(CASE WHEN p.MetodoPago = 'Efectivo' THEN p.Monto ELSE 0 END), 0) AS total_efectivo,
                     COALESCE(SUM(CASE WHEN p.MetodoPago IN ('Tarjeta Debito', 'Tarjeta Credito') THEN p.Monto ELSE 0 END), 0) AS total_tarjeta,
                     COALESCE(SUM(CASE WHEN p.MetodoPago = 'Transferencia' THEN p.Monto ELSE 0 END), 0) AS total_transferencia
-                FROM Ventas v
-                JOIN PagosVenta p ON v.VentaID = p.VentaID
+                FROM ventas v
+                JOIN pagosventa p ON v.VentaID = p.VentaID
                 WHERE v.TurnoID = :tid AND v.Estado = 'Completada'
             ");
             $stmtVentas->execute([':tid' => $turnoID]);
@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 SELECT 
                     COALESCE(SUM(CASE WHEN TipoMovimiento = 'INGRESO' THEN Monto ELSE 0 END), 0) AS total_ingresos,
                     COALESCE(SUM(CASE WHEN TipoMovimiento = 'RETIRO' THEN Monto ELSE 0 END), 0) AS total_retiros
-                FROM MovimientosCaja
+                FROM movimientoscaja
                 WHERE TurnoID = :tid
             ");
             $stmtMovs->execute([':tid' => $turnoID]);
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
 
             $stmtUpd = $pdo->prepare("
-                UPDATE Turnos SET
+                UPDATE turnos SET
                     FechaCierre = CURRENT_TIMESTAMP(),
                     MontoCierreEfectivo = :efec,
                     MontoCierreTarjeta = :tarj,
@@ -123,9 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Cargar datos para el reporte de cierre inmediato
             $stmtReporte = $pdo->prepare("
                 SELECT t.*, u.Nombre AS Cajero, c.Nombre AS CajaName 
-                FROM Turnos t 
-                JOIN Usuarios u ON t.UsuarioID = u.UsuarioID 
-                JOIN Cajas c ON t.CajaID = c.CajaID 
+                FROM turnos t 
+                JOIN usuarios u ON t.UsuarioID = u.UsuarioID 
+                JOIN cajas c ON t.CajaID = c.CajaID 
                 WHERE t.TurnoID = :tid
             ");
             $stmtReporte->execute([':tid' => $turnoID]);
@@ -159,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Consultar Turno Activo
-$stmtTurno = $pdo->prepare("SELECT * FROM Turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' ORDER BY TurnoID DESC LIMIT 1");
+$stmtTurno = $pdo->prepare("SELECT * FROM turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' ORDER BY TurnoID DESC LIMIT 1");
 $stmtTurno->execute([':uid' => $user['id']]);
 $turnoActivo = $stmtTurno->fetch();
 
@@ -175,8 +175,8 @@ if ($turnoActivo) {
             COALESCE(SUM(CASE WHEN p.MetodoPago IN ('Tarjeta Debito', 'Tarjeta Credito') THEN p.Monto ELSE 0 END), 0) AS total_tarjeta,
             COALESCE(SUM(CASE WHEN p.MetodoPago = 'Transferencia' THEN p.Monto ELSE 0 END), 0) AS total_transferencia,
             COUNT(DISTINCT v.VentaID) AS total_ventas
-        FROM Ventas v
-        JOIN PagosVenta p ON v.VentaID = p.VentaID
+        FROM ventas v
+        JOIN pagosventa p ON v.VentaID = p.VentaID
         WHERE v.TurnoID = :tid AND v.Estado = 'Completada'
     ");
     $stmtV->execute([':tid' => $turnoActivo['TurnoID']]);
@@ -187,7 +187,7 @@ if ($turnoActivo) {
         SELECT 
             COALESCE(SUM(CASE WHEN TipoMovimiento = 'INGRESO' THEN Monto ELSE 0 END), 0) AS total_ingresos,
             COALESCE(SUM(CASE WHEN TipoMovimiento = 'RETIRO' THEN Monto ELSE 0 END), 0) AS total_retiros
-        FROM MovimientosCaja
+        FROM movimientoscaja
         WHERE TurnoID = :tid
     ");
     $stmtM->execute([':tid' => $turnoActivo['TurnoID']]);
@@ -200,8 +200,8 @@ if ($turnoActivo) {
 // Historial de últimos turnos
 $stmtHist = $pdo->query("
     SELECT t.*, u.Nombre AS Usuario 
-    FROM Turnos t 
-    JOIN Usuarios u ON t.UsuarioID = u.UsuarioID 
+    FROM turnos t 
+    JOIN usuarios u ON t.UsuarioID = u.UsuarioID 
     ORDER BY t.TurnoID DESC LIMIT 10
 ");
 $historialTurnos = $stmtHist->fetchAll();

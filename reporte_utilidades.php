@@ -13,12 +13,12 @@ $stmt = $pdo->prepare("
         c.Nombre AS Categoria,
         SUM(dv.Cantidad) AS CantidadVendida,
         SUM(dv.Subtotal) AS TotalVentas,
-        SUM(dv.Cantidad * p.CostoCompra) AS TotalCosto,
-        SUM(dv.Subtotal - (dv.Cantidad * p.CostoCompra)) AS UtilidadEstimada
-    FROM DetalleVentas dv
-    JOIN Ventas v ON dv.VentaID = v.VentaID
-    JOIN Productos p ON dv.ProductoID = p.ProductoID
-    LEFT JOIN Categorias c ON p.CategoriaID = c.CategoriaID
+        SUM(dv.Cantidad * dv.CostoUnitario) AS TotalCosto,
+        SUM(dv.Subtotal - (dv.Cantidad * dv.CostoUnitario)) AS UtilidadEstimada
+    FROM detalleventas dv
+    JOIN ventas v ON dv.VentaID = v.VentaID
+    JOIN productos p ON dv.ProductoID = p.ProductoID
+    LEFT JOIN categorias c ON p.CategoriaID = c.CategoriaID
     WHERE v.Estado = 'Completada' AND DATE(v.FechaVenta) BETWEEN :inicio AND :fin
     GROUP BY p.ProductoID
     ORDER BY UtilidadEstimada DESC

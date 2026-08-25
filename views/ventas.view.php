@@ -49,6 +49,9 @@
               </span>
             </td>
             <td>
+              <button onclick="reimprimirVenta(<?= $v['VentaID'] ?>)" class="btn btn-primary" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; margin-right: 0.25rem;" title="Ver e Imprimir Ticket">
+                <i class="fa-solid fa-print"></i> Ticket
+              </button>
               <?php if ($v['Estado'] === 'Completada'): ?>
                 <button onclick="anularVenta(<?= $v['VentaID'] ?>)" class="btn btn-danger" style="padding: 0.35rem 0.65rem; font-size: 0.8rem;" title="Anular Venta y Devolver Stock">
                   <i class="fa-solid fa-ban"></i> Anular
@@ -91,4 +94,80 @@ async function anularVenta(id) {
     alert('Error al anular venta: ' + err.message);
   }
 }
+
+async function reimprimirVenta(id) {
+  try {
+    const res = await fetch(`api/ver_venta.php?id=${id}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    const v = data.venta;
+    document.getElementById('ticketFecha').textContent = v.fecha;
+    document.getElementById('ticketTotal').textContent = `$${new Intl.NumberFormat('es-CL').format(v.total)}`;
+    document.getElementById('ticketPagado').textContent = `$${new Intl.NumberFormat('es-CL').format(v.pagado)}`;
+    document.getElementById('ticketVuelto').textContent = `$${new Intl.NumberFormat('es-CL').format(v.vuelto)}`;
+
+    const detalleEl = document.getElementById('ticketDetalle');
+    detalleEl.innerHTML = data.detalles.map(i => {
+      let promoLabel = '';
+      if (i.descuento > 0) {
+         promoLabel = `<div style="font-size: 0.75rem; color: #555;">Dcto aplicado: -$${new Intl.NumberFormat('es-CL').format(i.descuento)}</div>`;
+      }
+      return `
+        <div style="margin-bottom: 0.25rem;">
+          <div style="display: flex; justify-content: space-between;">
+            <span>${i.cantidad}x ${i.nombre.substring(0, 18)}</span>
+            <span>$${new Intl.NumberFormat('es-CL').format(i.subtotal)}</span>
+          </div>
+          ${promoLabel}
+        </div>
+      `;
+    }).join('');
+
+    document.getElementById('ticketModal').style.display = 'flex';
+  } catch (err) {
+    alert('Error al recuperar ticket: ' + err.message);
+  }
+}
+
+function cerrarTicket() {
+  document.getElementById('ticketModal').style.display = 'none';
+}
 </script>
+
+<!-- Modal de Ticket / Comprobante (Impresión Térmica) -->
+<div id="ticketModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
+  <div style="background: #fff; color: #000; width: 340px; border-radius: 12px; padding: 1.5rem; box-shadow: 0 20px 40px rgba(0,0,0,0.5); font-family: monospace;">
+    <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+      <h2 style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.2rem;">MINIMARKET</h2>
+      <p style="font-size: 0.8rem;">Comprobante de Venta (Copia)</p>
+      <p id="ticketFecha" style="font-size: 0.75rem; color: #555;"></p>
+    </div>
+
+    <div id="ticketDetalle" style="font-size: 0.85rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.3rem;">
+    </div>
+
+    <div style="border-top: 1px dashed #000; padding-top: 0.5rem; font-size: 0.95rem; font-weight: bold; display: flex; justify-content: space-between;">
+      <span>TOTAL:</span>
+      <span id="ticketTotal"></span>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 0.25rem;">
+      <span>PAGADO:</span>
+      <span id="ticketPagado"></span>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 0.1rem;">
+      <span>VUELTO:</span>
+      <span id="ticketVuelto"></span>
+    </div>
+
+    <div style="margin-top: 1.25rem; display: flex; gap: 0.5rem;">
+      <button onclick="window.print()" class="btn btn-primary btn-block" style="font-size: 0.85rem; padding: 0.5rem;">
+        <i class="fa-solid fa-print"></i> Imprimir
+      </button>
+      <button onclick="cerrarTicket()" class="btn btn-secondary btn-block" style="font-size: 0.85rem; padding: 0.5rem; background: #eee; color: #000; border: 1px solid #ccc;">
+        Cerrar
+      </button>
+    </div>
+  </div>
+</div>

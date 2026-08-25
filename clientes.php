@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!empty($nombre)) {
             try {
                 $stmt = $pdo->prepare("
-                    INSERT INTO Clientes (RutCuerpo, RutDv, Nombre, Telefono, Email, LimiteCredito, SaldoDeudor)
+                    INSERT INTO clientes (RutCuerpo, RutDv, Nombre, Telefono, Email, LimiteCredito, SaldoDeudor)
                     VALUES (:rut, :dv, :nombre, :tel, :email, :limite, 0)
                 ");
                 $stmt->execute([
@@ -41,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'abono') {
         $clienteID = (int)($_POST['cliente_id'] ?? 0);
         $montoAbono = (int)($_POST['monto_abono'] ?? 0);
+        $metodoPago = $_POST['metodo_pago'] ?? 'Efectivo';
         $concepto = trim($_POST['concepto'] ?? 'Abono a deuda de cliente');
 
         if ($clienteID > 0 && $montoAbono > 0) {
@@ -49,32 +50,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // 1. Reducir saldo deudor del cliente
                 $stmtUpd = $pdo->prepare("
-                    UPDATE Clientes SET SaldoDeudor = GREATEST(0, COALESCE(SaldoDeudor, 0) - :monto) WHERE ClienteID = :cid
+                    UPDATE clientes SET SaldoDeudor = GREATEST(0, COALESCE(SaldoDeudor, 0) - :monto) WHERE ClienteID = :cid
                 ");
                 $stmtUpd->execute([':monto' => $montoAbono, ':cid' => $clienteID]);
 
                 // 2. Registrar movimiento de caja como INGRESO en el turno activo si existe
-                $stmtTurno = $pdo->prepare("SELECT TurnoID FROM Turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' ORDER BY TurnoID DESC LIMIT 1");
+                $stmtTurno = $pdo->prepare("SELECT TurnoID FROM turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' ORDER BY TurnoID DESC LIMIT 1");
                 $stmtTurno->execute([':uid' => $user['id']]);
                 $turno = $stmtTurno->fetch();
+                $turnoID = $turno ? $turno['TurnoID'] : null;
 
                 if ($turno) {
                     $stmtMov = $pdo->prepare("
-                        INSERT INTO MovimientosCaja (TurnoID, TipoMovimiento, Monto, Descripcion)
+                        INSERT INTO movimientoscaja (TurnoID, TipoMovimiento, Monto, Descripcion)
                         VALUES (:tid, 'INGRESO', :monto, :desc)
                     ");
                     $stmtMov->execute([
-                        ':tid' => $turno['TurnoID'],
+                        ':tid' => $turnoID,
                         ':monto' => $montoAbono,
                         ':desc' => "ABONO CLIENTE: $concepto"
                     ]);
                 }
 
+                // 3. Registrar en abonoscredito
+                $stmtAbono = $pdo->prepare("
+                    INSERT INTO abonoscredito (ClienteID, FechaAbono, Monto, MetodoPago, TurnoID, VentaID)
+                    VALUES (:cid, NOW(), :monto, :metodo, :tid, NULL)
+                ");
+                $stmtAbono->execute([
+                    ':cid' => $clienteID,
+                    ':monto' => $montoAbono,
+                    ':metodo' => $metodoPago,
+                    ':tid' => $turnoID
+                ]);
+
                 $pdo->commit();
                 $message = "Abono de " . formatCLP($montoAbono) . " registrado correctamente al saldo del cliente.";
             } catch (Exception $e) {
                 if ($pdo->inTransaction()) $pdo->rollBack();
-                $error = 'Error al registrar the abono: ' . $e->getMessage();
+                $error = 'Error al registrar el abono: ' . $e->getMessage();
             }
         } else {
             $error = 'Ingresa un cliente válido y un monto de abono mayor a 0.';
@@ -83,8 +97,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Obtener Clientes con su saldo deudor
-$stmtC = $pdo->query("SELECT * FROM Clientes WHERE Activo = TRUE ORDER BY Nombre ASC");
+$stmtC = $pdo->query("SELECT * FROM clientes WHERE Activo = TRUE ORDER BY Nombre ASC");
 $clientes = $stmtC->fetchAll();
+
+// Obtener los últimos 30 abonos de crédito registrados
+try {
+    $stmtA = $pdo->query("
+        SELECT ac.*, c.Nombre AS ClienteNombre 
+        FROM abonoscredito ac 
+        JOIN clientes c ON ac.ClienteID = c.ClienteID 
+        ORDER BY ac.AbonoID DESC LIMIT 30
+    ");
+    $abonos = $stmtA->fetchAll();
+} catch (Exception $e) {
+    $abonos = [];
+}
 
 include __DIR__ . '/views/clientes.view.php';
 require_once __DIR__ . '/includes/footer.php';
