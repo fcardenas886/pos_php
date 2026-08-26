@@ -59,10 +59,10 @@
 </div>
 
 <!-- Modal Nueva Devolución -->
-<div id="devModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
-  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 16px; width: 480px; padding: 1.75rem; box-shadow: var(--shadow-lg);">
+<div id="devModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1000; justify-content: center; align-items: flex-start; overflow-y: auto; padding: 1.5rem 1rem;">
+  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 16px; width: 620px; padding: 1.75rem; box-shadow: var(--shadow-lg); margin: 1.5rem auto;">
     <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; color: #818cf8;">Procesar Devolución</h2>
-    
+
     <!-- Paso 1: Buscar Boleta -->
     <div style="display: flex; gap: 0.5rem; align-items: flex-end; margin-bottom: 1.25rem;">
       <div style="flex: 1;">
@@ -76,80 +76,109 @@
     <div id="devErrorMsg" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #f87171; padding: 0.65rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1.25rem;">
     </div>
 
-    <!-- Formulario de Devolución (Paso 2 y 3: Se muestra al encontrar boleta) -->
-    <form method="POST" action="devoluciones.php" id="detallesDevolucionForm" style="display: none; flex-direction: column; gap: 1.25rem; border-top: 1px solid var(--border-dark); padding-top: 1.25rem;">
-      <?= csrfField() ?>
-      <input type="hidden" name="venta_id" id="hiddenVentaId">
+    <!-- Paso 2 y 3: se muestra al encontrar la boleta -->
+    <div id="detallesDevolucionBody" style="display: none; flex-direction: column; gap: 1.25rem; border-top: 1px solid var(--border-dark); padding-top: 1.25rem;">
 
-      <div>
-        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">SELECCIONAR PRODUCTO A DEVOLVER *</label>
-        <select name="producto_id" id="devProductoSelect" class="form-control" required onchange="actualizarInfoProductoDev()">
-        </select>
+      <!-- Añadir producto a la devolución (puede agregarse más de uno) -->
+      <div style="background: rgba(15,23,42,0.4); border: 1px solid var(--border-dark); border-radius: 12px; padding: 1rem;">
+        <label style="font-size: 0.75rem; color: #818cf8; font-weight: 700; display: block; margin-bottom: 0.75rem; text-transform: uppercase;">Añadir Producto a la Devolución</label>
+        <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 0.75rem; align-items: end;">
+          <div>
+            <label style="font-size: 0.7rem; color: var(--text-muted);">PRODUCTO *</label>
+            <select id="devProductoSelect" class="form-control" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;" onchange="actualizarInfoProductoDev()"></select>
+          </div>
+          <div>
+            <label style="font-size: 0.7rem; color: var(--text-muted);">CANTIDAD *</label>
+            <input type="number" step="0.001" id="devCantidadInput" class="form-control" value="1" min="0.001" style="font-size: 0.85rem; padding: 0.35rem 0.5rem; font-weight: 700;">
+            <span style="font-size: 0.7rem; color: #818cf8; font-weight: 600;" id="devMaxCantLabel"></span>
+          </div>
+          <button type="button" onclick="agregarProductoADevolucion()" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem; height: 35px;">
+            <i class="fa-solid fa-plus"></i> Agregar
+          </button>
+        </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 0.75rem;">
-        <div>
-          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">CANTIDAD *</label>
-          <input type="number" step="0.001" name="cantidad" id="devCantidadInput" class="form-control" required value="1" min="0.001" style="font-weight: 700;">
-          <span style="font-size: 0.75rem; color: #818cf8; font-weight: 600;" id="devMaxCantLabel"></span>
-        </div>
+      <!-- Grilla de productos a devolver -->
+      <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-dark); border-radius: 8px;">
+        <table class="table" style="margin: 0; font-size: 0.85rem;">
+          <thead style="background: rgba(0,0,0,0.3); position: sticky; top: 0;">
+            <tr>
+              <th>Producto</th>
+              <th style="text-align: right; width: 90px;">Cantidad</th>
+              <th style="text-align: right; width: 120px;">Subtotal</th>
+              <th style="text-align: center; width: 70px;">Quitar</th>
+            </tr>
+          </thead>
+          <tbody id="devGrillaItems">
+            <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Aún no agregas productos a esta devolución.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; font-size: 1rem; font-weight: bold;">
+        Total a Devolver: <span id="devTotalLabel" style="color: var(--danger); margin-left: 0.5rem;">$0</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr; gap: 0.75rem;">
         <div>
           <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">PROCESO / REEMBOLSO *</label>
-          <select name="metodo_devolucion" class="form-control" required>
+          <select id="devMetodoSelect" class="form-control" required>
             <option value="Efectivo">Efectivo (Sacar de Caja)</option>
             <option value="Tarjeta">Tarjeta Bancaria</option>
             <option value="Nota de Credito">Nota de Crédito (Generar Vale)</option>
+            <option value="Cambio de Mercaderia">Cambio de Mercadería (Generar Vale, el cliente se lleva otro producto ahora)</option>
           </select>
         </div>
       </div>
 
       <div>
         <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">MOTIVO DE LA DEVOLUCIÓN *</label>
-        <input type="text" name="motivo" class="form-control" required placeholder="Ej: Producto en mal estado / Cambio de producto">
+        <input type="text" id="devMotivoInput" class="form-control" placeholder="Ej: Producto en mal estado / Cambio de producto">
       </div>
 
       <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
-        <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> Confirmar Devolución</button>
+        <button type="button" id="btnConfirmarDevolucion" onclick="confirmarDevolucion()" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> Confirmar Devolución</button>
         <button type="button" onclick="cerrarDevolucionModal()" class="btn btn-secondary btn-block">Cancelar</button>
       </div>
-    </form>
+    </div>
   </div>
 </div>
 
 <!-- Modal Vale de Devolución Generado (Copia Cliente) -->
-<?php if (isset($_SESSION['ultimo_vale'])): ?>
-  <div id="valeModal" style="display: flex; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1100; align-items: center; justify-content: center;">
-    <div style="background: #fff; color: #000; width: 340px; border-radius: 12px; padding: 1.5rem; box-shadow: 0 20px 40px rgba(0,0,0,0.5); font-family: monospace; text-align: center;">
-      <div style="border-bottom: 1px dashed #000; padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
-        <h2 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 0.2rem;">MINIMARKET</h2>
-        <p style="font-size: 0.8rem;">Vale de Devolución</p>
-        <p style="font-size: 0.75rem; color: #555;"><?= $_SESSION['ultimo_vale']['fecha'] ?></p>
-      </div>
-      <div style="font-size: 0.9rem; margin-bottom: 0.5rem;">Código de Canje:</div>
-      <div style="font-size: 1.6rem; font-weight: bold; background: #eee; padding: 0.5rem; border-radius: 6px; letter-spacing: 2px; margin-bottom: 1rem; color: #111;">
-        <?= $_SESSION['ultimo_vale']['codigo'] ?>
-      </div>
-      <div style="font-size: 1rem; margin-bottom: 1.5rem;">
-        Monto Disponible: <strong style="font-size: 1.3rem;"><?= formatCLP($_SESSION['ultimo_vale']['monto']) ?></strong>
-      </div>
-      <div style="display: flex; gap: 0.5rem;">
-        <button onclick="window.print()" class="btn btn-primary btn-block" style="font-size: 0.85rem; padding: 0.5rem;">
-          <i class="fa-solid fa-print"></i> Imprimir Vale
-        </button>
-        <button onclick="document.getElementById('valeModal').style.display='none'" class="btn btn-secondary btn-block" style="font-size: 0.85rem; padding: 0.5rem; background: #eee; color: #000; border: 1px solid #ccc;">
-          Cerrar
-        </button>
-      </div>
+<div id="valeModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1100; align-items: center; justify-content: center;">
+  <div style="background: #fff; color: #000; width: 340px; border-radius: 12px; padding: 1.5rem; box-shadow: 0 20px 40px rgba(0,0,0,0.5); font-family: monospace; text-align: center;">
+    <div style="border-bottom: 1px dashed #000; padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+      <h2 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 0.2rem;">MINIMARKET</h2>
+      <p style="font-size: 0.8rem;" id="valeTitulo">Vale de Devolución</p>
+      <p style="font-size: 0.75rem; color: #555;" id="valeFecha"></p>
+    </div>
+    <div style="font-size: 0.9rem; margin-bottom: 0.5rem;">Código de Canje:</div>
+    <div style="font-size: 1.6rem; font-weight: bold; background: #eee; padding: 0.5rem; border-radius: 6px; letter-spacing: 2px; margin-bottom: 1rem; color: #111;" id="valeCodigoLabel"></div>
+    <div style="font-size: 1rem; margin-bottom: 1.5rem;">
+      Monto Disponible: <strong style="font-size: 1.3rem;" id="valeMontoLabel"></strong>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+      <button onclick="window.print()" class="btn btn-primary btn-block" style="font-size: 0.85rem; padding: 0.5rem;">
+        <i class="fa-solid fa-print"></i> Imprimir Vale
+      </button>
+      <button onclick="document.getElementById('valeModal').style.display='none'; location.reload();" class="btn btn-secondary btn-block" style="font-size: 0.85rem; padding: 0.5rem; background: #eee; color: #000; border: 1px solid #ccc;">
+        Cerrar
+      </button>
     </div>
   </div>
-  <?php unset($_SESSION['ultimo_vale']); ?>
-<?php endif; ?>
+</div>
 
 <script>
+let ventaEnDevolucion = null;
+let detallesVentaDevolucion = [];
+let itemsDevolucion = [];
+
 function abrirModalDevolucion() {
   document.getElementById('devVentaIdInput').value = '';
   document.getElementById('devErrorMsg').style.display = 'none';
-  document.getElementById('detallesDevolucionForm').style.display = 'none';
+  document.getElementById('detallesDevolucionBody').style.display = 'none';
+  itemsDevolucion = [];
+  ventaEnDevolucion = null;
   document.getElementById('devModal').style.display = 'flex';
 }
 
@@ -157,15 +186,18 @@ function cerrarDevolucionModal() {
   document.getElementById('devModal').style.display = 'none';
 }
 
+function fmtDev(val) {
+  return '$' + new Intl.NumberFormat('es-CL').format(val);
+}
+
 async function buscarBoletaDevolucion() {
   const ventaId = document.getElementById('devVentaIdInput').value.trim();
   const errorEl = document.getElementById('devErrorMsg');
-  const formEl = document.getElementById('detallesDevolucionForm');
+  const bodyEl = document.getElementById('detallesDevolucionBody');
   const selectEl = document.getElementById('devProductoSelect');
-  const hiddenVId = document.getElementById('hiddenVentaId');
 
   errorEl.style.display = 'none';
-  formEl.style.display = 'none';
+  bodyEl.style.display = 'none';
 
   if (!ventaId) {
     errorEl.textContent = 'Ingresa un número de boleta válido.';
@@ -190,21 +222,24 @@ async function buscarBoletaDevolucion() {
       throw new Error('Esta boleta ya no tiene productos disponibles para devolver (todo fue devuelto anteriormente).');
     }
 
+    ventaEnDevolucion = ventaId;
+    detallesVentaDevolucion = data.detalles;
+    itemsDevolucion = [];
+
     // Poblar select. Los productos ya devueltos por completo se muestran deshabilitados,
     // para que quede claro por qué no se pueden elegir en vez de dejarlo ambiguo.
-    selectEl.innerHTML = data.detalles.map(i => `
+    selectEl.innerHTML = detallesVentaDevolucion.map(i => `
       <option value="${i.producto_id}" data-disponible="${i.disponible}" data-precio="${i.precio}" ${i.disponible <= 0 ? 'disabled' : ''}>
         ${i.nombre} (Comprado: ${i.cantidad}${i.ya_devuelto > 0 ? `, ya devuelto: ${i.ya_devuelto}` : ''} - Disponible: ${i.disponible})
       </option>
     `).join('');
 
-    // Dejar seleccionado el primer producto que todavía tenga disponible, no el primero de la lista
     const primeraOpcionDisponible = Array.from(selectEl.options).findIndex(o => !o.disabled);
     if (primeraOpcionDisponible >= 0) selectEl.selectedIndex = primeraOpcionDisponible;
 
-    hiddenVId.value = ventaId;
-    formEl.style.display = 'flex';
+    bodyEl.style.display = 'flex';
     actualizarInfoProductoDev();
+    renderGrillaDevolucion();
 
   } catch (err) {
     errorEl.textContent = err.message;
@@ -217,9 +252,126 @@ function actualizarInfoProductoDev() {
   const option = select.options[select.selectedIndex];
   if (!option) return;
 
-  const disponible = option.getAttribute('data-disponible');
-  document.getElementById('devCantidadInput').max = disponible;
-  document.getElementById('devCantidadInput').value = disponible > 0 ? disponible : '';
-  document.getElementById('devMaxCantLabel').textContent = `Máx. disponible: ${disponible}`;
+  const disponible = parseFloat(option.getAttribute('data-disponible'));
+  const yaEnGrilla = itemsDevolucion.find(i => i.producto_id == option.value);
+  const restante = disponible - (yaEnGrilla ? yaEnGrilla.cantidad : 0);
+
+  document.getElementById('devCantidadInput').max = restante;
+  document.getElementById('devCantidadInput').value = restante > 0 ? restante : '';
+  document.getElementById('devMaxCantLabel').textContent = `Máx. disponible: ${restante}`;
+}
+
+function agregarProductoADevolucion() {
+  const select = document.getElementById('devProductoSelect');
+  const option = select.options[select.selectedIndex];
+  const cantidad = parseFloat(document.getElementById('devCantidadInput').value) || 0;
+
+  if (!option || option.disabled) {
+    alert('Selecciona un producto con unidades disponibles.');
+    return;
+  }
+  const disponible = parseFloat(option.getAttribute('data-disponible'));
+  const precio = parseInt(option.getAttribute('data-precio'));
+  const productoID = option.value;
+  const nombre = option.text.split(' (')[0].trim();
+
+  const yaEnGrilla = itemsDevolucion.find(i => i.producto_id == productoID);
+  const yaAgregado = yaEnGrilla ? yaEnGrilla.cantidad : 0;
+
+  if (cantidad <= 0 || (cantidad + yaAgregado) > disponible) {
+    alert(`Cantidad inválida. Máximo disponible para este producto: ${disponible - yaAgregado}.`);
+    return;
+  }
+
+  if (yaEnGrilla) {
+    yaEnGrilla.cantidad += cantidad;
+    yaEnGrilla.subtotal = Math.round(yaEnGrilla.cantidad * precio);
+  } else {
+    itemsDevolucion.push({ producto_id: productoID, nombre, cantidad, precio, subtotal: Math.round(cantidad * precio) });
+  }
+
+  renderGrillaDevolucion();
+  actualizarInfoProductoDev();
+}
+
+function quitarDeGrillaDevolucion(index) {
+  itemsDevolucion.splice(index, 1);
+  renderGrillaDevolucion();
+  actualizarInfoProductoDev();
+}
+
+function renderGrillaDevolucion() {
+  const tbody = document.getElementById('devGrillaItems');
+  if (itemsDevolucion.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Aún no agregas productos a esta devolución.</td></tr>`;
+    document.getElementById('devTotalLabel').textContent = '$0';
+    return;
+  }
+
+  let total = 0;
+  tbody.innerHTML = itemsDevolucion.map((item, idx) => {
+    total += item.subtotal;
+    return `
+      <tr>
+        <td style="font-weight: 600; color: #fff;">${item.nombre}</td>
+        <td style="text-align: right;">${item.cantidad}</td>
+        <td style="text-align: right; font-weight: bold; color: var(--danger);">${fmtDev(item.subtotal)}</td>
+        <td style="text-align: center;">
+          <button type="button" onclick="quitarDeGrillaDevolucion(${idx})" class="btn btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.75rem; color: var(--danger);">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  document.getElementById('devTotalLabel').textContent = fmtDev(total);
+}
+
+async function confirmarDevolucion() {
+  if (itemsDevolucion.length === 0) {
+    alert('Agrega al menos un producto a la devolución.');
+    return;
+  }
+  const metodo = document.getElementById('devMetodoSelect').value;
+  const motivo = document.getElementById('devMotivoInput').value.trim();
+  if (!motivo) {
+    alert('Ingresa el motivo de la devolución.');
+    return;
+  }
+
+  const btn = document.getElementById('btnConfirmarDevolucion');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('api/registrar_devolucion.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN },
+      body: JSON.stringify({
+        venta_id: ventaEnDevolucion,
+        items: itemsDevolucion.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad })),
+        metodo_devolucion: metodo,
+        motivo: motivo
+      })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    cerrarDevolucionModal();
+
+    if (data.vale_codigo) {
+      document.getElementById('valeTitulo').textContent = data.metodo === 'Cambio de Mercaderia' ? 'Vale por Cambio de Mercadería' : 'Vale de Devolución';
+      document.getElementById('valeFecha').textContent = new Date().toLocaleString('es-CL');
+      document.getElementById('valeCodigoLabel').textContent = data.vale_codigo;
+      document.getElementById('valeMontoLabel').textContent = fmtDev(data.monto_total);
+      document.getElementById('valeModal').style.display = 'flex';
+    } else {
+      alert(`Devolución registrada exitosamente (ID #${data.devolucion_id}). Se reembolsaron ${fmtDev(data.monto_total)} mediante ${metodo}.`);
+      location.reload();
+    }
+  } catch (err) {
+    alert('Error al registrar devolución: ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
 }
 </script>
