@@ -3,10 +3,48 @@
     <h1 style="font-size: 1.5rem; font-weight: 700;">Recepción de Compras e Ingreso de Stock</h1>
     <p style="color: var(--text-muted); font-size: 0.9rem;">Registro de facturas/guías de proveedores e incremento automático en Kardex</p>
   </div>
-  <button onclick="abrirModalCompra()" class="btn btn-primary">
-    <i class="fa-solid fa-truck-ramp-box"></i> Ingresar Mercadería
-  </button>
+  <div style="display: flex; gap: 0.5rem;">
+    <a href="notaspedido.php" class="btn btn-secondary">
+      <i class="fa-solid fa-file-signature"></i> Notas de Pedido
+    </a>
+    <button onclick="abrirModalCompra()" class="btn btn-primary">
+      <i class="fa-solid fa-truck-ramp-box"></i> Ingresar Mercadería
+    </button>
+  </div>
 </div>
+
+<?php if (!empty($notasPendientes)): ?>
+<div class="table-card" style="margin-bottom: 1.5rem; border: 1px solid var(--primary);">
+  <div class="table-header">
+    <h2 style="font-size: 1.1rem; font-weight: 600; color: #a5b4fc;"><i class="fa-solid fa-file-signature"></i> Notas de Pedido Pendientes de Recibir</h2>
+    <span style="color: var(--text-muted); font-size: 0.85rem;"><?= count($notasPendientes) ?> pendientes</span>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>N° Nota</th>
+        <th>Proveedor</th>
+        <th>Productos Pedidos</th>
+        <th style="width: 120px;">Acción</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($notasPendientes as $np): ?>
+        <tr>
+          <td>#<?= $np['NotaPedidoID'] ?></td>
+          <td style="font-weight: 600; color: #fff;"><?= htmlspecialchars($np['Proveedor']) ?></td>
+          <td style="font-size: 0.85rem; color: var(--text-muted);"><?= htmlspecialchars($np['Items'] ?: '') ?></td>
+          <td>
+            <button onclick="recibirNotaPedido(<?= $np['NotaPedidoID'] ?>)" class="btn btn-primary" style="padding: 0.3rem 0.65rem; font-size: 0.8rem;">
+              <i class="fa-solid fa-truck-arrow-right"></i> Recibir
+            </button>
+          </td>
+        </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+</div>
+<?php endif; ?>
 
 <!-- Tabla de Historial de Compras -->
 <div class="table-card">
@@ -52,6 +90,9 @@
       <h2 style="font-size: 1.25rem; font-weight: 700; color: #818cf8; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
         <i class="fa-solid fa-file-invoice"></i> Recepción de Mercadería (Fase 1 de 2)
       </h2>
+      <div id="compraDesdeNotaAviso" style="display: none; background: rgba(79,70,229,0.15); border: 1px solid var(--primary); color: #a5b4fc; padding: 0.6rem 0.9rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1.25rem;">
+        <i class="fa-solid fa-file-signature"></i> Recibiendo contra <strong id="compraDesdeNotaTexto"></strong>. Ajusta las cantidades si llegó distinto a lo pedido.
+      </div>
       
       <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
         <div>
@@ -173,20 +214,53 @@
 <script>
 // Estado de la compra en la grilla de Fase 1
 let itemsFactura = [];
+let notaPedidoIDActual = null;
+let faltantePendiente = [];
 
 function abrirModalCompra() {
   itemsFactura = [];
+  notaPedidoIDActual = null;
+  faltantePendiente = [];
+  document.getElementById('compraDesdeNotaAviso').style.display = 'none';
   document.getElementById('compraProveedor').disabled = false;
   document.getElementById('compraNumeroDoc').value = '';
   document.getElementById('compraProductoSelect').value = '';
   document.getElementById('compraCantidad').value = '';
   document.getElementById('compraCosto').value = '';
   renderGrillaFase1();
-  
+
   document.getElementById('compraFase1').style.display = 'block';
   document.getElementById('compraFase2').style.display = 'none';
   document.getElementById('compraModalCard').style.width = '780px';
   document.getElementById('compraModal').style.display = 'flex';
+}
+
+async function recibirNotaPedido(id) {
+  try {
+    const res = await fetch(`api/ver_nota_pedido.php?id=${id}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    abrirModalCompra();
+    notaPedidoIDActual = id;
+
+    document.getElementById('compraProveedor').value = data.nota_pedido.proveedor_id;
+    document.getElementById('compraNumeroDoc').value = data.nota_pedido.numero_documento || '';
+
+    itemsFactura = data.detalles.map(d => ({
+      producto_id: d.producto_id,
+      nombre: d.nombre,
+      cantidad: d.cantidad_pedida,
+      costo_unitario: d.costo_acordado,
+      subtotal: Math.round(d.cantidad_pedida * d.costo_acordado)
+    }));
+    renderGrillaFase1();
+
+    document.getElementById('compraDesdeNotaAviso').style.display = 'block';
+    document.getElementById('compraDesdeNotaTexto').textContent = `Nota de Pedido #${id} (${data.nota_pedido.proveedor})`;
+  } catch (err) {
+    alert('Error al cargar la nota de pedido: ' + err.message);
+  }
 }
 
 function cerrarModalCompra() {
@@ -325,6 +399,7 @@ async function guardarRecepcion() {
       body: JSON.stringify({
         proveedor_id: provId,
         numero_documento: numDoc,
+        nota_pedido_id: notaPedidoIDActual,
         items: itemsFactura
       })
     });
@@ -333,9 +408,38 @@ async function guardarRecepcion() {
 
     // Recepción exitosa, guardamos datos para Fase 2
     productosCompraFase2 = data.productos;
+    faltantePendiente = data.faltante || [];
     cargarGrillaFase2();
   } catch (err) {
     alert('Error al registrar la compra: ' + err.message);
+  }
+}
+
+// Si quedó algo sin llegar de la Nota de Pedido, ofrece generar una nueva
+// nota solo con lo faltante, en vez de dejar la original en un limbo.
+async function ofrecerNotaPorFaltante() {
+  if (!notaPedidoIDActual || faltantePendiente.length === 0) return;
+
+  const detalle = faltantePendiente.map(f => `- ${f.nombre}: ${f.cantidad_faltante}`).join('\n');
+  const confirmar = confirm(`Quedaron productos sin llegar de la Nota de Pedido #${notaPedidoIDActual}:\n${detalle}\n\n¿Generar una Nota de Pedido nueva solo con lo faltante?`);
+  if (!confirmar) return;
+
+  try {
+    const res = await fetch('api/registrar_nota_pedido.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN },
+      body: JSON.stringify({
+        proveedor_id: parseInt(document.getElementById('compraProveedor').value),
+        numero_documento: document.getElementById('compraNumeroDoc').value.trim(),
+        nota_pedido_origen_id: notaPedidoIDActual,
+        items: faltantePendiente.map(f => ({ producto_id: f.producto_id, cantidad: f.cantidad_faltante, costo_acordado: f.costo_acordado }))
+      })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    alert(`Nota de Pedido #${data.nota_pedido_id} generada con lo que faltó por recibir.`);
+  } catch (err) {
+    alert('Error al generar la nota de pedido por lo faltante: ' + err.message);
   }
 }
 
@@ -420,15 +524,17 @@ async function actualizarPreciosVenta() {
 
     alert('Precios actualizados e ingreso de mercadería completado.');
     cerrarModalCompra();
+    await ofrecerNotaPorFaltante();
     location.reload();
   } catch (err) {
     alert('Error al actualizar precios: ' + err.message);
   }
 }
 
-function saltarActualizacionPrecios() {
+async function saltarActualizacionPrecios() {
   alert('Recepción de mercadería ingresada con éxito. Se mantuvieron los precios de venta actuales.');
   cerrarModalCompra();
+  await ofrecerNotaPorFaltante();
   location.reload();
 }
 </script>

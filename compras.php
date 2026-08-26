@@ -11,6 +11,19 @@ $error = '';
 $proveedores = $pdo->query("SELECT * FROM proveedores WHERE Activo = TRUE ORDER BY RazonSocial ASC")->fetchAll();
 $productos = $pdo->query("SELECT * FROM productos WHERE Activo = TRUE ORDER BY Nombre ASC")->fetchAll();
 
+// Notas de Pedido pendientes, para poder recibirlas directo desde aquí
+$stmtNotasPendientes = $pdo->query("
+    SELECT np.NotaPedidoID, np.NumeroDocumento, np.FechaPedido, p.RazonSocial AS Proveedor,
+           (SELECT GROUP_CONCAT(CONCAT(pr.Nombre, ' (x', dnp.CantidadPedida, ')') SEPARATOR ', ')
+            FROM detallenotaspedido dnp JOIN productos pr ON dnp.ProductoID = pr.ProductoID
+            WHERE dnp.NotaPedidoID = np.NotaPedidoID) AS Items
+    FROM notaspedido np
+    JOIN proveedores p ON np.ProveedorID = p.ProveedorID
+    WHERE np.Estado = 'Pendiente'
+    ORDER BY np.NotaPedidoID DESC
+");
+$notasPendientes = $stmtNotasPendientes->fetchAll();
+
 // Obtener Historial de Compras Recientes (con resumen de ítems agregados)
 $stmtCompras = $pdo->query("
     SELECT c.*, p.RazonSocial AS Proveedor, u.Nombre AS Usuario,

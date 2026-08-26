@@ -50,11 +50,12 @@ $esSupervisorNav = in_array($user['rol'], ['Administrador', 'Supervisor'], true)
 
     <!-- Grupo: Operaciones -->
     <li class="nav-item">
-      <div class="nav-link <?= in_array($currentPage, ['compras.php', 'devoluciones.php']) ? 'active' : '' ?>">
+      <div class="nav-link <?= in_array($currentPage, ['compras.php', 'notaspedido.php', 'devoluciones.php']) ? 'active' : '' ?>">
         <i class="fa-solid fa-truck-ramp-box"></i> Operaciones <i class="fa-solid fa-chevron-down" style="font-size: 0.75rem;"></i>
       </div>
       <ul class="dropdown-menu">
         <?php if ($esSupervisorNav): ?>
+        <li><a href="notaspedido.php" class="dropdown-item"><i class="fa-solid fa-file-signature"></i> Notas de Pedido</a></li>
         <li><a href="compras.php" class="dropdown-item"><i class="fa-solid fa-truck-arrow-right"></i> Recepción de Compras</a></li>
         <?php endif; ?>
         <li><a href="devoluciones.php" class="dropdown-item"><i class="fa-solid fa-rotate-left"></i> Devoluciones y Vales</a></li>

@@ -20,6 +20,7 @@ if (empty($input['items']) || !is_array($input['items'])) {
 
 $proveedorID = (int)($input['proveedor_id'] ?? 1);
 $numeroDoc = trim($input['numero_documento'] ?? '');
+$notaPedidoID = !empty($input['nota_pedido_id']) ? (int)$input['nota_pedido_id'] : null;
 
 try {
     $pdo = getDB();
@@ -63,11 +64,12 @@ try {
 
     // 2. Insertar cabecera de Compra
     $stmtC = $pdo->prepare("
-        INSERT INTO compras (ProveedorID, UsuarioID, NumeroDocumento, MontoNeto, MontoIva, MontoTotal, Estado)
-        VALUES (:prov, :uid, :numdoc, :neto, :iva, :total, 'Completada')
+        INSERT INTO compras (ProveedorID, NotaPedidoID, UsuarioID, NumeroDocumento, MontoNeto, MontoIva, MontoTotal, Estado)
+        VALUES (:prov, :npid, :uid, :numdoc, :neto, :iva, :total, 'Completada')
     ");
     $stmtC->execute([
         ':prov' => $proveedorID,
+        ':npid' => $notaPedidoID,
         ':uid' => $user['id'],
         ':numdoc' => $numeroDoc,
         ':neto' => $montoNeto,
@@ -133,13 +135,61 @@ try {
         ];
     }
 
+    // 4. Si esta recepción viene de una Nota de Pedido, cerrarla completa y calcular
+    // qué quedó sin llegar (por si se quiere generar una nota nueva solo con eso).
+    $faltante = [];
+    if ($notaPedidoID) {
+        $stmtNPInfo = $pdo->prepare("SELECT ProveedorID, Estado FROM notaspedido WHERE NotaPedidoID = :id FOR UPDATE");
+        $stmtNPInfo->execute([':id' => $notaPedidoID]);
+        $notaPedidoInfo = $stmtNPInfo->fetch();
+
+        if (!$notaPedidoInfo) {
+            throw new Exception("La nota de pedido #$notaPedidoID no existe.");
+        }
+        if ($notaPedidoInfo['Estado'] !== 'Pendiente') {
+            throw new Exception("La nota de pedido #$notaPedidoID ya no está pendiente.");
+        }
+
+        $recibidoPorProducto = [];
+        foreach ($itemsProcesados as $item) {
+            $pid = $item['prod']['ProductoID'];
+            $recibidoPorProducto[$pid] = ($recibidoPorProducto[$pid] ?? 0) + $item['cant'];
+        }
+
+        $stmtPedido = $pdo->prepare("
+            SELECT dnp.ProductoID, dnp.CantidadPedida, dnp.CostoAcordado, p.Nombre
+            FROM detallenotaspedido dnp JOIN productos p ON dnp.ProductoID = p.ProductoID
+            WHERE dnp.NotaPedidoID = :id
+        ");
+        $stmtPedido->execute([':id' => $notaPedidoID]);
+        foreach ($stmtPedido->fetchAll() as $linea) {
+            $recibido = $recibidoPorProducto[$linea['ProductoID']] ?? 0;
+            $pendiente = (float)$linea['CantidadPedida'] - $recibido;
+            if ($pendiente > 0) {
+                $faltante[] = [
+                    'producto_id' => (int)$linea['ProductoID'],
+                    'nombre' => $linea['Nombre'],
+                    'cantidad_faltante' => $pendiente,
+                    'costo_acordado' => (int)$linea['CostoAcordado']
+                ];
+            }
+        }
+
+        // Siempre se cierra completa: lo que no llegó se maneja generando una nota nueva.
+        $stmtCerrarNP = $pdo->prepare("UPDATE notaspedido SET Estado = 'Recibida' WHERE NotaPedidoID = :id");
+        $stmtCerrarNP->execute([':id' => $notaPedidoID]);
+    }
+
     $pdo->commit();
 
     echo json_encode([
         'success' => true,
         'compra_id' => $compraID,
         'monto_total' => $totalCompra,
-        'productos' => $productosRetorno
+        'productos' => $productosRetorno,
+        'nota_pedido_id' => $notaPedidoID,
+        'nota_pedido_proveedor_id' => $notaPedidoID ? $proveedorID : null,
+        'faltante' => $faltante
     ]);
 
 } catch (Exception $e) {
