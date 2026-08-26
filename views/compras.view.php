@@ -295,23 +295,21 @@ function agregarProductoAGrilla() {
     return;
   }
 
-  // Verificar si el producto ya está en la grilla
+  // Este espacio es solo para agregar productos nuevos. Si ya está en la lista,
+  // se edita directo en la tabla (cantidad y costo son editables ahí).
   const indexExistente = itemsFactura.findIndex(item => item.producto_id === pid);
   if (indexExistente !== -1) {
-    if (confirm(`El producto '${opt.text.split('(')[0].trim()}' ya está en la factura. ¿Deseas reemplazar su cantidad y costo por los nuevos ingresados?`)) {
-      itemsFactura[indexExistente].cantidad = cant;
-      itemsFactura[indexExistente].costo_unitario = costo;
-      itemsFactura[indexExistente].subtotal = Math.round(cant * costo);
-    }
-  } else {
-    itemsFactura.push({
-      producto_id: pid,
-      nombre: opt.text.split('(')[0].trim(),
-      cantidad: cant,
-      costo_unitario: costo,
-      subtotal: Math.round(cant * costo)
-    });
+    alert(`'${opt.text.split('(')[0].trim()}' ya está en la lista — edita su cantidad o costo directamente en la tabla de abajo.`);
+    return;
   }
+
+  itemsFactura.push({
+    producto_id: pid,
+    nombre: opt.text.split('(')[0].trim(),
+    cantidad: cant,
+    costo_unitario: costo,
+    subtotal: Math.round(cant * costo)
+  });
 
   // Limpiar campos de producto
   selectProd.value = '';
@@ -348,8 +346,16 @@ function renderGrillaFase1() {
     html += `
       <tr>
         <td style="font-weight: 600; color: #fff;">${escapeHtml(item.nombre)}</td>
-        <td style="text-align: right;">${item.cantidad}</td>
-        <td style="text-align: right;">${fmt(item.costo_unitario)}</td>
+        <td style="text-align: right;">
+          <input type="number" step="0.001" min="0.001" value="${item.cantidad}" class="form-control"
+                 style="width: 75px; text-align: right; padding: 0.25rem; font-size: 0.85rem;"
+                 oninput="actualizarItemGrilla(${index}, 'cantidad', this.value)">
+        </td>
+        <td style="text-align: right;">
+          <input type="number" min="0" value="${item.costo_unitario}" class="form-control"
+                 style="width: 90px; text-align: right; padding: 0.25rem; font-size: 0.85rem;"
+                 oninput="actualizarItemGrilla(${index}, 'costo_unitario', this.value)">
+        </td>
         <td style="text-align: right; font-weight: bold; color: var(--success);">${fmt(item.subtotal)}</td>
         <td style="text-align: center;">
           <button type="button" onclick="eliminarDeGrilla(${index})" class="btn btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.75rem; color: var(--danger);">
@@ -361,10 +367,27 @@ function renderGrillaFase1() {
   });
 
   tbody.innerHTML = html;
+  actualizarTotalesFase1();
+}
 
+// Recalcula un ítem editado directamente en la tabla (cantidad o costo), sin
+// re-renderizar toda la grilla para no perder el foco mientras se escribe.
+function actualizarItemGrilla(index, campo, valor) {
+  const item = itemsFactura[index];
+  if (!item) return;
+
+  item[campo] = campo === 'cantidad' ? (parseFloat(valor) || 0) : (parseInt(valor) || 0);
+  item.subtotal = Math.round(item.cantidad * item.costo_unitario);
+
+  const fila = document.getElementById('grillaItems').rows[index];
+  if (fila) fila.cells[3].textContent = fmt(item.subtotal);
+  actualizarTotalesFase1();
+}
+
+function actualizarTotalesFase1() {
+  const total = itemsFactura.reduce((sum, i) => sum + i.subtotal, 0);
   const neto = Math.round(total / 1.19);
   const iva = total - neto;
-
   document.getElementById('lblNeto').textContent = fmt(neto);
   document.getElementById('lblIva').textContent = fmt(iva);
   document.getElementById('lblTotal').textContent = fmt(total);
