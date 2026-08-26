@@ -111,6 +111,24 @@ try {
 
     $montoTotal = max(0, $subtotalBruto - $descuentoGlobal);
 
+    // Un Vale de Devolución (Nota de Crédito / Cambio de Mercadería) reduce el total
+    // de ESTA venta, en vez de figurar como un pago aparte. Ese monto ya se declaró
+    // como venta la primera vez; si se cobrara de nuevo al precio lleno, el IVA de
+    // ese monto quedaría declarado dos veces.
+    $vale = null;
+    $valeAplicado = 0;
+    $codigoVale = trim($input['vale_codigo'] ?? '');
+    if (!empty($codigoVale)) {
+        $stmtVale = $pdo->prepare("SELECT ValeID, MontoDisponible, Estado FROM valesdevolucion WHERE CodigoVale = :codigo FOR UPDATE");
+        $stmtVale->execute([':codigo' => $codigoVale]);
+        $vale = $stmtVale->fetch();
+        if (!$vale || $vale['Estado'] !== 'Activo') {
+            throw new Exception("El vale '$codigoVale' no es válido, ya fue utilizado o no existe.");
+        }
+        $valeAplicado = min((int)$vale['MontoDisponible'], $montoTotal);
+        $montoTotal -= $valeAplicado;
+    }
+
     // Descuentos globales grandes requieren autorización de un Administrador/Supervisor,
     // igual que la anulación de ventas. Los descuentos por promoción no cuentan aquí:
     // ya fueron pre-aprobados por un Admin/Supervisor al crear la promoción, así que
@@ -177,6 +195,19 @@ try {
     ]);
     $ventaID = $pdo->lastInsertId();
 
+    // Consumir el vale aplicado y dejar registro de en qué venta se canjeó
+    if ($vale && $valeAplicado > 0) {
+        $nuevoDisponible = (int)$vale['MontoDisponible'] - $valeAplicado;
+        $stmtUpdVale = $pdo->prepare("UPDATE valesdevolucion SET MontoDisponible = :disp, Estado = :estado WHERE ValeID = :vale");
+        $stmtUpdVale->execute([
+            ':disp' => $nuevoDisponible,
+            ':estado' => $nuevoDisponible <= 0 ? 'Usado' : 'Activo',
+            ':vale' => $vale['ValeID']
+        ]);
+        $stmtCanje = $pdo->prepare("INSERT INTO valescanjes (ValeID, VentaID, Monto) VALUES (:vale, :vid, :monto)");
+        $stmtCanje->execute([':vale' => $vale['ValeID'], ':vid' => $ventaID, ':monto' => $valeAplicado]);
+    }
+
     // 3. Insertar DetalleVentas, Actualizar Stock y Kardex
     $stmtDetalle = $pdo->prepare("
         INSERT INTO detalleventas (VentaID, ProductoID, Cantidad, PrecioUnitario, CostoUnitario, Descuento, EsAfecto, Subtotal)
@@ -218,6 +249,9 @@ try {
     }
 
     // 4. Procesar Pagos (Múltiples / Pagos Mixtos / Crédito / Puntos)
+    // Si el vale/descuento ya cubrió el total, no queda nada por pagar: no se
+    // inserta ningún PagosVenta (la tabla exige Monto > 0).
+    if ($montoTotal > 0) {
     $stmtPago = $pdo->prepare("INSERT INTO pagosventa (VentaID, MetodoPago, Monto) VALUES (:vid, :metodo, :monto)");
 
     // Cargar cupo/puntos reales del cliente si algún pago los necesita, antes de aplicar nada.
@@ -242,12 +276,10 @@ try {
     }
     $creditoUsado = 0;
     $puntosUsados = 0;
-    $stmtCanje = $pdo->prepare("INSERT INTO valescanjes (ValeID, VentaID, Monto) VALUES (:vale, :vid, :monto)");
 
     foreach ($pagosList as $pago) {
         $metodo = $pago['metodo'];
         $montoPago = (int)($pago['monto'] > 0 ? $pago['monto'] : $montoTotal);
-        $vale = null;
 
         if ($metodo === 'Credito' || $metodo === 'Fiado' || $metodo === 'Credito Interno') {
             $creditoUsado += $montoPago;
@@ -261,20 +293,6 @@ try {
             $puntosDisponibles = (int)($cliente['PuntosAcumulados'] ?? 0);
             if ($puntosUsados > $puntosDisponibles) {
                 throw new Exception("El cliente no tiene suficientes puntos acumulados (disponibles: $puntosDisponibles).");
-            }
-        } elseif ($metodo === 'Vale Devolucion') {
-            $codigoVale = trim($pago['vale_codigo'] ?? '');
-            if (empty($codigoVale)) {
-                throw new Exception("Debes ingresar el código del vale de devolución.");
-            }
-            $stmtVale = $pdo->prepare("SELECT ValeID, MontoDisponible, Estado FROM valesdevolucion WHERE CodigoVale = :codigo FOR UPDATE");
-            $stmtVale->execute([':codigo' => $codigoVale]);
-            $vale = $stmtVale->fetch();
-            if (!$vale || $vale['Estado'] !== 'Activo') {
-                throw new Exception("El vale '$codigoVale' no es válido, ya fue utilizado o no existe.");
-            }
-            if ($montoPago > (int)$vale['MontoDisponible']) {
-                throw new Exception("El vale '$codigoVale' solo tiene " . formatCLP($vale['MontoDisponible']) . " disponible.");
             }
         }
 
@@ -294,25 +312,8 @@ try {
                 $stmtPts->execute([':pts' => $montoPago, ':cid' => $clienteID]);
             }
         }
-
-        // Descontar el vale usado y dejar registro de en qué venta se canjeó
-        if ($metodo === 'Vale Devolucion' && $vale) {
-            $nuevoDisponible = (int)$vale['MontoDisponible'] - $montoPago;
-            $stmtUpdVale = $pdo->prepare("
-                UPDATE valesdevolucion SET MontoDisponible = :disp, Estado = :estado WHERE ValeID = :vale
-            ");
-            $stmtUpdVale->execute([
-                ':disp' => $nuevoDisponible,
-                ':estado' => $nuevoDisponible <= 0 ? 'Usado' : 'Activo',
-                ':vale' => $vale['ValeID']
-            ]);
-            $stmtCanje->execute([
-                ':vale' => $vale['ValeID'],
-                ':vid' => $ventaID,
-                ':monto' => $montoPago
-            ]);
-        }
     }
+    } // fin if ($montoTotal > 0)
 
     // Sumar Puntos Ganados al Cliente si aplica
     if ($clienteID && $puntosGanados > 0) {

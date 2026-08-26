@@ -2,6 +2,7 @@
 let cart = [];
 let productosCache = [];
 let metodoSeleccionadoModal = 'Efectivo';
+let valeAplicado = null; // { codigo, disponible }
 
 function playBeep() {
   try {
@@ -189,9 +190,7 @@ function renderCart() {
     return;
   }
 
-  const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
-  let subtotalBruto = getCartSubtotal();
-  let totalFinal = Math.max(0, subtotalBruto - descGlobal);
+  let totalFinal = getCartTotal();
 
   container.innerHTML = cart.map((item, idx) => {
     const subtotalNormal = item.cantidad * item.PrecioVenta;
@@ -237,9 +236,47 @@ function getCartSubtotal() {
   return cart.reduce((sum, item) => sum + (item.cantidad * item.PrecioVenta) - calcularDescuentoItem(item), 0);
 }
 
+function getValeMontoAplicado() {
+  if (!valeAplicado) return 0;
+  const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
+  const subtotalTrasDescuento = Math.max(0, getCartSubtotal() - descGlobal);
+  return Math.min(valeAplicado.disponible, subtotalTrasDescuento);
+}
+
 function getCartTotal() {
   const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
-  return Math.max(0, getCartSubtotal() - descGlobal);
+  const subtotal = Math.max(0, getCartSubtotal() - descGlobal);
+  return Math.max(0, subtotal - getValeMontoAplicado());
+}
+
+async function aplicarValeCarrito() {
+  const codigo = document.getElementById('valeCodigoInput').value.trim().toUpperCase();
+  const infoEl = document.getElementById('valeAplicadoInfo');
+
+  if (!codigo) {
+    valeAplicado = null;
+    infoEl.style.display = 'none';
+    renderCart();
+    return;
+  }
+
+  try {
+    const res = await fetch(`api/verificar_vale.php?codigo=${encodeURIComponent(codigo)}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    valeAplicado = { codigo, disponible: data.disponible };
+    renderCart();
+    infoEl.style.display = 'block';
+    infoEl.style.color = 'var(--success)';
+    infoEl.textContent = `Vale válido: se aplican $${formatNumber(getValeMontoAplicado())} de $${formatNumber(data.disponible)} disponibles.`;
+  } catch (err) {
+    valeAplicado = null;
+    renderCart();
+    infoEl.style.display = 'block';
+    infoEl.style.color = 'var(--danger)';
+    infoEl.textContent = err.message;
+  }
 }
 
 /* Modal FormPagoPOS */
@@ -339,13 +376,6 @@ async function confirmarPagoModal() {
     }
     const metodoDb = metodoSeleccionadoModal === 'Credito' ? 'Credito Interno' : 'Puntos';
     pagos.push({ metodo: metodoDb, monto: total });
-  } else if (metodoSeleccionadoModal === 'Vale') {
-    const codigoVale = document.getElementById('valeCodigoModal').value.trim();
-    if (!codigoVale) {
-      alert('Ingresa el código del vale de devolución.');
-      return;
-    }
-    pagos.push({ metodo: 'Vale Devolucion', monto: total, vale_codigo: codigoVale });
   } else {
     pagos.push({ metodo: metodoSeleccionadoModal, monto: total });
   }
@@ -363,6 +393,7 @@ async function confirmarPagoModal() {
         tipo_documento: tipoDoc,
         cliente_id: clienteID,
         descuento_global: descGlobal,
+        vale_codigo: valeAplicado ? valeAplicado.codigo : null,
         pagos: pagos,
         monto_pagado: recibido,
         vuelto: vuelto
@@ -378,6 +409,9 @@ async function confirmarPagoModal() {
 
     cart = [];
     document.getElementById('descuentoGlobal').value = '';
+    valeAplicado = null;
+    document.getElementById('valeCodigoInput').value = '';
+    document.getElementById('valeAplicadoInfo').style.display = 'none';
     renderCart();
     cargarProductos('');
 
