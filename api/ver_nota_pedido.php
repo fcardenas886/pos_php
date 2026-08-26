@@ -18,7 +18,8 @@ try {
     $pdo = getDB();
 
     $stmtNP = $pdo->prepare("
-        SELECT np.NotaPedidoID, np.ProveedorID, np.NumeroDocumento, np.Estado, np.FechaPedido, p.RazonSocial AS Proveedor
+        SELECT np.NotaPedidoID, np.ProveedorID, np.NumeroDocumento, np.Estado, np.FechaPedido,
+               np.NotaPedidoOrigenID, p.RazonSocial AS Proveedor
         FROM notaspedido np
         JOIN proveedores p ON np.ProveedorID = p.ProveedorID
         WHERE np.NotaPedidoID = :id
@@ -40,6 +41,26 @@ try {
     $stmtD->execute([':id' => $id]);
     $detalles = $stmtD->fetchAll();
 
+    // Compras que recibieron (total o parcialmente) esta nota
+    $stmtCompras = $pdo->prepare("
+        SELECT CompraID, FechaCompra, MontoTotal FROM compras WHERE NotaPedidoID = :id ORDER BY CompraID ASC
+    ");
+    $stmtCompras->execute([':id' => $id]);
+    $comprasAsociadas = $stmtCompras->fetchAll();
+
+    // Nota de pedido de la que ésta se originó (si nació de un faltante)
+    $notaOrigen = null;
+    if ($notaPedido['NotaPedidoOrigenID']) {
+        $stmtOrigen = $pdo->prepare("SELECT NotaPedidoID, Estado FROM notaspedido WHERE NotaPedidoID = :id");
+        $stmtOrigen->execute([':id' => $notaPedido['NotaPedidoOrigenID']]);
+        $notaOrigen = $stmtOrigen->fetch();
+    }
+
+    // Nota de pedido generada a partir de esta (si quedó un faltante sin recibir)
+    $stmtDerivada = $pdo->prepare("SELECT NotaPedidoID, Estado FROM notaspedido WHERE NotaPedidoOrigenID = :id");
+    $stmtDerivada->execute([':id' => $id]);
+    $notaDerivada = $stmtDerivada->fetch();
+
     echo json_encode([
         'success' => true,
         'nota_pedido' => [
@@ -57,7 +78,16 @@ try {
                 'cantidad_pedida' => (float)$d['CantidadPedida'],
                 'costo_acordado' => (int)$d['CostoAcordado']
             ];
-        }, $detalles)
+        }, $detalles),
+        'compras_asociadas' => array_map(function ($c) {
+            return [
+                'compra_id' => (int)$c['CompraID'],
+                'fecha' => date('d/m/Y H:i', strtotime($c['FechaCompra'])),
+                'monto_total' => (int)$c['MontoTotal']
+            ];
+        }, $comprasAsociadas),
+        'nota_origen' => $notaOrigen ? ['id' => (int)$notaOrigen['NotaPedidoID'], 'estado' => $notaOrigen['Estado']] : null,
+        'nota_derivada' => $notaDerivada ? ['id' => (int)$notaDerivada['NotaPedidoID'], 'estado' => $notaDerivada['Estado']] : null
     ]);
 
 } catch (Exception $e) {

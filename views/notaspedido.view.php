@@ -8,6 +8,14 @@
   </button>
 </div>
 
+<form method="GET" action="notaspedido.php" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+  <input type="text" name="q" value="<?= htmlspecialchars($q) ?>" class="form-control" placeholder="Buscar por N° de nota, proveedor o N° de documento..." style="max-width: 420px;">
+  <button type="submit" class="btn btn-secondary"><i class="fa-solid fa-magnifying-glass"></i> Buscar</button>
+  <?php if ($q !== ''): ?>
+    <a href="notaspedido.php" class="btn btn-secondary">Limpiar</a>
+  <?php endif; ?>
+</form>
+
 <div class="table-card" style="margin-bottom: 1.5rem;">
   <div class="table-header">
     <h2 style="font-size: 1.1rem; font-weight: 600;">Pendientes de Recibir</h2>
@@ -21,11 +29,14 @@
         <th>Proveedor</th>
         <th>N° Doc</th>
         <th>Productos Pedidos</th>
+        <th style="width: 100px;">Detalle</th>
       </tr>
     </thead>
     <tbody>
       <?php if (empty($notasPendientes)): ?>
-        <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay notas de pedido pendientes. Cuando recibas mercadería en <a href="compras.php">Recepción de Compras</a>, vas a poder elegir una nota pendiente para precargarla.</td></tr>
+        <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+          <?= $q !== '' ? 'No hay notas pendientes que coincidan con la búsqueda.' : 'No hay notas de pedido pendientes. Cuando recibas mercadería en <a href="compras.php">Recepción de Compras</a>, vas a poder elegir una nota pendiente para precargarla.' ?>
+        </td></tr>
       <?php else: ?>
         <?php foreach ($notasPendientes as $np): ?>
           <tr>
@@ -34,6 +45,11 @@
             <td style="font-weight: 600; color: #fff;"><?= htmlspecialchars($np['Proveedor']) ?></td>
             <td><?= htmlspecialchars($np['NumeroDocumento'] ?: 'Sin N° Doc') ?></td>
             <td style="font-size: 0.85rem; color: var(--text-muted);"><?= htmlspecialchars($np['Items'] ?: '') ?></td>
+            <td>
+              <button onclick="verDetalleNotaPedido(<?= $np['NotaPedidoID'] ?>)" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                <i class="fa-solid fa-eye"></i> Ver
+              </button>
+            </td>
           </tr>
         <?php endforeach; ?>
       <?php endif; ?>
@@ -53,11 +69,12 @@
         <th>Proveedor</th>
         <th>Productos Pedidos</th>
         <th>Estado</th>
+        <th style="width: 100px;">Detalle</th>
       </tr>
     </thead>
     <tbody>
       <?php if (empty($historialNotas)): ?>
-        <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Aún no hay notas de pedido recibidas.</td></tr>
+        <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;"><?= $q !== '' ? 'No hay notas en el historial que coincidan con la búsqueda.' : 'Aún no hay notas de pedido recibidas.' ?></td></tr>
       <?php else: ?>
         <?php foreach ($historialNotas as $np): ?>
           <tr>
@@ -66,11 +83,29 @@
             <td style="font-weight: 600; color: #fff;"><?= htmlspecialchars($np['Proveedor']) ?></td>
             <td style="font-size: 0.85rem; color: var(--text-muted);"><?= htmlspecialchars($np['Items'] ?: '') ?></td>
             <td><span class="badge <?= $np['Estado'] === 'Recibida' ? 'badge-success' : 'badge-danger' ?>"><?= htmlspecialchars($np['Estado']) ?></span></td>
+            <td>
+              <button onclick="verDetalleNotaPedido(<?= $np['NotaPedidoID'] ?>)" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                <i class="fa-solid fa-eye"></i> Ver
+              </button>
+            </td>
           </tr>
         <?php endforeach; ?>
       <?php endif; ?>
     </tbody>
   </table>
+</div>
+
+<!-- Modal Detalle de Nota de Pedido -->
+<div id="detalleNotaPedidoModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1100; justify-content: center; align-items: flex-start; overflow-y: auto; padding: 1.5rem 1rem;">
+  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 16px; width: 620px; padding: 1.75rem; box-shadow: var(--shadow-lg); margin: 1.5rem auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.75rem; margin-bottom: 1.25rem;">
+      <h2 style="font-size: 1.2rem; font-weight: 700; color: #818cf8; margin: 0;" id="detalleNPTitulo">Detalle de Nota de Pedido</h2>
+      <button onclick="cerrarDetalleNotaPedido()" class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="detalleNPBody" style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.9rem;">
+      <p style="color: var(--text-muted); text-align: center;">Cargando...</p>
+    </div>
+  </div>
 </div>
 
 <!-- Modal Nueva Nota de Pedido -->
@@ -154,6 +189,82 @@
 
 <script>
 let itemsNotaPedido = [];
+
+async function verDetalleNotaPedido(id) {
+  const modal = document.getElementById('detalleNotaPedidoModal');
+  const body = document.getElementById('detalleNPBody');
+  document.getElementById('detalleNPTitulo').textContent = `Detalle de Nota de Pedido #${id}`;
+  body.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Cargando...</p>';
+  modal.style.display = 'flex';
+
+  try {
+    const res = await fetch(`api/ver_nota_pedido.php?id=${id}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    const np = data.nota_pedido;
+    const badgeClase = np.estado === 'Recibida' ? 'badge-success' : (np.estado === 'Pendiente' ? 'badge-warning' : 'badge-danger');
+
+    let html = `
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: rgba(0,0,0,0.2); padding: 0.85rem; border-radius: 8px;">
+        <div><span style="color: var(--text-muted); font-size: 0.75rem;">PROVEEDOR</span><br><strong style="color:#fff;">${escapeHtmlNP(np.proveedor)}</strong></div>
+        <div><span style="color: var(--text-muted); font-size: 0.75rem;">ESTADO</span><br><span class="badge ${badgeClase}">${np.estado}</span></div>
+        <div><span style="color: var(--text-muted); font-size: 0.75rem;">FECHA</span><br>${np.fecha}</div>
+        <div><span style="color: var(--text-muted); font-size: 0.75rem;">N° DOCUMENTO</span><br>${np.numero_documento || 'Sin N° Doc'}</div>
+      </div>
+    `;
+
+    if (data.nota_origen) {
+      html += `<div style="font-size: 0.85rem; color: #a5b4fc;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Generada por lo que faltó recibir de la Nota <a href="#" onclick="verDetalleNotaPedido(${data.nota_origen.id}); return false;">#${data.nota_origen.id}</a> (${data.nota_origen.estado}).</div>`;
+    }
+    if (data.nota_derivada) {
+      html += `<div style="font-size: 0.85rem; color: #fbbf24;"><i class="fa-solid fa-arrow-down-left"></i> Quedó pendiente algo por recibir: se generó la Nota <a href="#" onclick="verDetalleNotaPedido(${data.nota_derivada.id}); return false;">#${data.nota_derivada.id}</a> (${data.nota_derivada.estado}).</div>`;
+    }
+
+    html += `
+      <table class="table" style="margin: 0; font-size: 0.85rem;">
+        <thead>
+          <tr><th>Producto</th><th style="text-align:right;">Cant. Pedida</th><th style="text-align:right;">Costo Acordado</th><th style="text-align:right;">Subtotal</th></tr>
+        </thead>
+        <tbody>
+          ${data.detalles.map(d => `
+            <tr>
+              <td style="font-weight:600; color:#fff;">${escapeHtmlNP(d.nombre)}</td>
+              <td style="text-align:right;">${d.cantidad_pedida}</td>
+              <td style="text-align:right;">$${new Intl.NumberFormat('es-CL').format(d.costo_acordado)}</td>
+              <td style="text-align:right; font-weight:bold; color: var(--success);">$${new Intl.NumberFormat('es-CL').format(Math.round(d.cantidad_pedida * d.costo_acordado))}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    if (data.compras_asociadas.length > 0) {
+      html += `
+        <div>
+          <span style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;">Recibida mediante</span>
+          <ul style="margin: 0.4rem 0 0; padding-left: 1.2rem;">
+            ${data.compras_asociadas.map(c => `<li>Compra #${c.compra_id} — ${c.fecha} — $${new Intl.NumberFormat('es-CL').format(c.monto_total)}</li>`).join('')}
+          </ul>
+        </div>
+      `;
+    } else if (np.estado === 'Pendiente') {
+      html += `<div style="color: var(--text-muted); font-size: 0.85rem;">Aún no se ha recibido. Ve a <a href="compras.php">Recepción de Compras</a> para procesarla.</div>`;
+    }
+
+    body.innerHTML = html;
+  } catch (err) {
+    body.innerHTML = `<p style="color: var(--danger); text-align: center;">${err.message}</p>`;
+  }
+}
+
+function cerrarDetalleNotaPedido() {
+  document.getElementById('detalleNotaPedidoModal').style.display = 'none';
+}
+
+function escapeHtmlNP(text) {
+  return String(text).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+}
 
 function abrirModalNotaPedido() {
   itemsNotaPedido = [];
