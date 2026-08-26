@@ -44,6 +44,9 @@
   <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border-dark); text-align: center; font-size: 0.8rem; color: var(--text-muted);">
     Usuarios demo: <code>admin</code>, <code>supervisor</code>, <code>cajero1</code> (Clave: Demo1234)
   </div>
+  <div style="margin-top: 0.75rem; text-align: center; font-size: 0.75rem; color: var(--text-muted);">
+    Minimarket POS Web <?= APP_VERSION ?>
+  </div>
 </div>
 
 </body>

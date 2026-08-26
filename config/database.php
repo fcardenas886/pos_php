@@ -1,4 +1,7 @@
 <?php
+// Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
+define('APP_VERSION', 'v2.2.0');
+
 // Cargar variables desde .env (no versionado) si existe
 $envPath = __DIR__ . '/../.env';
 if (file_exists($envPath)) {
