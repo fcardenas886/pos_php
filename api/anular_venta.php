@@ -61,6 +61,15 @@ try {
         throw new Exception("La venta #$ventaID ya fue anulada previamente.");
     }
 
+    // Si ya se registró una devolución sobre esta venta, anularla completa duplicaría
+    // la reposición de stock (la devolución ya repuso lo suyo) y dejaría un vale/egreso
+    // de caja huérfano sin la venta que le dio origen.
+    $stmtDevPrevia = $pdo->prepare("SELECT COUNT(*) FROM devoluciones WHERE VentaID = :vid");
+    $stmtDevPrevia->execute([':vid' => $ventaID]);
+    if ((int)$stmtDevPrevia->fetchColumn() > 0) {
+        throw new Exception("La venta #$ventaID ya tiene una devolución registrada; no se puede anular completa (repondría stock por duplicado). Revisa el historial de devoluciones de esta venta.");
+    }
+
     $pdo->beginTransaction();
 
     // 1. Cambiar estado de la venta
@@ -75,14 +84,16 @@ try {
     $stmtUpdStock = $pdo->prepare("UPDATE productos SET Stock = Stock + :cant WHERE ProductoID = :pid");
     $stmtKardex = $pdo->prepare("
         INSERT INTO kardex (ProductoID, TipoTransaccion, VentaID, CantidadEntrada, StockSaldo, ValorUnitario)
-        SELECT :pid, 'ANULACION_VENTA', :vid, :cant, (Stock + :cant), :val FROM productos WHERE ProductoID = :pid
+        SELECT :pid, 'ANULACION_VENTA', :vid, :cant, (Stock + :cant2), :val FROM productos WHERE ProductoID = :pid2
     ");
 
     foreach ($detalles as $d) {
         $stmtKardex->execute([
             ':pid' => $d['ProductoID'],
+            ':pid2' => $d['ProductoID'],
             ':vid' => $ventaID,
             ':cant' => $d['Cantidad'],
+            ':cant2' => $d['Cantidad'],
             ':val' => $d['PrecioUnitario']
         ]);
         $stmtUpdStock->execute([':cant' => $d['Cantidad'], ':pid' => $d['ProductoID']]);

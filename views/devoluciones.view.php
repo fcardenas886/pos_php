@@ -123,10 +123,14 @@
         <div>
           <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">PROCESO / REEMBOLSO *</label>
           <select id="devMetodoSelect" class="form-control" required>
-            <option value="Efectivo">Efectivo (Sacar de Caja)</option>
-            <option value="Tarjeta">Tarjeta Bancaria</option>
-            <option value="Nota de Credito">Nota de Crédito (Generar Vale)</option>
-            <option value="Cambio de Mercaderia">Cambio de Mercadería (Generar Vale, el cliente se lleva otro producto ahora)</option>
+            <optgroup label="Reembolso inmediato">
+              <option value="Efectivo">Efectivo — se retira el monto de la caja ahora</option>
+              <option value="Tarjeta">Tarjeta — se reversa en el POS bancario (no toca tu caja)</option>
+            </optgroup>
+            <optgroup label="Vale de devolución (no sale dinero de caja)">
+              <option value="Nota de Credito">Nota de Crédito — el cliente se lo lleva para usar cuando quiera</option>
+              <option value="Cambio de Mercaderia">Cambio de Mercadería — el cliente se lleva otro producto ahora mismo</option>
+            </optgroup>
           </select>
         </div>
       </div>
