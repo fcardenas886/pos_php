@@ -129,8 +129,9 @@
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
         <div>
-          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">STOCK ACTUAL</label>
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;"><span id="prodStockLabel">STOCK INICIAL</span></label>
           <input type="number" step="0.001" name="stock" id="prodStockInput" class="form-control" value="0">
+          <small id="prodStockHint" style="display: none; color: var(--text-muted); font-size: 0.72rem;">El stock solo cambia por Compras, ventas o Ajustes de Stock.</small>
         </div>
         <div>
           <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">STOCK MÍNIMO</label>
@@ -162,6 +163,12 @@ function abrirNuevoModal() {
   document.getElementById('prodStockInput').value = '0';
   document.getElementById('prodStockMinimoInput').value = '0';
   document.getElementById('prodActivoInput').checked = true;
+  // Stock editable solo al crear (stock inicial)
+  var stockInput = document.getElementById('prodStockInput');
+  stockInput.readOnly = false;
+  stockInput.style.opacity = '';
+  document.getElementById('prodStockLabel').textContent = 'STOCK INICIAL';
+  document.getElementById('prodStockHint').style.display = 'none';
   document.getElementById('productModal').style.display = 'flex';
 }
 
@@ -176,6 +183,12 @@ function abrirEditarModal(p) {
   document.getElementById('prodStockInput').value = p.Stock;
   document.getElementById('prodStockMinimoInput').value = p.StockMinimo;
   document.getElementById('prodActivoInput').checked = parseInt(p.Activo) === 1;
+  // Al editar, el stock actual es de solo lectura: se ajusta por Compras/ventas/Ajustes
+  var stockInput = document.getElementById('prodStockInput');
+  stockInput.readOnly = true;
+  stockInput.style.opacity = '0.55';
+  document.getElementById('prodStockLabel').textContent = 'STOCK ACTUAL (solo lectura)';
+  document.getElementById('prodStockHint').style.display = 'block';
   document.getElementById('productModal').style.display = 'flex';
 }
 </script>

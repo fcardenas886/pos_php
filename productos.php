@@ -31,10 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($nombre) && $precioVenta >= 0) {
         try {
             if ($id) {
+                // El Stock NO se toca al editar: solo cambia via Recepción de Compras,
+                // ventas o Ajustes de Stock (que dejan rastro en el kardex). Editar el
+                // producto solo actualiza sus datos maestros.
                 $stmt = $pdo->prepare("
-                    UPDATE productos 
-                    SET CodigoBarras = :codigo, Nombre = :nombre, CategoriaID = :cat, 
-                        PrecioVenta = :precio, CostoCompra = :costo, Stock = :stock, 
+                    UPDATE productos
+                    SET CodigoBarras = :codigo, Nombre = :nombre, CategoriaID = :cat,
+                        PrecioVenta = :precio, CostoCompra = :costo,
                         StockMinimo = :stockmin, Activo = :activo
                     WHERE ProductoID = :id
                 ");
@@ -44,7 +47,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':cat' => $categoriaID,
                     ':precio' => $precioVenta,
                     ':costo' => $costoCompra,
-                    ':stock' => $stock,
                     ':stockmin' => $stockMinimo,
                     ':activo' => $activo,
                     ':id' => $id
