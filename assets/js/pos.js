@@ -230,6 +230,22 @@ function renderCart() {
   }).join('');
 
   totalEl.textContent = `$${formatNumber(totalFinal)}`;
+
+  // Actualizar el infoEl dinámicamente según el estado del carrito
+  const infoEl = document.getElementById('valeAplicadoInfo');
+  if (valeAplicado && infoEl) {
+    const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
+    const subtotalTrasDescuento = Math.max(0, getCartSubtotal() - descGlobal);
+    if (valeAplicado.codigo.startsWith('TC-') && subtotalTrasDescuento < valeAplicado.disponible) {
+      infoEl.style.display = 'block';
+      infoEl.style.color = 'var(--danger)';
+      infoEl.textContent = `Cambio inválido: el total de la compra ($${formatNumber(subtotalTrasDescuento)}) debe ser igual o mayor al Ticket de Cambio ($${formatNumber(valeAplicado.disponible)}).`;
+    } else {
+      infoEl.style.display = 'block';
+      infoEl.style.color = 'var(--success)';
+      infoEl.textContent = `Vale válido: se aplican $${formatNumber(getValeMontoAplicado())} de $${formatNumber(valeAplicado.disponible)} disponibles.`;
+    }
+  }
 }
 
 function getCartSubtotal() {
@@ -240,6 +256,12 @@ function getValeMontoAplicado() {
   if (!valeAplicado) return 0;
   const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
   const subtotalTrasDescuento = Math.max(0, getCartSubtotal() - descGlobal);
+  
+  // Si es un Ticket de Cambio (TC-), el subtotal debe ser igual o mayor al saldo del vale
+  if (valeAplicado.codigo.startsWith('TC-') && subtotalTrasDescuento < valeAplicado.disponible) {
+    return 0;
+  }
+  
   return Math.min(valeAplicado.disponible, subtotalTrasDescuento);
 }
 
@@ -265,7 +287,19 @@ async function aplicarValeCarrito() {
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
 
-    valeAplicado = { codigo, disponible: data.disponible };
+    // Auto-llenar el código del vale real por si se buscó por número de boleta
+    valeAplicado = { codigo: data.codigo, disponible: data.disponible };
+    document.getElementById('valeCodigoInput').value = data.codigo;
+    
+    // Validar restricción inmediata de Ticket de Cambio
+    const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
+    const subtotalTrasDescuento = Math.max(0, getCartSubtotal() - descGlobal);
+    if (data.codigo.startsWith('TC-') && subtotalTrasDescuento < data.disponible) {
+      valeAplicado = null;
+      document.getElementById('valeCodigoInput').value = '';
+      throw new Error(`Para cambios de mercadería, el total de la compra ($${formatNumber(subtotalTrasDescuento)}) debe ser igual o mayor al valor del Ticket de Cambio ($${formatNumber(data.disponible)}).`);
+    }
+
     renderCart();
     infoEl.style.display = 'block';
     infoEl.style.color = 'var(--success)';
@@ -338,6 +372,16 @@ function calcularVueltoModal() {
 }
 
 async function confirmarPagoModal() {
+  // Validar restricciones de Ticket de Cambio antes de proceder
+  if (valeAplicado && valeAplicado.codigo.startsWith('TC-')) {
+    const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
+    const subtotalTrasDescuento = Math.max(0, getCartSubtotal() - descGlobal);
+    if (subtotalTrasDescuento < valeAplicado.disponible) {
+      alert(`No se puede completar la venta. Para cambios de mercadería, el total de la compra ($${formatNumber(subtotalTrasDescuento)}) debe ser igual o mayor al valor del Ticket de Cambio ($${formatNumber(valeAplicado.disponible)}).`);
+      return;
+    }
+  }
+
   const total = getCartTotal();
   const tipoDoc = document.getElementById('tipoDocumento').value;
   const clienteID = document.getElementById('clienteSelect').value;

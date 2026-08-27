@@ -16,12 +16,31 @@ if (empty($codigo)) {
 
 try {
     $pdo = getDB();
-    $stmt = $pdo->prepare("SELECT MontoDisponible, Estado FROM valesdevolucion WHERE CodigoVale = :codigo");
-    $stmt->execute([':codigo' => $codigo]);
+    
+    // Si el código es numérico, buscamos vales activos asociados a esa Boleta (VentaID)
+    if (is_numeric($codigo)) {
+        $stmt = $pdo->prepare("
+            SELECT CodigoVale, MontoDisponible, Estado 
+            FROM valesdevolucion 
+            WHERE VentaID = :codigo AND Estado = 'Activo' AND MontoDisponible > 0
+            LIMIT 1
+        ");
+        $stmt->execute([':codigo' => (int)$codigo]);
+    } else {
+        $stmt = $pdo->prepare("
+            SELECT CodigoVale, MontoDisponible, Estado 
+            FROM valesdevolucion 
+            WHERE CodigoVale = :codigo
+        ");
+        $stmt->execute([':codigo' => $codigo]);
+    }
     $vale = $stmt->fetch();
 
     if (!$vale) {
-        echo json_encode(['success' => false, 'error' => 'Ese código de vale no existe.']);
+        $msg = is_numeric($codigo)
+            ? "No se encontró ningún vale activo asociado a la boleta #$codigo."
+            : "Ese código de vale no existe.";
+        echo json_encode(['success' => false, 'error' => $msg]);
         exit;
     }
     if ($vale['Estado'] !== 'Activo') {
@@ -29,7 +48,11 @@ try {
         exit;
     }
 
-    echo json_encode(['success' => true, 'disponible' => (int)$vale['MontoDisponible']]);
+    echo json_encode([
+        'success' => true, 
+        'codigo' => $vale['CodigoVale'],
+        'disponible' => (int)$vale['MontoDisponible']
+    ]);
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }

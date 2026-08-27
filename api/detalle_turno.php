@@ -56,7 +56,8 @@ try {
         'Tarjeta' => 0,
         'Transferencia' => 0,
         'Credito Interno' => 0,
-        'Puntos' => 0
+        'Puntos' => 0,
+        'Vale' => 0
     ];
     foreach ($pagosRaw as $p) {
         $metodo = $p['MetodoPago'];
@@ -66,6 +67,9 @@ try {
         }
         if ($metodo === 'Credito' || $metodo === 'Fiado') {
             $metodo = 'Credito Interno';
+        }
+        if ($metodo === 'Vale Devolucion') {
+            $metodo = 'Vale';
         }
         if (isset($ventasMetodos[$metodo])) {
             $ventasMetodos[$metodo] += (int)$p['Total'];

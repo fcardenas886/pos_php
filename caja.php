@@ -69,7 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 SELECT 
                     COALESCE(SUM(CASE WHEN p.MetodoPago = 'Efectivo' THEN p.Monto ELSE 0 END), 0) AS total_efectivo,
                     COALESCE(SUM(CASE WHEN p.MetodoPago IN ('Tarjeta Debito', 'Tarjeta Credito') THEN p.Monto ELSE 0 END), 0) AS total_tarjeta,
-                    COALESCE(SUM(CASE WHEN p.MetodoPago = 'Transferencia' THEN p.Monto ELSE 0 END), 0) AS total_transferencia
+                    COALESCE(SUM(CASE WHEN p.MetodoPago = 'Transferencia' THEN p.Monto ELSE 0 END), 0) AS total_transferencia,
+                    COALESCE(SUM(CASE WHEN p.MetodoPago = 'Vale Devolucion' THEN p.Monto ELSE 0 END), 0) AS total_vales
                 FROM ventas v
                 JOIN pagosventa p ON v.VentaID = p.VentaID
                 WHERE v.TurnoID = :tid AND v.Estado = 'Completada'
@@ -135,6 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $reporteCierre['ventas_efectivo'] = (int)$totales['total_efectivo'];
                 $reporteCierre['ventas_tarjeta'] = (int)$totales['total_tarjeta'];
                 $reporteCierre['ventas_transferencia'] = (int)$totales['total_transferencia'];
+                $reporteCierre['ventas_vales'] = (int)$totales['total_vales'];
                 $reporteCierre['ingresos_manuales'] = (int)$movs['total_ingresos'];
                 $reporteCierre['retiros_manuales'] = (int)$movs['total_retiros'];
                 $reporteCierre['efectivo_esperado'] = $efectivoEsperado;
@@ -174,6 +176,7 @@ if ($turnoActivo) {
             COALESCE(SUM(CASE WHEN p.MetodoPago = 'Efectivo' THEN p.Monto ELSE 0 END), 0) AS total_efectivo,
             COALESCE(SUM(CASE WHEN p.MetodoPago IN ('Tarjeta Debito', 'Tarjeta Credito') THEN p.Monto ELSE 0 END), 0) AS total_tarjeta,
             COALESCE(SUM(CASE WHEN p.MetodoPago = 'Transferencia' THEN p.Monto ELSE 0 END), 0) AS total_transferencia,
+            COALESCE(SUM(CASE WHEN p.MetodoPago = 'Vale Devolucion' THEN p.Monto ELSE 0 END), 0) AS total_vales,
             COUNT(DISTINCT v.VentaID) AS total_ventas
         FROM ventas v
         JOIN pagosventa p ON v.VentaID = p.VentaID

@@ -119,14 +119,38 @@ try {
     $valeAplicado = 0;
     $codigoVale = trim($input['vale_codigo'] ?? '');
     if (!empty($codigoVale)) {
-        $stmtVale = $pdo->prepare("SELECT ValeID, MontoDisponible, Estado FROM valesdevolucion WHERE CodigoVale = :codigo FOR UPDATE");
-        $stmtVale->execute([':codigo' => $codigoVale]);
+        if (is_numeric($codigoVale)) {
+            $stmtVale = $pdo->prepare("
+                SELECT ValeID, CodigoVale, MontoDisponible, Estado 
+                FROM valesdevolucion 
+                WHERE VentaID = :codigo AND Estado = 'Activo' AND MontoDisponible > 0
+                FOR UPDATE
+            ");
+            $stmtVale->execute([':codigo' => (int)$codigoVale]);
+        } else {
+            $stmtVale = $pdo->prepare("
+                SELECT ValeID, CodigoVale, MontoDisponible, Estado 
+                FROM valesdevolucion 
+                WHERE CodigoVale = :codigo 
+                FOR UPDATE
+            ");
+            $stmtVale->execute([':codigo' => $codigoVale]);
+        }
         $vale = $stmtVale->fetch();
         if (!$vale || $vale['Estado'] !== 'Activo') {
-            throw new Exception("El vale '$codigoVale' no es válido, ya fue utilizado o no existe.");
+            throw new Exception("El vale o número de boleta '$codigoVale' no es válido, ya fue utilizado o no existe.");
         }
+        
+        $codigoValeReal = $vale['CodigoVale'];
+        
+        // Restricción para Ticket de Cambio (TC-)
+        if (strpos($codigoValeReal, 'TC-') === 0) {
+            if ($montoTotal < $vale['MontoDisponible']) {
+                throw new Exception("Para cambios de mercadería, el total de la compra (" . formatCLP($montoTotal) . ") debe ser igual o mayor al valor del Ticket de Cambio (" . formatCLP($vale['MontoDisponible']) . ").");
+            }
+        }
+        
         $valeAplicado = min((int)$vale['MontoDisponible'], $montoTotal);
-        $montoTotal -= $valeAplicado;
     }
 
     // Descuentos globales grandes requieren autorización de un Administrador/Supervisor,
@@ -160,13 +184,14 @@ try {
         }
     }
 
-    // Los pagos declarados deben cubrir el total; si no, el cuadre de caja no lo detectaría.
+    // Los pagos declarados deben cubrir el monto restante (Total - Vale)
+    $montoRestante = max(0, $montoTotal - $valeAplicado);
     $sumaPagos = 0;
     foreach ($pagosList as $pago) {
-        $sumaPagos += (int)(($pago['monto'] ?? 0) > 0 ? $pago['monto'] : $montoTotal);
+        $sumaPagos += (int)(($pago['monto'] ?? 0) > 0 ? $pago['monto'] : $montoRestante);
     }
-    if ($sumaPagos < $montoTotal) {
-        throw new Exception("Los pagos declarados (" . formatCLP($sumaPagos) . ") no cubren el total de la venta (" . formatCLP($montoTotal) . ").");
+    if (($sumaPagos + $valeAplicado) < $montoTotal) {
+        throw new Exception("Los pagos declarados (" . formatCLP($sumaPagos + $valeAplicado) . ") no cubren el total de la venta (" . formatCLP($montoTotal) . ").");
     }
 
     // Calcular IVA (19%)
@@ -249,10 +274,16 @@ try {
     }
 
     // 4. Procesar Pagos (Múltiples / Pagos Mixtos / Crédito / Puntos)
-    // Si el vale/descuento ya cubrió el total, no queda nada por pagar: no se
-    // inserta ningún PagosVenta (la tabla exige Monto > 0).
-    if ($montoTotal > 0) {
     $stmtPago = $pdo->prepare("INSERT INTO pagosventa (VentaID, MetodoPago, Monto) VALUES (:vid, :metodo, :monto)");
+
+    // Registrar pago por Vale de Devolución/Nota de Crédito si se aplicó
+    if ($vale && $valeAplicado > 0) {
+        $stmtPago->execute([
+            ':vid' => $ventaID,
+            ':metodo' => 'Vale Devolucion',
+            ':monto' => $valeAplicado
+        ]);
+    }
 
     // Cargar cupo/puntos reales del cliente si algún pago los necesita, antes de aplicar nada.
     $cliente = null;
@@ -279,7 +310,13 @@ try {
 
     foreach ($pagosList as $pago) {
         $metodo = $pago['metodo'];
-        $montoPago = (int)($pago['monto'] > 0 ? $pago['monto'] : $montoTotal);
+        $montoRestante = max(0, $montoTotal - $valeAplicado);
+        $montoPago = (int)(($pago['monto'] ?? 0) > 0 ? $pago['monto'] : $montoRestante);
+
+        // Si el vale ya cubrió todo, el pago adicional es $0 y no se inserta
+        if ($montoPago <= 0) {
+            continue;
+        }
 
         if ($metodo === 'Credito' || $metodo === 'Fiado' || $metodo === 'Credito Interno') {
             $creditoUsado += $montoPago;
@@ -313,7 +350,6 @@ try {
             }
         }
     }
-    } // fin if ($montoTotal > 0)
 
     // Sumar Puntos Ganados al Cliente si aplica
     if ($clienteID && $puntosGanados > 0) {

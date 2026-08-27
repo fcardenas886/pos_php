@@ -3,9 +3,14 @@
     <h1 style="font-size: 1.5rem; font-weight: 700;">Devoluciones y Notas de Crédito</h1>
     <p style="color: var(--text-muted); font-size: 0.9rem;">Reembolso de productos a clientes y reintegración de stock a Kardex</p>
   </div>
-  <button onclick="abrirModalDevolucion()" class="btn btn-primary">
-    <i class="fa-solid fa-rotate-left"></i> Registrar Devolución
-  </button>
+  <div style="display: flex; gap: 0.75rem;">
+    <button onclick="abrirModalDevolucion('Nota de Credito')" class="btn btn-primary">
+      <i class="fa-solid fa-file-invoice-dollar"></i> Registrar Nota de Crédito
+    </button>
+    <button onclick="abrirModalDevolucion('Cambio de Mercaderia')" class="btn btn-success">
+      <i class="fa-solid fa-right-left"></i> Registrar Ticket de Cambio
+    </button>
+  </div>
 </div>
 
 <?php if (!empty($message)): ?>
@@ -20,48 +25,90 @@
   </div>
 <?php endif; ?>
 
-<div class="table-card">
-  <div class="table-header">
-    <h2 style="font-size: 1.1rem; font-weight: 600;">Historial de Devoluciones</h2>
-    <span style="color: var(--text-muted); font-size: 0.85rem;"><?= count($devoluciones) ?> registros</span>
+<div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem;">
+
+  <!-- Historial de Devoluciones -->
+  <div class="table-card" style="margin: 0;">
+    <div class="table-header">
+      <h2 style="font-size: 1.1rem; font-weight: 600;">Historial de Devoluciones</h2>
+      <span style="color: var(--text-muted); font-size: 0.85rem;"><?= count($devoluciones) ?> registros</span>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>N° Dev.</th>
+          <th>Fecha</th>
+          <th>N° Venta</th>
+          <th>Productos Devueltos</th>
+          <th>Método Reembolso</th>
+          <th>Monto Devuelto</th>
+          <th>Motivo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if (empty($devoluciones)): ?>
+          <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay devoluciones registradas.</td></tr>
+        <?php else: ?>
+          <?php foreach ($devoluciones as $d): ?>
+            <tr>
+              <td>#<?= $d['DevolucionID'] ?></td>
+              <td><?= date('d/m/Y H:i', strtotime($d['FechaDevolucion'])) ?></td>
+              <td><strong>#<?= $d['VentaID'] ?></strong></td>
+              <td style="font-weight: 600; color: #fff;"><?= htmlspecialchars($d['ItemsDevueltos'] ?: 'Devolución parcial') ?></td>
+              <td><span class="badge badge-warning"><?= htmlspecialchars($d['MetodoDevolucion']) ?></span></td>
+              <td style="font-weight: 700; color: var(--danger);"><?= formatCLP($d['MontoDevuelto']) ?></td>
+              <td style="color: var(--text-muted); font-size: 0.85rem;"><?= htmlspecialchars($d['Motivo']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        <?php endif; ?>
+      </tbody>
+    </table>
   </div>
 
-  <table class="table">
-    <thead>
-      <tr>
-        <th>N° Dev.</th>
-        <th>Fecha</th>
-        <th>N° Venta</th>
-        <th>Productos Devueltos</th>
-        <th>Método Reembolso</th>
-        <th>Monto Devuelto</th>
-        <th>Motivo</th>
-      </tr>
-    </thead>
-    <tbody>
-      <?php if (empty($devoluciones)): ?>
-        <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay devoluciones registradas.</td></tr>
-      <?php else: ?>
-        <?php foreach ($devoluciones as $d): ?>
-          <tr>
-            <td>#<?= $d['DevolucionID'] ?></td>
-            <td><?= date('d/m/Y H:i', strtotime($d['FechaDevolucion'])) ?></td>
-            <td><strong>#<?= $d['VentaID'] ?></strong></td>
-            <td style="font-weight: 600; color: #fff;"><?= htmlspecialchars($d['ItemsDevueltos'] ?: 'Devolución parcial') ?></td>
-            <td><span class="badge badge-warning"><?= htmlspecialchars($d['MetodoDevolucion']) ?></span></td>
-            <td style="font-weight: 700; color: var(--danger);"><?= formatCLP($d['MontoDevuelto']) ?></td>
-            <td style="color: var(--text-muted); font-size: 0.85rem;"><?= htmlspecialchars($d['Motivo']) ?></td>
-          </tr>
-        <?php endforeach; ?>
-      <?php endif; ?>
-    </tbody>
-  </table>
+  <!-- Vales y Notas de Crédito Activos -->
+  <div class="table-card" style="margin: 0;">
+    <div class="table-header">
+      <h2 style="font-size: 1.1rem; font-weight: 600; color: #818cf8;">Notas de Crédito y Vales Activos</h2>
+      <span style="color: var(--text-muted); font-size: 0.85rem;"><?= count($valesActivos) ?> vigentes</span>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th style="text-align: right;">Original</th>
+          <th style="text-align: right;">Disponible</th>
+          <th style="text-align: center;">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if (empty($valesActivos)): ?>
+          <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay vales activos vigentes.</td></tr>
+        <?php else: ?>
+          <?php foreach ($valesActivos as $v): ?>
+            <tr>
+              <td style="font-family: monospace; font-weight: bold; color: #fff; font-size: 0.9rem;"><?= htmlspecialchars($v['CodigoVale']) ?></td>
+              <td style="text-align: right; color: var(--text-muted);"><?= formatCLP($v['MontoOriginal']) ?></td>
+              <td style="text-align: right; font-weight: 700; color: var(--success);"><?= formatCLP($v['MontoDisponible']) ?></td>
+              <td style="text-align: center;">
+                <button type="button" class="btn btn-success" style="padding: 0.2rem 0.4rem; font-size: 0.75rem;" onclick="reembolsarVale('<?= htmlspecialchars($v['CodigoVale']) ?>', <?= $v['MontoDisponible'] ?>)">
+                  <i class="fa-solid fa-money-bill-transfer"></i> Reembolsar
+                </button>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+
 </div>
 
 <!-- Modal Nueva Devolución -->
 <div id="devModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1000; justify-content: center; align-items: flex-start; overflow-y: auto; padding: 1.5rem 1rem;">
   <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 16px; width: 620px; padding: 1.75rem; box-shadow: var(--shadow-lg); margin: 1.5rem auto;">
-    <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; color: #818cf8;">Procesar Devolución</h2>
+    <h2 id="modalDevolucionTitle" style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; color: #818cf8;">Procesar Devolución</h2>
 
     <!-- Paso 1: Buscar Boleta -->
     <div style="display: flex; gap: 0.5rem; align-items: flex-end; margin-bottom: 1.25rem;">
@@ -119,21 +166,18 @@
         Total a Devolver: <span id="devTotalLabel" style="color: var(--danger); margin-left: 0.5rem;">$0</span>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr; gap: 0.75rem;">
+      <div id="containerMetodoSelect" style="display: grid; grid-template-columns: 1fr; gap: 0.75rem;">
         <div>
           <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">PROCESO / REEMBOLSO *</label>
           <select id="devMetodoSelect" class="form-control" required>
-            <optgroup label="Reembolso inmediato">
-              <option value="Efectivo">Efectivo — se retira el monto de la caja ahora</option>
-              <option value="Tarjeta">Tarjeta — se reversa en el POS bancario (no toca tu caja)</option>
-            </optgroup>
-            <optgroup label="Vale de devolución (no sale dinero de caja)">
-              <option value="Nota de Credito">Nota de Crédito — el cliente se lo lleva para usar cuando quiera</option>
-              <option value="Cambio de Mercaderia">Cambio de Mercadería — el cliente se lleva otro producto ahora mismo</option>
-            </optgroup>
+            <option value="Nota de Credito">Nota de Crédito — vale para usar luego o reembolsar posterior</option>
+            <option value="Efectivo">Efectivo — se retira de la caja ahora mismo</option>
+            <option value="Tarjeta">Tarjeta — se reversa en Transbank (no toca caja)</option>
           </select>
         </div>
       </div>
+
+
 
       <div>
         <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">MOTIVO DE LA DEVOLUCIÓN *</label>
@@ -176,13 +220,31 @@
 let ventaEnDevolucion = null;
 let detallesVentaDevolucion = [];
 let itemsDevolucion = [];
+let flujoActual = 'Nota de Credito';
 
-function abrirModalDevolucion() {
+function abrirModalDevolucion(tipo) {
+  flujoActual = tipo || 'Nota de Credito';
+  
   document.getElementById('devVentaIdInput').value = '';
   document.getElementById('devErrorMsg').style.display = 'none';
   document.getElementById('detallesDevolucionBody').style.display = 'none';
   itemsDevolucion = [];
   ventaEnDevolucion = null;
+  
+  const titleEl = document.getElementById('modalDevolucionTitle');
+  const containerMetodo = document.getElementById('containerMetodoSelect');
+  const btnEl = document.getElementById('btnConfirmarDevolucion');
+  
+  if (flujoActual === 'Cambio de Mercaderia') {
+    if (titleEl) titleEl.textContent = 'Registrar Ticket de Cambio';
+    if (containerMetodo) containerMetodo.style.display = 'none';
+    if (btnEl) btnEl.innerHTML = '<i class="fa-solid fa-right-left"></i> Generar Ticket de Cambio';
+  } else {
+    if (titleEl) titleEl.textContent = 'Procesar Nota de Crédito';
+    if (containerMetodo) containerMetodo.style.display = 'grid';
+    if (btnEl) btnEl.innerHTML = '<i class="fa-solid fa-file-invoice-dollar"></i> Confirmar Nota de Crédito';
+  }
+
   document.getElementById('devModal').style.display = 'flex';
 }
 
@@ -336,7 +398,7 @@ async function confirmarDevolucion() {
     alert('Agrega al menos un producto a la devolución.');
     return;
   }
-  const metodo = document.getElementById('devMetodoSelect').value;
+  const metodo = flujoActual === 'Cambio de Mercaderia' ? 'Cambio de Mercaderia' : document.getElementById('devMetodoSelect').value;
   const motivo = document.getElementById('devMotivoInput').value.trim();
   if (!motivo) {
     alert('Ingresa el motivo de la devolución.');
@@ -363,7 +425,8 @@ async function confirmarDevolucion() {
     cerrarDevolucionModal();
 
     if (data.vale_codigo) {
-      document.getElementById('valeTitulo').textContent = data.metodo === 'Cambio de Mercaderia' ? 'Vale por Cambio de Mercadería' : 'Vale de Devolución';
+      const esCambio = data.vale_codigo.startsWith('TC-');
+      document.getElementById('valeTitulo').textContent = esCambio ? 'Ticket de Cambio' : 'Nota de Crédito (Comprobante)';
       document.getElementById('valeFecha').textContent = new Date().toLocaleString('es-CL');
       document.getElementById('valeCodigoLabel').textContent = data.vale_codigo;
       document.getElementById('valeMontoLabel').textContent = fmtDev(data.monto_total);
@@ -376,6 +439,28 @@ async function confirmarDevolucion() {
     alert('Error al registrar devolución: ' + err.message);
   } finally {
     btn.disabled = false;
+  }
+}
+
+async function reembolsarVale(codigo, disponible) {
+  const formatCLP = val => '$' + new Intl.NumberFormat('es-CL').format(val);
+  if (!confirm(`¿Confirmas el reembolso físico en Efectivo del vale ${codigo} por un monto de ${formatCLP(disponible)}?\n\nEsto registrará un EGRESO de dinero en la caja del turno activo.`)) {
+    return;
+  }
+  
+  try {
+    const res = await fetch('api/reembolsar_vale.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN },
+      body: JSON.stringify({ codigo: codigo })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    
+    alert(`Reembolso registrado con éxito. Se retiraron ${formatCLP(disponible)} de la caja.`);
+    location.reload();
+  } catch (err) {
+    alert('Error al reembolsar vale: ' + err.message);
   }
 }
 </script>

@@ -20,5 +20,15 @@ $stmtHist = $pdo->query("
 ");
 $devoluciones = $stmtHist->fetchAll();
 
+// Vales de Devolución / Notas de Crédito activos (con saldo disponible > 0)
+$stmtVales = $pdo->query("
+    SELECT v.*, vt.TipoDocumento, vt.TurnoID
+    FROM valesdevolucion v
+    LEFT JOIN ventas vt ON v.VentaID = vt.VentaID
+    WHERE v.MontoDisponible > 0 AND v.Estado = 'Activo'
+    ORDER BY v.ValeID DESC
+");
+$valesActivos = $stmtVales->fetchAll();
+
 include __DIR__ . '/views/devoluciones.view.php';
 require_once __DIR__ . '/includes/footer.php';

@@ -32,10 +32,25 @@
     </div>
 
     <!-- Grilla de Productos -->
-    <div id="productGrid" class="product-grid">
+    <div id="productGrid" class="product-grid" style="flex: 1;">
       <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 3rem;">
         <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
         <p>Cargando productos...</p>
+      </div>
+    </div>
+
+    <!-- Panel de Opciones Rápidas en POS -->
+    <div style="background: var(--card-bg); border: 1px solid var(--border-dark); padding: 0.75rem 1rem; border-radius: 12px; display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; margin-top: 0.5rem; flex-shrink: 0;">
+      <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
+        <i class="fa-solid fa-gears" style="color: var(--primary);"></i> CAJA / OPERACIONES:
+      </div>
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="button" onclick="abrirModalConsultaPrecios()" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.45rem 0.85rem; display: flex; align-items: center; gap: 0.4rem; border-radius: 6px; border: 1px solid var(--border-dark);">
+          <i class="fa-solid fa-magnifying-glass-dollar" style="color: #fbbf24;"></i> Consultar Precio
+        </button>
+        <a href="caja.php" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.45rem 0.85rem; display: flex; align-items: center; gap: 0.4rem; border-radius: 6px; border: 1px solid var(--border-dark); text-decoration: none; color: #fff;">
+          <i class="fa-solid fa-cash-register" style="color: #34d399;"></i> Cuadratura / Cierre Caja
+        </a>
       </div>
     </div>
 
@@ -100,9 +115,9 @@
       </div>
 
       <div>
-        <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">CÓDIGO DE VALE (Devolución / Cambio)</label>
+        <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">CÓDIGO VALE / N° BOLETA ORIGINAL</label>
         <div style="display: flex; gap: 0.4rem;">
-          <input type="text" id="valeCodigoInput" class="form-control" placeholder="VALE-XXXXXXXX" style="padding: 0.4rem 0.6rem; font-size: 0.85rem; text-transform: uppercase;">
+          <input type="text" id="valeCodigoInput" class="form-control" placeholder="Ej: NC-XXXXXXXX o Boleta 18" style="padding: 0.4rem 0.6rem; font-size: 0.85rem; text-transform: uppercase;">
           <button type="button" onclick="aplicarValeCarrito()" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Aplicar</button>
         </div>
         <div id="valeAplicadoInfo" style="font-size: 0.78rem; margin-top: 0.3rem; display: none;"></div>
@@ -288,5 +303,98 @@
     </div>
   </div>
 </div>
+
+<!-- Modal Consulta de Precios POS -->
+<div id="consultaPreciosModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(6px); z-index: 2500; justify-content: center; align-items: center; padding: 1rem;">
+  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 16px; width: 550px; padding: 1.75rem; box-shadow: var(--shadow-lg); position: relative; display: flex; flex-direction: column; gap: 1rem;">
+    <button onclick="cerrarModalConsultaPrecios()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; line-height: 1;"><i class="fa-solid fa-xmark"></i></button>
+    
+    <h2 style="font-size: 1.2rem; font-weight: 700; color: #818cf8; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+      <i class="fa-solid fa-barcode"></i> Consulta Rápida de Precios
+    </h2>
+    
+    <div>
+      <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">ESCANEA CÓDIGO O BUSCA PRODUCTO</label>
+      <input type="text" id="consultaPrecioSearch" class="form-control" placeholder="Escribe el nombre o escanea el código..." oninput="ejecutarConsultaPrecio()" autocomplete="off">
+    </div>
+
+    <!-- Resultados -->
+    <div id="consultaPrecioResultados" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; min-height: 100px; padding: 0.25rem;">
+      <div style="text-align: center; color: var(--text-muted); padding: 2rem;">Ingresa un término para buscar...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function abrirModalConsultaPrecios() {
+  document.getElementById('consultaPrecioSearch').value = '';
+  document.getElementById('consultaPrecioResultados').innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem;">Ingresa un término para buscar...</div>';
+  document.getElementById('consultaPreciosModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('consultaPrecioSearch').focus(), 150);
+}
+
+function cerrarModalConsultaPrecios() {
+  document.getElementById('consultaPreciosModal').style.display = 'none';
+  document.getElementById('posSearch')?.focus();
+}
+
+async function ejecutarConsultaPrecio() {
+  const q = document.getElementById('consultaPrecioSearch').value.trim();
+  const resEl = document.getElementById('consultaPrecioResultados');
+  if (q.length < 2) {
+    resEl.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem;">Ingresa al menos 2 letras...</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`api/buscar_producto.php?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    if (data.productos.length === 0) {
+      resEl.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No se encontraron productos</div>';
+      return;
+    }
+
+    resEl.innerHTML = data.productos.map(p => {
+      const stockColor = parseFloat(p.Stock) <= parseFloat(p.StockMinimo) ? 'var(--danger)' : 'var(--success)';
+      
+      let promoHtml = '';
+      if (p.PromoTipo) {
+        if (p.PromoTipo === 'DESCUENTO_UNIT') {
+          promoHtml = `
+            <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; font-size: 0.72rem; padding: 0.2rem 0.5rem; border-radius: 6px; margin-top: 0.35rem; display: inline-flex; align-items: center; gap: 0.3rem; font-weight: bold;">
+              <i class="fa-solid fa-tags"></i> Oferta: -${p.PromoDescPorc}% Dcto
+            </div>
+          `;
+        } else if (p.PromoTipo === 'MULTIBUY') {
+          const precioPackFmt = '$' + new Intl.NumberFormat('es-CL').format(p.PromoPrecioOf);
+          promoHtml = `
+            <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fbbf24; font-size: 0.72rem; padding: 0.2rem 0.5rem; border-radius: 6px; margin-top: 0.35rem; display: inline-flex; align-items: center; gap: 0.3rem; font-weight: bold;">
+              <i class="fa-solid fa-layer-group"></i> Promo: Lleva ${p.PromoCantMin} por ${precioPackFmt}
+            </div>
+          `;
+        }
+      }
+
+      return `
+        <div style="background: rgba(15,23,42,0.4); border: 1px solid var(--border-dark); padding: 0.75rem 1rem; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+          <div>
+            <div style="font-weight: 700; color: #fff; font-size: 0.95rem;">${p.Nombre}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Código: ${p.CodigoBarras}</div>
+            ${promoHtml}
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 1.2rem; font-weight: 800; color: var(--success); font-family: monospace;">$${new Intl.NumberFormat('es-CL').format(p.PrecioVenta)}</div>
+            <div style="font-size: 0.8rem; font-weight: 600; color: ${stockColor}; margin-top: 0.2rem;">Stock: ${p.Stock} ${p.UnidadMedida}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    resEl.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 2rem;">Error: ${err.message}</div>`;
+  }
+}
+</script>
 
 <script src="assets/js/pos.js"></script>

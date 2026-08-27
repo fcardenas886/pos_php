@@ -35,11 +35,12 @@
         <th>Detalle de Oferta / Descuento</th>
         <th>Vigencia</th>
         <th>Estado</th>
+        <th style="text-align: center; width: 100px;">Acciones</th>
       </tr>
     </thead>
     <tbody>
       <?php if (empty($promociones)): ?>
-        <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay promociones registradas.</td></tr>
+        <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay promociones registradas.</td></tr>
       <?php else: ?>
         <?php foreach ($promociones as $pr): ?>
           <?php
@@ -64,6 +65,11 @@
               <span class="badge <?= $pr['Activa'] ? 'badge-success' : 'badge-danger' ?>">
                 <?= $pr['Activa'] ? 'Activa' : 'Inactiva' ?>
               </span>
+            </td>
+            <td style="text-align: center;">
+              <a href="promociones.php?eliminar=<?= $pr['PromocionID'] ?>" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; color: var(--danger); border-color: rgba(239, 68, 68, 0.2);" onclick="return confirm('¿Seguro que deseas eliminar esta promoción?')" title="Eliminar Promoción">
+                <i class="fa-solid fa-trash-can"></i>
+              </a>
             </td>
           </tr>
         <?php endforeach; ?>

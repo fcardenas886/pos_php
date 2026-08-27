@@ -6,6 +6,18 @@ $pdo = getDB();
 $message = '';
 $error = '';
 
+// Procesar eliminación de promoción
+if (isset($_GET['eliminar'])) {
+    $promoID = (int)$_GET['eliminar'];
+    try {
+        $stmt = $pdo->prepare("DELETE FROM promociones WHERE PromocionID = ?");
+        $stmt->execute([$promoID]);
+        $message = 'Promoción eliminada con éxito.';
+    } catch (Exception $e) {
+        $error = 'Error al eliminar la promoción: ' . $e->getMessage();
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
     $productoID = (int)($_POST['producto_id'] ?? 0);

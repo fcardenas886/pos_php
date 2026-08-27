@@ -71,6 +71,10 @@
             <span>Dif. Transferencia:</span>
             <strong><?= $reporteCierre['diferencia_transferencia'] >= 0 ? '+' : '' ?><?= formatCLP($reporteCierre['diferencia_transferencia']) ?></strong>
           </div>
+          <div style="display: flex; justify-content: space-between; border-top: 1px dashed var(--border-dark); padding-top: 0.4rem; margin-top: 0.4rem;">
+            <span>Vales Canjeados (Nota Crédito):</span>
+            <strong><?= formatCLP($reporteCierre['ventas_vales'] ?? 0) ?></strong>
+          </div>
           
           <div style="display: flex; justify-content: space-between; border-top: 1px dashed var(--border-dark); padding-top: 0.5rem; margin-top: 0.5rem; font-size: 1.15rem; font-weight: bold; color: #fff;">
             <span>Diferencia Neta Global:</span>
@@ -587,6 +591,9 @@ async function verDetalleTurno(id) {
             </div>
             <div style="display: flex; justify-content: space-between;">
               <span>Dif. Transf:</span> ${diffTransferenciaHtml}
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border-dark); padding-top: 0.25rem; margin-top: 0.25rem;">
+              <span>Vales Canjeados (Nota Crédito):</span> <strong>${fmt(v.Vale || 0)}</strong>
             </div>
           </div>
         </div>

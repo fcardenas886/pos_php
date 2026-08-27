@@ -27,6 +27,8 @@ try {
     $pdo = getDB();
     $pdo->beginTransaction();
 
+
+
     // Verificar que la venta existe y no está anulada
     $stmtV = $pdo->prepare("SELECT VentaID, Estado FROM ventas WHERE VentaID = :vid FOR UPDATE");
     $stmtV->execute([':vid' => $ventaID]);
@@ -96,18 +98,6 @@ try {
         ];
     }
 
-    // Obtener turno si es reembolso en Efectivo (necesario para el egreso de caja)
-    $turnoID = null;
-    if ($metodoDevolucion === 'Efectivo') {
-        $stmtTurno = $pdo->prepare("SELECT TurnoID FROM turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' ORDER BY TurnoID DESC LIMIT 1");
-        $stmtTurno->execute([':uid' => $user['id']]);
-        $turno = $stmtTurno->fetch();
-        if (!$turno) {
-            throw new Exception("Debes tener un turno de caja abierto para poder reembolsar en Efectivo (sacar de caja).");
-        }
-        $turnoID = (int)$turno['TurnoID'];
-    }
-
     // 1. Insertar cabecera de Devolución (una sola, por el total de todos los productos)
     $stmtDev = $pdo->prepare("
         INSERT INTO devoluciones (VentaID, UsuarioID, MontoDevuelto, MetodoDevolucion, Motivo)
@@ -150,24 +140,13 @@ try {
         ]);
     }
 
-    // 3. Registrar egreso en caja si es Efectivo (uno solo, por el total)
-    if ($metodoDevolucion === 'Efectivo') {
-        $stmtMov = $pdo->prepare("
-            INSERT INTO movimientoscaja (TurnoID, TipoMovimiento, Monto, Descripcion)
-            VALUES (:tid, 'EGRESO', :monto, :desc)
-        ");
-        $stmtMov->execute([
-            ':tid' => $turnoID,
-            ':monto' => $montoDevueltoTotal,
-            ':desc' => "DEVOLUCION BOLETA #$ventaID: Reembolso Efectivo"
-        ]);
-    }
-
-    // 4. Generar un solo Vale si es Nota de Crédito o Cambio de Mercadería (mismo mecanismo, distinta etiqueta)
+    // 3. Generar un solo Vale si es Nota de Crédito, Efectivo (reembolso diferido), o Cambio de Mercadería
     $codigoVale = null;
-    if ($metodoDevolucion === 'Nota de Credito' || $metodoDevolucion === 'Cambio de Mercaderia') {
+    if ($metodoDevolucion === 'Nota de Credito' || $metodoDevolucion === 'Efectivo' || $metodoDevolucion === 'Cambio de Mercaderia') {
+        $prefix = ($metodoDevolucion === 'Cambio de Mercaderia') ? 'TC-' : 'NC-';
         $caracteres = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        $codigoVale = 'VALE-' . substr(str_shuffle($caracteres), 0, 8);
+        $codigoVale = $prefix . substr(str_shuffle($caracteres), 0, 8);
+        
         $stmtVale = $pdo->prepare("
             INSERT INTO valesdevolucion (CodigoVale, MontoOriginal, MontoDisponible, Estado, VentaID)
             VALUES (:codigo, :monto, :monto2, 'Activo', :vid)

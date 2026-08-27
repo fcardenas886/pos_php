@@ -29,6 +29,9 @@
       </div>
 
       <div id="resBadgeStock"></div>
+      
+      <!-- Contenedor de Promociones -->
+      <div id="resPromoContainer" style="margin-top: 1rem;"></div>
     </div>
 
     <div id="noResultado" style="display: none; color: var(--text-muted); padding: 2rem;">
@@ -65,6 +68,26 @@ document.addEventListener('DOMContentLoaded', () => {
           badge.innerHTML = '<span class="badge badge-warning" style="font-size: 1rem; padding: 0.4rem 1rem;">STOCK CRÍTICO</span>';
         } else {
           badge.innerHTML = '<span class="badge badge-success" style="font-size: 1rem; padding: 0.4rem 1rem;">DISPONIBLE</span>';
+        }
+
+        const promoContainer = document.getElementById('resPromoContainer');
+        if (p.PromoTipo) {
+          if (p.PromoTipo === 'DESCUENTO_UNIT') {
+            promoContainer.innerHTML = `
+              <div style="background: rgba(16, 185, 129, 0.15); border: 2px solid #10b981; color: #34d399; font-size: 1.15rem; padding: 0.75rem 1.25rem; border-radius: 12px; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: bold; margin-top: 0.5rem;">
+                <i class="fa-solid fa-tags"></i> OFERTA ACTIVA: -${p.PromoDescPorc}% de Descuento
+              </div>
+            `;
+          } else if (p.PromoTipo === 'MULTIBUY') {
+            const precioPackFmt = '$' + new Intl.NumberFormat('es-CL').format(p.PromoPrecioOf);
+            promoContainer.innerHTML = `
+              <div style="background: rgba(245, 158, 11, 0.15); border: 2px solid #f59e0b; color: #fbbf24; font-size: 1.15rem; padding: 0.75rem 1.25rem; border-radius: 12px; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: bold; margin-top: 0.5rem;">
+                <i class="fa-solid fa-layer-group"></i> PROMOCIÓN: Lleva ${p.PromoCantMin} por ${precioPackFmt}
+              </div>
+            `;
+          }
+        } else {
+          promoContainer.innerHTML = '';
         }
 
         document.getElementById('resultadoPrecioCard').style.display = 'block';
