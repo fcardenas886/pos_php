@@ -359,14 +359,32 @@ try {
 
     $pdo->commit();
 
-    echo json_encode([
+    // Emisión de DTE (Boleta o Factura electrónica) si está configurado un proveedor
+    $dteResponse = null;
+    try {
+        $provider = $pdo->query("SELECT Valor FROM configuraciones WHERE Clave = 'DTE_PROVEEDOR'")->fetchColumn();
+        if ($provider && $provider !== 'ninguno') {
+            require_once __DIR__ . '/../includes/sii/SiiFacturacion.php';
+            $dteResponse = SiiFacturacion::emitirDesdeVenta($ventaID);
+        }
+    } catch (Exception $dteEx) {
+        $dteResponse = ['success' => false, 'error' => $dteEx->getMessage()];
+    }
+
+    $resPayload = [
         'success' => true,
         'venta_id' => $ventaID,
         'total' => $montoTotal,
         'vuelto' => $vuelto,
         'puntos_ganados' => $puntosGanados,
         'fecha' => date('d/m/Y H:i:s')
-    ]);
+    ];
+
+    if ($dteResponse) {
+        $resPayload['dte'] = $dteResponse;
+    }
+
+    echo json_encode($resPayload);
 
 } catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) {

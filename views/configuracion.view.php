@@ -197,28 +197,65 @@
       <?= csrfField() ?>
       <input type="hidden" name="action" value="save_config">
 
-      <h2 style="font-size: 1.1rem; font-weight: 600; color: #818cf8; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.4rem;">Conexión API Boleta Electrónica SII (Haulmer OpenFactura)</h2>
+      <h2 style="font-size: 1.1rem; font-weight: 600; color: #818cf8; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.4rem;">Configuración de Facturación Electrónica SII (DTE)</h2>
 
       <div>
-        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">EMISIÓN AUTOMÁTICA DTE EN POS</label>
-        <select name="config[HAULMER_EMISION_ACTIVA]" class="form-control">
-          <option value="true" <?= ($config['HAULMER_EMISION_ACTIVA'] ?? 'false') === 'true' ? 'selected' : '' ?>>Habilitada (Emitir DTE automático al cobrar)</option>
-          <option value="false" <?= ($config['HAULMER_EMISION_ACTIVA'] ?? 'false') === 'false' ? 'selected' : '' ?>>Deshabilitada (Solo Comprobante Local)</option>
+        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">PROVEEDOR DE FACTURACIÓN ELECTRÓNICA</label>
+        <select name="config[DTE_PROVEEDOR]" id="dteProveedorSelect" class="form-control" onchange="toggleDteFields()" required>
+          <option value="ninguno" <?= ($config['DTE_PROVEEDOR'] ?? 'ninguno') === 'ninguno' ? 'selected' : '' ?>>Ninguno (Solo Comprobante Local / Deshabilitado)</option>
+          <option value="mock" <?= ($config['DTE_PROVEEDOR'] ?? '') === 'mock' ? 'selected' : '' ?>>Mock Driver (Simulador de DTE para Pruebas)</option>
+          <option value="openfactura" <?= ($config['DTE_PROVEEDOR'] ?? '') === 'openfactura' ? 'selected' : '' ?>>OpenFactura API (Facturacion.cl)</option>
+          <option value="haulmer" <?= ($config['DTE_PROVEEDOR'] ?? '') === 'haulmer' ? 'selected' : '' ?>>Haulmer API (Boleta Electrónica)</option>
         </select>
+        <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.25rem;">
+          Determina con qué proveedor o canal se emitirán las boletas, facturas y notas de crédito del local.
+        </p>
       </div>
 
-      <div>
-        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">HAULMER API KEY</label>
-        <input type="password" name="config[HAULMER_API_KEY]" value="<?= htmlspecialchars($config['HAULMER_API_KEY'] ?? '') ?>" class="form-control" placeholder="Clave API entregada por Haulmer">
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+      <!-- Configuración OpenFactura -->
+      <div id="divConfigOpenFactura" style="display: none; flex-direction: column; gap: 1rem; border: 1px dashed rgba(129, 140, 248, 0.3); padding: 1rem; border-radius: 8px;">
+        <h3 style="font-size: 0.9rem; font-weight: bold; color: #818cf8; margin: 0;">Parámetros OpenFactura (Facturacion.cl)</h3>
         <div>
-          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">AMBIENTE DE EJECUCIÓN</label>
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">OPENFACTURA API KEY</label>
+          <input type="password" name="config[OPENFACTURA_API_KEY]" value="<?= htmlspecialchars($config['OPENFACTURA_API_KEY'] ?? '') ?>" class="form-control" placeholder="Clave de API de OpenFactura">
+        </div>
+        <div>
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">AMBIENTE DE EJECUCIÓN (OPENFACTURA)</label>
+          <select name="config[OPENFACTURA_AMBIENTE]" class="form-control">
+            <option value="dev" <?= ($config['OPENFACTURA_AMBIENTE'] ?? 'dev') === 'dev' ? 'selected' : '' ?>>Desarrollo / Certificación (dev)</option>
+            <option value="prod" <?= ($config['OPENFACTURA_AMBIENTE'] ?? '') === 'prod' ? 'selected' : '' ?>>Producción Real (prod)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Configuración Haulmer -->
+      <div id="divConfigHaulmer" style="display: none; flex-direction: column; gap: 1rem; border: 1px dashed rgba(251, 191, 36, 0.3); padding: 1rem; border-radius: 8px;">
+        <h3 style="font-size: 0.9rem; font-weight: bold; color: #fbbf24; margin: 0;">Parámetros Haulmer API</h3>
+        <div>
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">HAULMER API KEY</label>
+          <input type="password" name="config[HAULMER_API_KEY]" value="<?= htmlspecialchars($config['HAULMER_API_KEY'] ?? '') ?>" class="form-control" placeholder="Clave API entregada por Haulmer">
+        </div>
+        <div>
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">AMBIENTE DE EJECUCIÓN (HAULMER)</label>
           <select name="config[HAULMER_AMBIENTE]" class="form-control">
             <option value="dev" <?= ($config['HAULMER_AMBIENTE'] ?? 'dev') === 'dev' ? 'selected' : '' ?>>Desarrollo / Certificación (dev)</option>
             <option value="prod" <?= ($config['HAULMER_AMBIENTE'] ?? '') === 'prod' ? 'selected' : '' ?>>Producción Real (prod)</option>
           </select>
+        </div>
+      </div>
+
+      <!-- Parámetros Generales SII -->
+      <div id="divConfigSIICommon" style="display: none; flex-direction: column; gap: 1rem;">
+        <h3 style="font-size: 0.9rem; font-weight: bold; color: var(--text-muted); margin: 0;">Datos del Contribuyente (SII)</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div>
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CÓDIGO ACTIVIDAD ECONÓMICA SII (ACTECO)</label>
+            <input type="text" name="config[MINIMARKET_ACTECO]" value="<?= htmlspecialchars($config['MINIMARKET_ACTECO'] ?? '471100') ?>" class="form-control" placeholder="Ej: 471100">
+          </div>
+          <div>
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">COMUNA ORIGEN SII</label>
+            <input type="text" name="config[MINIMARKET_COMUNA]" value="<?= htmlspecialchars($config['MINIMARKET_COMUNA'] ?? 'Santiago') ?>" class="form-control" placeholder="Ej: Santiago">
+          </div>
         </div>
         <div>
           <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">FORMATO DE IMPRESIÓN DTE</label>
@@ -229,19 +266,14 @@
         </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-        <div>
-          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CÓDIGO ACTIVIDAD ECONÓMICA SII (ACTECO)</label>
-          <input type="text" name="config[MINIMARKET_ACTECO]" value="<?= htmlspecialchars($config['MINIMARKET_ACTECO'] ?? '471100') ?>" class="form-control" placeholder="Ej: 471100">
-        </div>
-        <div>
-          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">COMUNA ORIGEN SII</label>
-          <input type="text" name="config[MINIMARKET_COMUNA]" value="<?= htmlspecialchars($config['MINIMARKET_COMUNA'] ?? 'Santiago') ?>" class="form-control" placeholder="Ej: Santiago">
-        </div>
+      <!-- Mensaje informativo para simulador o ninguno -->
+      <div id="divConfigMsg" style="background: rgba(129, 140, 248, 0.1); border: 1px solid rgba(129, 140, 248, 0.2); padding: 0.85rem 1rem; border-radius: 8px; font-size: 0.85rem; color: #94a3b8; line-height: 1.4;">
+        <i class="fa-solid fa-circle-info" style="color: #818cf8; margin-right: 0.4rem;"></i>
+        <span id="txtDteHelp">Selecciona un proveedor de DTE para comenzar.</span>
       </div>
 
       <button type="submit" class="btn btn-primary" style="padding: 0.85rem; font-weight: bold;">
-        <i class="fa-solid fa-floppy-disk"></i> Guardar Parámetros de Boleta Electrónica
+        <i class="fa-solid fa-floppy-disk"></i> Guardar Configuración DTE
       </button>
     </form>
   </div>
@@ -258,4 +290,37 @@ function switchTab(tabId) {
   if (selectedPane) selectedPane.style.display = 'block';
   if (selectedBtn) selectedBtn.classList.add('active', 'btn-primary');
 }
+
+function toggleDteFields() {
+  const provider = document.getElementById('dteProveedorSelect').value;
+  const divOF = document.getElementById('divConfigOpenFactura');
+  const divHaulmer = document.getElementById('divConfigHaulmer');
+  const divSII = document.getElementById('divConfigSIICommon');
+  const divMsg = document.getElementById('divConfigMsg');
+  const txtHelp = document.getElementById('txtDteHelp');
+
+  divOF.style.display = 'none';
+  divHaulmer.style.display = 'none';
+  divSII.style.display = 'none';
+  divMsg.style.display = 'block';
+
+  if (provider === 'ninguno') {
+    txtHelp.innerHTML = "<strong>Modo Comprobante Local Activo:</strong> El sistema NO enviará información al SII. Solo se generarán los comprobantes de venta internos del local. Ideal para operar sin boleta electrónica.";
+  } else if (provider === 'mock') {
+    txtHelp.innerHTML = "<strong>Modo Simulador (Mock) Activo:</strong> El sistema simulará la emisión de DTEs (boletas, facturas, notas de crédito) de forma instantánea. Generará folios ficticios de prueba. Útil para verificar la interfaz y base de datos sin incurrir en costos ni conexión real.";
+  } else if (provider === 'openfactura') {
+    divOF.style.display = 'flex';
+    divSII.style.display = 'flex';
+    divMsg.style.display = 'none';
+  } else if (provider === 'haulmer') {
+    divHaulmer.style.display = 'flex';
+    divSII.style.display = 'flex';
+    divMsg.style.display = 'none';
+  }
+}
+
+// Ejecutar al cargar la página
+document.addEventListener("DOMContentLoaded", () => {
+  toggleDteFields();
+});
 </script>

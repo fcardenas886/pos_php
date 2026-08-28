@@ -614,8 +614,67 @@ function mostrarTicket(data, items, total, pagado, vuelto) {
   document.getElementById('ticketPagado').textContent = `$${formatNumber(pagado)}`;
   document.getElementById('ticketVuelto').textContent = `$${formatNumber(vuelto)}`;
 
+  // Mostrar u ocultar sección DTE según la respuesta
+  const dteInfo = document.getElementById('ticketDteInfo');
+  const dteFolio = document.getElementById('ticketDteFolio');
+  const dtePdfBtn = document.getElementById('ticketDtePdfBtn');
+  const localPrintBtn = document.getElementById('ticketLocalPrintBtn');
+  const dtePrintBtn = document.getElementById('ticketDtePrintBtn');
+
+  if (dteInfo && dteFolio && dtePdfBtn) {
+    if (data.dte && data.dte.success) {
+      dteFolio.textContent = `Folio: ${data.dte.folio}`;
+      dtePdfBtn.href = data.dte.pdf_url;
+      dteInfo.style.display = 'block';
+
+      if (localPrintBtn) localPrintBtn.style.display = 'none';
+      if (dtePrintBtn) {
+        dtePrintBtn.style.display = 'block';
+        dtePrintBtn.dataset.url = data.dte.pdf_url;
+      }
+
+      // Impresión Directa / Automática
+      setTimeout(() => {
+        imprimirPdfDirecto(data.dte.pdf_url);
+      }, 300);
+    } else {
+      dteInfo.style.display = 'none';
+      if (localPrintBtn) localPrintBtn.style.display = 'block';
+      if (dtePrintBtn) dtePrintBtn.style.display = 'none';
+    }
+  }
+
   const modal = document.getElementById('ticketModal');
   modal.style.display = 'flex';
+}
+
+function imprimirPdfDirecto(pdfUrl) {
+  const oldIframe = document.getElementById('printIframe');
+  if (oldIframe) {
+    oldIframe.parentNode.removeChild(oldIframe);
+  }
+
+  const iframe = document.createElement('iframe');
+  iframe.id = 'printIframe';
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.src = pdfUrl;
+
+  iframe.onload = function() {
+    try {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } catch (e) {
+      console.error("Error al imprimir el PDF:", e);
+      window.open(pdfUrl, '_blank');
+    }
+  };
+
+  document.body.appendChild(iframe);
 }
 
 function cerrarTicket() {

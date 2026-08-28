@@ -7,66 +7,22 @@ $user = currentUser();
 $message = '';
 $error = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    verifyCsrf();
-    $productoID = (int)($_POST['producto_id'] ?? 0);
-    $tipoMovimiento = ($_POST['tipo_movimiento'] ?? '') === 'SALIDA' ? 'SALIDA' : 'ENTRADA';
-    $cantidad = (float)($_POST['cantidad'] ?? 0);
-    $motivo = trim($_POST['motivo'] ?? 'Ajuste de inventario');
-
-    if ($productoID > 0 && $cantidad > 0) {
-        try {
-            $pdo->beginTransaction();
-
-            // 1. Crear AjusteStock
-            $stmtA = $pdo->prepare("INSERT INTO ajustesstock (UsuarioID, Motivo) VALUES (:uid, :motivo)");
-            $stmtA->execute([':uid' => $user['id'], ':motivo' => $motivo]);
-            $ajusteID = $pdo->lastInsertId();
-
-            // 2. Crear DetalleAjustesStock
-            $stmtDA = $pdo->prepare("
-                INSERT INTO detalleajustesstock (AjusteStockID, ProductoID, Cantidad, TipoMovimiento)
-                VALUES (:aid, :pid, :cant, :tipo)
-            ");
-            $stmtDA->execute([':aid' => $ajusteID, ':pid' => $productoID, ':cant' => $cantidad, ':tipo' => $tipoMovimiento]);
-
-            // 3. Actualizar Stock y registrar Kardex
-            if ($tipoMovimiento === 'ENTRADA') {
-                $stmtUpd = $pdo->prepare("UPDATE productos SET Stock = Stock + :cant WHERE ProductoID = :pid");
-                $stmtK = $pdo->prepare("
-                    INSERT INTO kardex (ProductoID, TipoTransaccion, AjusteStockID, CantidadEntrada, StockSaldo, ValorUnitario)
-                    SELECT :pid, 'AJUSTE_ENTRADA', :aid, :cant, Stock, PrecioVenta FROM productos WHERE ProductoID = :pid
-                ");
-            } else {
-                $stmtUpd = $pdo->prepare("UPDATE productos SET Stock = GREATEST(0, Stock - :cant) WHERE ProductoID = :pid");
-                $stmtK = $pdo->prepare("
-                    INSERT INTO kardex (ProductoID, TipoTransaccion, AjusteStockID, CantidadSalida, StockSaldo, ValorUnitario)
-                    SELECT :pid, 'AJUSTE_SALIDA', :aid, :cant, Stock, PrecioVenta FROM productos WHERE ProductoID = :pid
-                ");
-            }
-
-            $stmtUpd->execute([':cant' => $cantidad, ':pid' => $productoID]);
-            $stmtK->execute([':pid' => $productoID, ':aid' => $ajusteID, ':cant' => $cantidad]);
-
-            $pdo->commit();
-            $message = "Ajuste de $tipoMovimiento por $cantidad unidades registrado correctamente.";
-        } catch (Exception $e) {
-            if ($pdo->inTransaction()) $pdo->rollBack();
-            $error = 'Error al realizar el ajuste: ' . $e->getMessage();
-        }
-    } else {
-        $error = 'Selecciona un producto y una cantidad válida.';
-    }
-}
+// Obtener lista de proveedores activos para el selector del modal
+$proveedoresList = $pdo->query("SELECT ProveedorID, RazonSocial FROM proveedores WHERE Activo = TRUE ORDER BY RazonSocial ASC")->fetchAll();
 
 $productosList = $pdo->query("SELECT ProductoID, Nombre, Stock FROM productos WHERE Activo = TRUE ORDER BY Nombre ASC")->fetchAll();
 
+// Cargar historial de ajustes agrupados en una sola fila por AjusteStockID con GROUP_CONCAT
 $stmtHist = $pdo->query("
-    SELECT a.*, u.Nombre AS Usuario, da.Cantidad, da.TipoMovimiento, p.Nombre AS ProductoName
+    SELECT a.AjusteStockID, a.FechaAjuste, a.Motivo, a.DocReferencia, 
+           u.Nombre AS Usuario, prov.RazonSocial AS Proveedor,
+           GROUP_CONCAT(CONCAT(p.Nombre, ' (', da.TipoMovimiento, ' ', da.Cantidad, ')') SEPARATOR ', ') AS DetallesProductos
     FROM ajustesstock a
     JOIN usuarios u ON a.UsuarioID = u.UsuarioID
+    LEFT JOIN proveedores prov ON a.ProveedorID = prov.ProveedorID
     LEFT JOIN detalleajustesstock da ON a.AjusteStockID = da.AjusteStockID
     LEFT JOIN productos p ON da.ProductoID = p.ProductoID
+    GROUP BY a.AjusteStockID
     ORDER BY a.AjusteStockID DESC LIMIT 20
 ");
 $historialAjustes = $stmtHist->fetchAll();

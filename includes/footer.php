@@ -4,6 +4,6 @@
   <p>&copy; <?= date('Y') ?> Minimarket POS Web <?= APP_VERSION ?> — Operando en Laragon (PHP + MySQL)</p>
 </footer>
 
-<script src="assets/js/main.js"></script>
+<script src="assets/js/main.js?v=<?= APP_VERSION ?>"></script>
 </body>
 </html>

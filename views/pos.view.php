@@ -293,11 +293,25 @@
       <span id="ticketVuelto"></span>
     </div>
 
+    <!-- Info del DTE si aplica -->
+    <div id="ticketDteInfo" style="display: none; text-align: center; margin-top: 1rem; border: 1.5px dashed #10b981; padding: 0.75rem; border-radius: 8px; font-family: sans-serif; background: rgba(16, 185, 129, 0.05);">
+      <div style="color: #10b981; font-weight: bold; font-size: 0.75rem; margin-bottom: 0.25rem;">
+        <i class="fa-solid fa-circle-check"></i> Boleta Electrónica Emitida
+      </div>
+      <div id="ticketDteFolio" style="font-weight: bold; font-size: 0.9rem; color: #000; margin-bottom: 0.5rem;">Folio: -</div>
+      <a id="ticketDtePdfBtn" href="#" target="_blank" class="btn btn-success" style="padding: 0.4rem 0.6rem; font-size: 0.75rem; color: #fff; width: 100%; border-radius: 6px; display: inline-flex; justify-content: center; align-items: center; gap: 0.3rem; text-decoration: none; font-weight: bold; background: #10b981; border: none; cursor: pointer;">
+        <i class="fa-solid fa-file-pdf"></i> Ver PDF Oficial SII
+      </a>
+    </div>
+
     <div style="margin-top: 1.25rem; display: flex; gap: 0.5rem;">
-      <button onclick="window.print()" class="btn btn-primary btn-block" style="font-size: 0.85rem; padding: 0.5rem;">
+      <button id="ticketLocalPrintBtn" onclick="window.print()" class="btn btn-primary btn-block" style="font-size: 0.85rem; padding: 0.5rem;">
         <i class="fa-solid fa-print"></i> Imprimir
       </button>
-      <button onclick="cerrarTicket()" class="btn btn-secondary btn-block" style="font-size: 0.85rem; padding: 0.5rem; background: #eee; color: #000;">
+      <button id="ticketDtePrintBtn" onclick="imprimirPdfDirecto(this.dataset.url)" class="btn btn-success btn-block" style="font-size: 0.85rem; padding: 0.5rem; display: none; background: #10b981; border: none; color: #fff; cursor: pointer; font-weight: bold;">
+        <i class="fa-solid fa-print"></i> Imprimir DTE
+      </button>
+      <button onclick="cerrarTicket()" class="btn btn-secondary btn-block" style="font-size: 0.85rem; padding: 0.5rem; background: #eee; color: #000; border: none; cursor: pointer;">
         Cerrar
       </button>
     </div>
@@ -397,4 +411,4 @@ async function ejecutarConsultaPrecio() {
 }
 </script>
 
-<script src="assets/js/pos.js"></script>
+<script src="assets/js/pos.js?v=<?= APP_VERSION ?>"></script>

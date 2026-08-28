@@ -1,0 +1,91 @@
+%PDF-1.4
+1 0 obj
+<<
+  /Type /Catalog
+  /Pages 2 0 R
+>>
+endobj
+2 0 obj
+<<
+  /Type /Pages
+  /Kids [3 0 R]
+  /Count 1
+>>
+endobj
+3 0 obj
+<<
+  /Type /Page
+  /Parent 2 0 R
+  /MediaBox [0 0 226 500]
+  /Contents 4 0 R
+  /Resources <<
+    /Font <<
+      /F1 <<
+        /Type /Font
+        /Subtype /Type1
+        /BaseFont /Courier-Bold
+      >>
+      /F2 <<
+        /Type /Font
+        /Subtype /Type1
+        /BaseFont /Courier
+      >>
+    >>
+  >>
+>>
+endobj
+4 0 obj
+<<
+  /Length 1200
+>>
+stream
+BT
+/F1 10 Tf
+12 TL
+15 470 Td
+(        MINIMARKET DEMO) Tj T*
+/F2 9 Tf
+(      R.U.T.: 76.543.210-K) Tj T*
+(         GIRO COMERCIAL) Tj T*
+(   Av. Principal 123, Santiago) Tj T*
+(--------------------------------) Tj T*
+/F1 10 Tf
+(    BOLETA ELECTRONICA Nro.) Tj T*
+(             88719) Tj T*
+/F2 9 Tf
+(     S.I.I. - SANTIAGO OESTE) Tj T*
+(--------------------------------) Tj T*
+(Fecha: 27/08/2026 12:21:20) Tj T*
+(Caja: CAJA-01  Cajero: Admin) Tj T*
+(--------------------------------) Tj T*
+(1x Aceite Natura 1L       $2.500) Tj T*
+(2x Coca Cola 1.5L         $3.000) Tj T*
+(--------------------------------) Tj T*
+/F1 11 Tf
+(TOTAL                     $5.500) Tj T*
+/F2 9 Tf
+( Neto: $4.622     IVA 19%: $878) Tj T*
+(--------------------------------) Tj T*
+(   Timbre Electronico SII - 39) Tj T*
+(   [   M O C K  -  D T E   ]) Tj T*
+(   [   M O C K  -  D T E   ]) Tj T*
+(   [   M O C K  -  D T E   ]) Tj T*
+(  Verifique documento en sii.cl) Tj T*
+ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000340 00000 n 
+trailer
+<<
+  /Size 5
+  /Root 1 0 R
+>>
+startxref
+1150
+%%EOF
