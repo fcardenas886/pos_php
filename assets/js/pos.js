@@ -216,10 +216,10 @@ function renderCart() {
 
   if (cart.length === 0) {
     container.innerHTML = `
-      <div style="text-align: center; color: var(--text-muted); margin: auto; padding: 2rem;">
-        <i class="fa-solid fa-basket-shopping" style="font-size: 2.5rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
+      <div class="cart-empty">
+        <i class="fa-solid fa-basket-shopping"></i>
         <p>El carrito está vacío</p>
-        <span style="font-size: 0.8rem;">Escanea o haz clic en un producto</span>
+        <span>Escanea o haz clic en un producto</span>
       </div>
     `;
     totalEl.textContent = '$0';
@@ -234,32 +234,31 @@ function renderCart() {
     const subtotalFinal = subtotalNormal - desc;
 
     let promoBadgeHtml = '';
-    let subtotalHtml = `$${formatNumber(subtotalFinal)}`;
+    let oldPriceHtml = '';
 
     if (desc > 0) {
       if (item.PromoTipo === 'DESCUENTO_UNIT') {
-        promoBadgeHtml = `<span style="background: var(--success); color: #fff; font-size: 0.7rem; font-weight: bold; padding: 0.1rem 0.3rem; border-radius: 4px; margin-left: 0.5rem;">-${item.PromoDescPorc}% Dcto</span>`;
+        promoBadgeHtml = `<span class="promo-badge">-${item.PromoDescPorc}% Dcto</span>`;
       } else if (item.PromoTipo === 'MULTIBUY') {
-        promoBadgeHtml = `<span style="background: var(--warning); color: #000; font-size: 0.7rem; font-weight: bold; padding: 0.1rem 0.3rem; border-radius: 4px; margin-left: 0.5rem;">Promo Pack</span>`;
+        promoBadgeHtml = `<span class="promo-badge promo-badge--pack">Promo Pack</span>`;
       }
-      subtotalHtml = `<span style="text-decoration: line-through; color: var(--text-muted); font-size: 0.8rem; margin-right: 0.4rem;">$${formatNumber(subtotalNormal)}</span> $${formatNumber(subtotalFinal)}`;
+      oldPriceHtml = `<span class="cart-item__old">$${formatNumber(subtotalNormal)}</span>`;
     }
 
     return `
       <div class="cart-item">
-        <div style="flex: 1;">
-          <div class="cart-item-title">${escapeHtml(item.Nombre)} ${promoBadgeHtml}</div>
-          <div style="font-size: 0.8rem; color: var(--text-muted);">$${formatNumber(item.PrecioVenta)} c/u</div>
+        <div class="cart-item__main">
+          <div class="cart-item__name">${escapeHtml(item.Nombre)}</div>
+          <div class="cart-item__unit">$${formatNumber(item.PrecioVenta)} c/u ${promoBadgeHtml}</div>
         </div>
 
-        <div class="qty-controls">
-          <button class="btn-qty" onclick="cambiarCantidad(${idx}, -1)">-</button>
-          <span style="font-weight: 600; width: auto; min-width: 32px; text-align: center; padding: 0 4px;">${item.cantidad}</span>
-          <button class="btn-qty" onclick="cambiarCantidad(${idx}, 1)">+</button>
-        </div>
-
-        <div style="font-weight: 700; color: var(--success); text-align: right;">
-          ${subtotalHtml}
+        <div class="cart-item__actions">
+          <div class="qty-controls">
+            <button class="btn-qty" onclick="cambiarCantidad(${idx}, -1)">&minus;</button>
+            <span class="qty-value">${item.cantidad}</span>
+            <button class="btn-qty" onclick="cambiarCantidad(${idx}, 1)">+</button>
+          </div>
+          <div class="cart-item__subtotal">${oldPriceHtml}<span>$${formatNumber(subtotalFinal)}</span></div>
         </div>
       </div>
     `;

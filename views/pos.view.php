@@ -76,10 +76,10 @@
 
     <!-- Lista de Items en Carrito -->
     <div id="cartItems" class="cart-items">
-      <div style="text-align: center; color: var(--text-muted); margin: auto; padding: 2rem;">
-        <i class="fa-solid fa-basket-shopping" style="font-size: 2.5rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
+      <div class="cart-empty">
+        <i class="fa-solid fa-basket-shopping"></i>
         <p>El carrito está vacío</p>
-        <span style="font-size: 0.8rem;">Escanea o haz clic en un producto</span>
+        <span>Escanea o haz clic en un producto</span>
       </div>
     </div>
 

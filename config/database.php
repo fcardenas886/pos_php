@@ -2,6 +2,25 @@
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
 define('APP_VERSION', 'v2.5.0');
 
+// Novedades reales por version, para la pantalla de bienvenida tras actualizar.
+// Al subir APP_VERSION, agregar aca la lista de cambios visibles para el usuario.
+define('APP_CHANGELOG', [
+    'v2.5.0' => [
+        'Productos pesables: venta por peso leyendo el codigo de la balanza (PLU).',
+        'Ajustes de stock con varios productos y proveedor en un mismo movimiento.',
+        'Facturacion electronica (DTE) con seleccion de proveedor en Configuracion.',
+    ],
+    'v2.4.0' => [
+        'Nueva pestana de Configuracion para la balanza de pesaje.',
+        'Impresion directa del PDF del DTE al cobrar.',
+    ],
+    'v2.3.0' => [
+        'Canje de vales usando el numero de boleta, no solo el codigo.',
+        'Editar productos sin afectar el stock; activar/desactivar productos.',
+        'Menu de navegacion reorganizado.',
+    ],
+]);
+
 // Cargar variables desde .env (no versionado) si existe
 $envPath = __DIR__ . '/../.env';
 if (file_exists($envPath)) {
