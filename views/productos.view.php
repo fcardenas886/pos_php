@@ -138,7 +138,18 @@
           <input type="number" step="0.001" name="stock_minimo" id="prodStockMinimoInput" class="form-control" value="0">
         </div>
       </div>
-      <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.25rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <input type="checkbox" name="es_pesable" id="prodEsPesableInput" value="1" onchange="togglePluField()" style="width: 18px; height: 18px; cursor: pointer;">
+          <label for="prodEsPesableInput" style="font-size: 0.85rem; font-weight: 600; cursor: pointer; user-select: none;">Es Pesable (Balanza)</label>
+        </div>
+        <div id="divProdPLU" style="display: none;">
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CÓDIGO PLU (4 DÍGITOS)</label>
+          <input type="text" name="codigo_plu" id="prodCodigoPLUInput" class="form-control" placeholder="Ej: 0105" maxlength="4">
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
         <input type="checkbox" name="activo" id="prodActivoInput" value="1" checked style="width: 18px; height: 18px; cursor: pointer;">
         <label for="prodActivoInput" style="font-size: 0.85rem; font-weight: 600; cursor: pointer; user-select: none;">Producto Activo (disponible para venta)</label>
       </div>
@@ -152,6 +163,21 @@
 </div>
 
 <script>
+function togglePluField() {
+  const isPesable = document.getElementById('prodEsPesableInput').checked;
+  const divPLU = document.getElementById('divProdPLU');
+  const pluInput = document.getElementById('prodCodigoPLUInput');
+  
+  if (isPesable) {
+    divPLU.style.display = 'block';
+    pluInput.required = true;
+  } else {
+    divPLU.style.display = 'none';
+    pluInput.required = false;
+    pluInput.value = '';
+  }
+}
+
 function abrirNuevoModal() {
   document.getElementById('modalTitle').textContent = 'Agregar Nuevo Producto';
   document.getElementById('prodIdInput').value = '';
@@ -163,6 +189,10 @@ function abrirNuevoModal() {
   document.getElementById('prodStockInput').value = '0';
   document.getElementById('prodStockMinimoInput').value = '0';
   document.getElementById('prodActivoInput').checked = true;
+  document.getElementById('prodEsPesableInput').checked = false;
+  document.getElementById('prodCodigoPLUInput').value = '';
+  togglePluField();
+
   // Stock editable solo al crear (stock inicial)
   var stockInput = document.getElementById('prodStockInput');
   stockInput.readOnly = false;
@@ -183,6 +213,10 @@ function abrirEditarModal(p) {
   document.getElementById('prodStockInput').value = p.Stock;
   document.getElementById('prodStockMinimoInput').value = p.StockMinimo;
   document.getElementById('prodActivoInput').checked = parseInt(p.Activo) === 1;
+  document.getElementById('prodEsPesableInput').checked = parseInt(p.EsPesable) === 1;
+  document.getElementById('prodCodigoPLUInput').value = p.CodigoPLU || '';
+  togglePluField();
+
   // Al editar, el stock actual es de solo lectura: se ajusta por Compras/ventas/Ajustes
   var stockInput = document.getElementById('prodStockInput');
   stockInput.readOnly = true;

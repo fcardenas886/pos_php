@@ -26,6 +26,9 @@
   <button onclick="switchTab('tabHaulmer')" class="btn btn-secondary tab-btn" id="btn-tabHaulmer">
     🧾 Boleta Electrónica (SII / Haulmer)
   </button>
+  <button onclick="switchTab('tabBalanza')" class="btn btn-secondary tab-btn" id="btn-tabBalanza">
+    ⚖️ Balanza de Pesaje
+  </button>
 </div>
 
 <!-- PESTAÑA 1: PARÁMETROS GENERALES -->
@@ -274,6 +277,46 @@
 
       <button type="submit" class="btn btn-primary" style="padding: 0.85rem; font-weight: bold;">
         <i class="fa-solid fa-floppy-disk"></i> Guardar Configuración DTE
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- PESTAÑA 4: CONFIGURACIÓN DE BALANZA -->
+<div id="tabBalanza" class="tab-pane" style="display: none;">
+  <div class="table-card" style="padding: 1.75rem; max-width: 800px;">
+    <form method="POST" action="configuracion.php" style="display: flex; flex-direction: column; gap: 1.25rem;">
+      <?= csrfField() ?>
+      <input type="hidden" name="action" value="save_config">
+
+      <h2 style="font-size: 1.1rem; font-weight: 600; color: #818cf8; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.4rem;">Configuración de Balanzas y Lector de Códigos (EAN-13)</h2>
+
+      <div>
+        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">FORMATO DEL CÓDIGO DE BARRAS DE BALANZA (INDIVIDUAL)</label>
+        <select name="config[BALANZA_TIPO_EAN]" class="form-control" required>
+          <option value="plu_peso" <?= ($config['BALANZA_TIPO_EAN'] ?? 'plu_peso') === 'plu_peso' ? 'selected' : '' ?>>PLU + Peso (20 PPPP QQQQQ C) - Recomendado</option>
+          <option value="plu_precio" <?= ($config['BALANZA_TIPO_EAN'] ?? '') === 'plu_precio' ? 'selected' : '' ?>>PLU + Precio/Valor (20 PPPP $$$$$ C)</option>
+        </select>
+        <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.25rem;">
+          Determina si los 5 dígitos de cantidad en la etiqueta representan gramos de peso (ej. 01250 para 1.250kg) o el valor de venta en pesos (ej. 12500 para $12.500).
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div>
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">PREFIJO EAN-13 ETIQUETA INDIVIDUAL</label>
+          <input type="text" name="config[BALANZA_PREFIJO_INDIVIDUAL]" value="<?= htmlspecialchars($config['BALANZA_PREFIJO_INDIVIDUAL'] ?? '20') ?>" class="form-control" placeholder="Ej: 20" maxlength="2" required style="font-family: monospace;">
+          <p style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.25rem;">Prefijo GS1 para identificar que el código contiene peso/precio (normalmente 20).</p>
+        </div>
+        <div>
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">PREFIJO EAN-13 VALE CONSOLIDADO</label>
+          <input type="text" name="config[BALANZA_PREFIJO_CONSOLIDADO]" value="<?= htmlspecialchars($config['BALANZA_PREFIJO_CONSOLIDADO'] ?? '28') ?>" class="form-control" placeholder="Ej: 28" maxlength="2" required style="font-family: monospace;">
+          <p style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.25rem;">Prefijo GS1 para identificar vales consolidados con monto total final (normalmente 28).</p>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="padding: 0.85rem; font-weight: bold;">
+        <i class="fa-solid fa-floppy-disk"></i> Guardar Configuración de Balanza
       </button>
     </form>
   </div>

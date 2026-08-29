@@ -27,52 +27,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stock = (float)($_POST['stock'] ?? 0);
     $stockMinimo = (float)($_POST['stock_minimo'] ?? 0);
     $activo = isset($_POST['activo']) ? 1 : 0;
+    $esPesable = isset($_POST['es_pesable']) ? 1 : 0;
+    $codigoPLU = !empty($_POST['codigo_plu']) ? trim($_POST['codigo_plu']) : null;
 
-    if (!empty($nombre) && $precioVenta >= 0) {
-        try {
-            if ($id) {
-                // El Stock NO se toca al editar: solo cambia via Recepción de Compras,
-                // ventas o Ajustes de Stock (que dejan rastro en el kardex). Editar el
-                // producto solo actualiza sus datos maestros.
-                $stmt = $pdo->prepare("
-                    UPDATE productos
-                    SET CodigoBarras = :codigo, Nombre = :nombre, CategoriaID = :cat,
-                        PrecioVenta = :precio, CostoCompra = :costo,
-                        StockMinimo = :stockmin, Activo = :activo
-                    WHERE ProductoID = :id
-                ");
-                $stmt->execute([
-                    ':codigo' => $codigo,
-                    ':nombre' => $nombre,
-                    ':cat' => $categoriaID,
-                    ':precio' => $precioVenta,
-                    ':costo' => $costoCompra,
-                    ':stockmin' => $stockMinimo,
-                    ':activo' => $activo,
-                    ':id' => $id
-                ]);
-            } else {
-                $stmt = $pdo->prepare("
-                    INSERT INTO productos (CodigoBarras, Nombre, CategoriaID, PrecioVenta, CostoCompra, Stock, StockMinimo, Activo)
-                    VALUES (:codigo, :nombre, :cat, :precio, :costo, :stock, :stockmin, :activo)
-                ");
-                $stmt->execute([
-                    ':codigo' => $codigo,
-                    ':nombre' => $nombre,
-                    ':cat' => $categoriaID,
-                    ':precio' => $precioVenta,
-                    ':costo' => $costoCompra,
-                    ':stock' => $stock,
-                    ':stockmin' => $stockMinimo,
-                    ':activo' => $activo
-                ]);
+    // Validar PLU si es pesable
+    if ($esPesable && $codigoPLU !== null && !preg_match('/^[0-9]{4}$/', $codigoPLU)) {
+        $error = 'El Código PLU de la balanza debe tener exactamente 4 dígitos numéricos.';
+    }
+
+    if (empty($error)) {
+        if (!empty($nombre) && $precioVenta >= 0) {
+            try {
+                if ($id) {
+                    $stmt = $pdo->prepare("
+                        UPDATE productos
+                        SET CodigoBarras = :codigo, Nombre = :nombre, CategoriaID = :cat,
+                            PrecioVenta = :precio, CostoCompra = :costo,
+                            StockMinimo = :stockmin, Activo = :activo,
+                            EsPesable = :espesable, CodigoPLU = :plu
+                        WHERE ProductoID = :id
+                    ");
+                    $stmt->execute([
+                        ':codigo' => $codigo,
+                        ':nombre' => $nombre,
+                        ':cat' => $categoriaID,
+                        ':precio' => $precioVenta,
+                        ':costo' => $costoCompra,
+                        ':stockmin' => $stockMinimo,
+                        ':activo' => $activo,
+                        ':espesable' => $esPesable,
+                        ':plu' => $codigoPLU,
+                        ':id' => $id
+                    ]);
+                } else {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO productos (CodigoBarras, Nombre, CategoriaID, PrecioVenta, CostoCompra, Stock, StockMinimo, Activo, EsPesable, CodigoPLU)
+                        VALUES (:codigo, :nombre, :cat, :precio, :costo, :stock, :stockmin, :activo, :espesable, :plu)
+                    ");
+                    $stmt->execute([
+                        ':codigo' => $codigo,
+                        ':nombre' => $nombre,
+                        ':cat' => $categoriaID,
+                        ':precio' => $precioVenta,
+                        ':costo' => $costoCompra,
+                        ':stock' => $stock,
+                        ':stockmin' => $stockMinimo,
+                        ':activo' => $activo,
+                        ':espesable' => $esPesable,
+                        ':plu' => $codigoPLU
+                    ]);
+                }
+                $message = 'Producto guardado exitosamente.';
+            } catch (Exception $e) {
+                $error = 'Error al guardar el producto: ' . $e->getMessage();
             }
-            $message = 'Producto guardado exitosamente.';
-        } catch (Exception $e) {
-            $error = 'Error al guardar el producto: ' . $e->getMessage();
+        } else {
+            $error = 'Nombre y Precio de Venta son requeridos.';
         }
-    } else {
-        $error = 'Nombre y Precio de Venta son requeridos.';
     }
 }
 

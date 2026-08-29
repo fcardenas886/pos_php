@@ -39,16 +39,49 @@ document.addEventListener('DOMContentLoaded', () => {
       const code = searchInput.value.trim();
       if (!code) return;
 
-      const res = await fetch(`api/buscar_producto.php?q=${encodeURIComponent(code)}`);
-      const data = await res.json();
+      const prefijoIndiv = window.BALANZA_PREFIJO_INDIVIDUAL || '20';
+      const tipoEan = window.BALANZA_TIPO_EAN || 'plu_peso';
 
-      if (data.success && data.productos.length > 0) {
-        const match = data.productos.find(p => p.CodigoBarras === code) || data.productos[0];
-        agregarAlCarrito(match);
-        searchInput.value = '';
-        cargarProductos('');
+      // Si cumple con el estándar EAN-13 de balanza individual
+      if (code.length === 13 && code.startsWith(prefijoIndiv)) {
+        const plu = code.substring(2, 6);
+        const cantidadBruta = parseInt(code.substring(6, 11)) || 0;
+
+        const res = await fetch(`api/buscar_producto.php?q=${encodeURIComponent(plu)}`);
+        const data = await res.json();
+
+        if (data.success && data.productos.length > 0) {
+          const match = data.productos.find(p => p.CodigoPLU === plu) || data.productos[0];
+          
+          let cantidadFinal = 1;
+          if (tipoEan === 'plu_peso') {
+            // Peso en gramos (ej. 01250g = 1.250kg)
+            cantidadFinal = cantidadBruta / 1000;
+          } else {
+            // Precio total en pesos (ej. 12500 = $12.500)
+            const precioVenta = parseInt(match.PrecioVenta) || 1;
+            cantidadFinal = Math.round((cantidadBruta / precioVenta) * 1000) / 1000;
+          }
+
+          agregarAlCarrito(match, cantidadFinal);
+          searchInput.value = '';
+          cargarProductos('');
+        } else {
+          alert(`Producto con PLU de balanza #${plu} no encontrado.`);
+        }
       } else {
-        alert('Producto no encontrado');
+        // Flujo de código de barra normal
+        const res = await fetch(`api/buscar_producto.php?q=${encodeURIComponent(code)}`);
+        const data = await res.json();
+
+        if (data.success && data.productos.length > 0) {
+          const match = data.productos.find(p => p.CodigoBarras === code) || data.productos[0];
+          agregarAlCarrito(match);
+          searchInput.value = '';
+          cargarProductos('');
+        } else {
+          alert('Producto no encontrado');
+        }
       }
     }
   });
@@ -104,17 +137,17 @@ function agregarAlCarritoId(id) {
   if (p) agregarAlCarrito(p);
 }
 
-function agregarAlCarrito(producto) {
+function agregarAlCarrito(producto, cantidad = 1) {
   const existIndex = cart.findIndex(item => item.ProductoID == producto.ProductoID);
   
   if (existIndex > -1) {
-    if (cart[existIndex].cantidad + 1 > producto.Stock) {
+    if (cart[existIndex].cantidad + cantidad > producto.Stock) {
       alert(`No hay suficiente stock. Disponible: ${producto.Stock}`);
       return;
     }
-    cart[existIndex].cantidad += 1;
+    cart[existIndex].cantidad += cantidad;
   } else {
-    if (producto.Stock < 1) {
+    if (producto.Stock < cantidad) {
       alert(`Sin stock disponible.`);
       return;
     }
@@ -123,7 +156,8 @@ function agregarAlCarrito(producto) {
       Nombre: producto.Nombre,
       PrecioVenta: parseInt(producto.PrecioVenta),
       Stock: parseFloat(producto.Stock),
-      cantidad: 1,
+      cantidad: cantidad,
+      EsPesable: producto.EsPesable,
       PromocionID: producto.PromocionID || null,
       PromoTipo: producto.PromoTipo || null,
       PromoCantMin: parseFloat(producto.PromoCantMin) || 0,
@@ -140,7 +174,9 @@ function cambiarCantidad(index, delta) {
   const item = cart[index];
   if (!item) return;
 
-  const nuevaCant = item.cantidad + delta;
+  const step = (parseInt(item.EsPesable) === 1) ? 0.1 : 1;
+  const nuevaCant = Math.round((item.cantidad + (delta * step)) * 1000) / 1000;
+
   if (nuevaCant <= 0) {
     cart.splice(index, 1);
   } else {
@@ -218,7 +254,7 @@ function renderCart() {
 
         <div class="qty-controls">
           <button class="btn-qty" onclick="cambiarCantidad(${idx}, -1)">-</button>
-          <span style="font-weight: 600; width: 24px; text-align: center;">${item.cantidad}</span>
+          <span style="font-weight: 600; width: auto; min-width: 32px; text-align: center; padding: 0 4px;">${item.cantidad}</span>
           <button class="btn-qty" onclick="cambiarCantidad(${idx}, 1)">+</button>
         </div>
 
