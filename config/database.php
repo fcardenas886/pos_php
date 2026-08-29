@@ -1,10 +1,14 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v2.5.0');
+define('APP_VERSION', 'v2.6.0');
 
 // Novedades reales por version, para la pantalla de bienvenida tras actualizar.
 // Al subir APP_VERSION, agregar aca la lista de cambios visibles para el usuario.
 define('APP_CHANGELOG', [
+    'v2.6.0' => [
+        'Carrito del POS rediseñado: lineas mas claras y botones de cantidad mas grandes.',
+        'La pantalla de actualizacion ahora muestra las novedades reales de cada version.',
+    ],
     'v2.5.0' => [
         'Productos pesables: venta por peso leyendo el codigo de la balanza (PLU).',
         'Ajustes de stock con varios productos y proveedor en un mismo movimiento.',
