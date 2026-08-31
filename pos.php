@@ -30,5 +30,8 @@ while ($row = $stmtLocal->fetch(PDO::FETCH_ASSOC)) {
     $cfgLocal[$row['Clave']] = $row['Valor'];
 }
 
+// Cotización a cargar automáticamente en el carrito (viene de la pantalla de Cotizaciones)
+$cotizacionPreload = (int)($_GET['cotizacion'] ?? 0);
+
 include __DIR__ . '/views/pos.view.php';
 require_once __DIR__ . '/includes/footer.php';

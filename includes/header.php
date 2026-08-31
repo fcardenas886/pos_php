@@ -118,7 +118,7 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
 
     <!-- Grupo: Caja y Ventas -->
     <li class="nav-item">
-      <div class="nav-link <?= in_array($currentPage, ['caja.php', 'ventas.php', 'devoluciones.php']) ? 'active' : '' ?>">
+      <div class="nav-link <?= in_array($currentPage, ['caja.php', 'ventas.php', 'devoluciones.php', 'cotizaciones.php']) ? 'active' : '' ?>">
         <i class="fa-solid fa-cash-register"></i> Caja y Ventas <i class="fa-solid fa-chevron-down nav-caret"></i>
       </div>
       <ul class="dropdown-menu" style="min-width: 230px;">
@@ -136,6 +136,7 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
         </li>
         <li><a href="ventas.php" class="dropdown-item"><i class="fa-solid fa-file-invoice"></i> Ventas y Anulaciones</a></li>
         <li><a href="devoluciones.php" class="dropdown-item"><i class="fa-solid fa-rotate-left"></i> Devoluciones y Vales</a></li>
+        <li><a href="cotizaciones.php" class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Cotizaciones</a></li>
       </ul>
     </li>
 
@@ -158,7 +159,7 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
 
     <!-- Grupo: Stock y Compras -->
     <li class="nav-item">
-      <div class="nav-link <?= in_array($currentPage, ['kardex.php', 'ajustes.php', 'alertas_stock.php', 'notaspedido.php', 'compras.php', 'proveedores.php']) ? 'active' : '' ?>">
+      <div class="nav-link <?= in_array($currentPage, ['kardex.php', 'ajustes.php', 'alertas_stock.php', 'inventario.php', 'notaspedido.php', 'compras.php', 'proveedores.php']) ? 'active' : '' ?>">
         <i class="fa-solid fa-boxes-stacked"></i> Stock y Compras <i class="fa-solid fa-chevron-down nav-caret"></i>
       </div>
       <ul class="dropdown-menu" style="min-width: 250px;">
@@ -169,6 +170,7 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
         <li><a href="kardex.php" class="dropdown-item"><i class="fa-solid fa-arrow-right-arrow-left"></i> Kardex de Movimientos</a></li>
         <?php if ($esSupervisorNav): ?>
         <li><a href="ajustes.php" class="dropdown-item"><i class="fa-solid fa-sliders"></i> Ajustes de Stock</a></li>
+        <li><a href="inventario.php" class="dropdown-item"><i class="fa-solid fa-clipboard-list"></i> Toma de Inventario</a></li>
         <?php endif; ?>
         <li><a href="alertas_stock.php" class="dropdown-item"><i class="fa-solid fa-triangle-exclamation"></i> Alertas de Stock</a></li>
 

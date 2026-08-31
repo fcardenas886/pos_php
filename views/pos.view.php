@@ -434,6 +434,7 @@ async function ejecutarConsultaPrecio() {
 <script>
   window.BALANZA_PREFIJO_INDIVIDUAL = "<?= htmlspecialchars($configBalanza['BALANZA_PREFIJO_INDIVIDUAL'] ?? '20') ?>";
   window.BALANZA_TIPO_EAN = "<?= htmlspecialchars($configBalanza['BALANZA_TIPO_EAN'] ?? 'plu_peso') ?>";
+  window.COTIZACION_PRELOAD = <?= $cotizacionPreload > 0 ? $cotizacionPreload : 'null' ?>;
 </script>
 
 <script src="assets/js/pos.js?v=<?= APP_VERSION ?>"></script>

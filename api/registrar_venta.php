@@ -19,6 +19,7 @@ if (empty($input['items']) || !is_array($input['items'])) {
 
 $tipoDocumento = $input['tipo_documento'] ?? 'Boleta';
 $clienteID = !empty($input['cliente_id']) ? (int)$input['cliente_id'] : null;
+$cotizacionID = !empty($input['cotizacion_id']) ? (int)$input['cotizacion_id'] : null;
 $descuentoGlobal = (int)($input['descuento_global'] ?? 0);
 $montoPagado = (int)($input['monto_pagado'] ?? 0);
 $vuelto = (int)($input['vuelto'] ?? 0);
@@ -355,6 +356,14 @@ try {
     if ($clienteID && $puntosGanados > 0) {
         $stmtAddPts = $pdo->prepare("UPDATE clientes SET PuntosAcumulados = COALESCE(PuntosAcumulados, 0) + :pts WHERE ClienteID = :cid");
         $stmtAddPts->execute([':pts' => $puntosGanados, ':cid' => $clienteID]);
+    }
+
+    // Si la venta salió de una cotización, marcarla como convertida
+    if ($cotizacionID) {
+        $pdo->prepare("
+            UPDATE cotizaciones SET Estado = 'Convertida'
+            WHERE CotizacionID = :id AND Estado IN ('Pendiente', 'Restaurada')
+        ")->execute([':id' => $cotizacionID]);
     }
 
     $pdo->commit();

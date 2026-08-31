@@ -1,10 +1,15 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v2.8.0');
+define('APP_VERSION', 'v2.9.0');
 
 // Novedades reales por version, para la pantalla de bienvenida tras actualizar.
 // Al subir APP_VERSION, agregar aca la lista de cambios visibles para el usuario.
 define('APP_CHANGELOG', [
+    'v2.9.0' => [
+        'Nueva pantalla de Cotizaciones: crear presupuestos y cargarlos en la caja para cobrar.',
+        'Toma de Inventario físico: contar por categoría, ver diferencias y ajustar el stock de una vez.',
+        'Al pausar una venta en el POS queda como cotización, visible desde Cotizaciones.',
+    ],
     'v2.8.0' => [
         'Comprobante de venta con formato para impresora térmica de 80 mm.',
         'Al vender con crédito interno se imprime un comprobante de fiado con firma del cliente.',

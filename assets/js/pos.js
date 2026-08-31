@@ -3,6 +3,7 @@ let cart = [];
 let productosCache = [];
 let metodoSeleccionadoModal = 'Efectivo';
 let valeAplicado = null; // { codigo, disponible }
+let cotizacionActiva = null; // CotizacionID si la venta actual salió de una cotización
 
 function playBeep() {
   try {
@@ -106,6 +107,11 @@ document.addEventListener('DOMContentLoaded', () => {
       abrirModalPago();
     }
   });
+
+  // Si se llegó con ?cotizacion=ID, cargar esa cotización en el carrito
+  if (window.COTIZACION_PRELOAD) {
+    cargarCotizacion(window.COTIZACION_PRELOAD);
+  }
 });
 
 async function cargarProductos(query) {
@@ -480,6 +486,7 @@ async function confirmarPagoModal() {
         cliente_id: clienteID,
         descuento_global: descGlobal,
         vale_codigo: valeAplicado ? valeAplicado.codigo : null,
+        cotizacion_id: cotizacionActiva,
         pagos: pagos,
         monto_pagado: recibido,
         vuelto: vuelto
@@ -507,6 +514,7 @@ async function confirmarPagoModal() {
     });
 
     cart = [];
+    cotizacionActiva = null;
     document.getElementById('descuentoGlobal').value = '';
     valeAplicado = null;
     document.getElementById('valeCodigoInput').value = '';
@@ -528,30 +536,35 @@ async function guardarCotizacion() {
     return;
   }
 
-  const clienteNombre = await promptDialog({
+  const ok = await confirmDialog({
     title: 'Pausar venta',
-    message: 'Nombre del cliente o referencia para retomarla después:',
-    placeholder: 'Ej: Sra. Rojas / Mesa 3',
-    defaultValue: 'Cliente Cotización',
+    message: 'Se guarda como cotización pendiente con el cliente asignado. La puedes retomar desde "Pendientes" o desde Cotizaciones.',
     confirmText: 'Pausar',
   });
-  if (!clienteNombre) return;
+  if (!ok) return;
+
+  const clienteID = document.getElementById('clienteSelect').value || null;
 
   try {
     const res = await fetch('api/cotizaciones.php?action=save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN },
       body: JSON.stringify({
-        cliente_nombre: clienteNombre,
-        monto_total: getCartTotal(),
-        items: cart
+        cliente_id: clienteID,
+        items: cart.map(i => ({
+          producto_id: i.ProductoID,
+          cantidad: i.cantidad,
+          precio: i.PrecioVenta,
+          descuento: calcularDescuentoItem(i),
+        })),
       })
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
 
-    toast(`Venta pausada guardada (ID #${data.cotizacion_id}).`, 'success');
+    toast(`Venta pausada como cotización #${data.cotizacion_id}.`, 'success');
     cart = [];
+    cotizacionActiva = null;
     renderCart();
   } catch (err) {
     toast('Error al guardar cotización: ' + err.message, 'error');
@@ -565,7 +578,7 @@ async function abrirModalCotizaciones() {
   lista.innerHTML = '<p style="text-align: center; color: var(--text-muted);">Cargando pendientes...</p>';
 
   try {
-    const res = await fetch('api/cotizaciones.php?action=list');
+    const res = await fetch('api/cotizaciones.php?action=list&estado=Pendiente');
     const data = await res.json();
 
     if (!data.success || data.cotizaciones.length === 0) {
@@ -576,8 +589,8 @@ async function abrirModalCotizaciones() {
     lista.innerHTML = data.cotizaciones.map(c => `
       <div style="background: rgba(15,23,42,0.6); border: 1px solid var(--border-dark); padding: 0.75rem 1rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
         <div>
-          <strong style="color: #fff;">#${c.CotizacionID} - ${escapeHtml(c.ClienteNombre)}</strong>
-          <div style="font-size: 0.8rem; color: var(--text-muted);">$${formatNumber(c.MontoTotal)} • ${c.FechaCreacion}</div>
+          <strong style="color: #fff;">#${c.CotizacionID} · ${escapeHtml(c.Cliente)}</strong>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">$${formatNumber(c.Total)} • ${c.Items} ítem(s) • ${c.FechaCotizacion}</div>
         </div>
         <button onclick="cargarCotizacion(${c.CotizacionID})" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
           <i class="fa-solid fa-arrow-rotate-left"></i> Restaurar
@@ -591,7 +604,7 @@ async function abrirModalCotizaciones() {
 
 async function cargarCotizacion(id) {
   try {
-    const res = await fetch(`api/cotizaciones.php?action=get&id=${id}`);
+    const res = await fetch(`api/cotizaciones.php?action=get&id=${id}&restore=1`);
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
 
@@ -608,9 +621,15 @@ async function cargarCotizacion(id) {
       PromoPrecioOf: parseInt(d.PromoPrecioOf) || 0
     }));
 
+    cotizacionActiva = parseInt(id) || null;
+    if (data.cotizacion && data.cotizacion.ClienteID) {
+      const sel = document.getElementById('clienteSelect');
+      if (sel) sel.value = String(data.cotizacion.ClienteID);
+    }
+
     renderCart();
     cerrarModalCotizaciones();
-    toast('Venta pausada restaurada al carrito.', 'success');
+    toast(`Cotización #${id} cargada al carrito.`, 'success');
   } catch (err) {
     toast('Error al restaurar cotización: ' + err.message, 'error');
   }
