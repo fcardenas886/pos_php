@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
           searchInput.value = '';
           cargarProductos('');
         } else {
-          alert(`Producto con PLU de balanza #${plu} no encontrado.`);
+          toast(`Producto con PLU de balanza #${plu} no encontrado.`, 'error');
         }
       } else {
         // Flujo de código de barra normal
@@ -80,14 +80,21 @@ document.addEventListener('DOMContentLoaded', () => {
           searchInput.value = '';
           cargarProductos('');
         } else {
-          alert('Producto no encontrado');
+          toast('Producto no encontrado', 'error');
         }
       }
     }
   });
 
-  btnVaciar.addEventListener('click', () => {
-    if (cart.length > 0 && confirm('¿Deseas vaciar el carrito?')) {
+  btnVaciar.addEventListener('click', async () => {
+    if (cart.length === 0) return;
+    const ok = await confirmDialog({
+      title: 'Vaciar carrito',
+      message: '¿Seguro que quieres quitar todos los productos del carrito?',
+      confirmText: 'Vaciar',
+      danger: true,
+    });
+    if (ok) {
       cart = [];
       renderCart();
     }
@@ -142,13 +149,13 @@ function agregarAlCarrito(producto, cantidad = 1) {
   
   if (existIndex > -1) {
     if (cart[existIndex].cantidad + cantidad > producto.Stock) {
-      alert(`No hay suficiente stock. Disponible: ${producto.Stock}`);
+      toast(`No hay suficiente stock. Disponible: ${producto.Stock}`, 'warn');
       return;
     }
     cart[existIndex].cantidad += cantidad;
   } else {
     if (producto.Stock < cantidad) {
-      alert(`Sin stock disponible.`);
+      toast('Sin stock disponible.', 'warn');
       return;
     }
     cart.push({
@@ -181,7 +188,7 @@ function cambiarCantidad(index, delta) {
     cart.splice(index, 1);
   } else {
     if (nuevaCant > item.Stock) {
-      alert(`Stock máximo disponible: ${item.Stock}`);
+      toast(`Stock máximo disponible: ${item.Stock}`, 'warn');
       return;
     }
     item.cantidad = nuevaCant;
@@ -351,7 +358,7 @@ async function aplicarValeCarrito() {
 /* Modal FormPagoPOS */
 function abrirModalPago() {
   if (cart.length === 0) {
-    alert('Agrega productos al carrito antes de cobrar.');
+    toast('Agrega productos al carrito antes de cobrar.', 'warn');
     return;
   }
 
@@ -412,7 +419,7 @@ async function confirmarPagoModal() {
     const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
     const subtotalTrasDescuento = Math.max(0, getCartSubtotal() - descGlobal);
     if (subtotalTrasDescuento < valeAplicado.disponible) {
-      alert(`No se puede completar la venta. Para cambios de mercadería, el total de la compra ($${formatNumber(subtotalTrasDescuento)}) debe ser igual o mayor al valor del Ticket de Cambio ($${formatNumber(valeAplicado.disponible)}).`);
+      toast(`Para cambios de mercadería, el total de la compra ($${formatNumber(subtotalTrasDescuento)}) debe ser igual o mayor al valor del Ticket de Cambio ($${formatNumber(valeAplicado.disponible)}).`, 'error');
       return;
     }
   }
@@ -429,7 +436,7 @@ async function confirmarPagoModal() {
   if (metodoSeleccionadoModal === 'Efectivo') {
     recibido = parseInt(document.getElementById('montoRecibidoModal').value) || total;
     if (recibido < total) {
-      alert(`El monto recibido ($${formatNumber(recibido)}) es menor al total ($${formatNumber(total)}).`);
+      toast(`El monto recibido ($${formatNumber(recibido)}) es menor al total ($${formatNumber(total)}).`, 'warn');
       return;
     }
     vuelto = Math.max(0, recibido - total);
@@ -441,7 +448,7 @@ async function confirmarPagoModal() {
     const sumaMixto = efec + tarj + transf;
 
     if (sumaMixto < total) {
-      alert(`La suma del pago mixto ($${formatNumber(sumaMixto)}) no cubre el total de la venta ($${formatNumber(total)}).`);
+      toast(`La suma del pago mixto ($${formatNumber(sumaMixto)}) no cubre el total de la venta ($${formatNumber(total)}).`, 'warn');
       return;
     }
 
@@ -450,7 +457,7 @@ async function confirmarPagoModal() {
     if (transf > 0) pagos.push({ metodo: 'Transferencia', monto: transf });
   } else if (metodoSeleccionadoModal === 'Credito' || metodoSeleccionadoModal === 'Puntos') {
     if (!clienteID) {
-      alert('Debes seleccionar un Cliente para pagos a Crédito / Fiado o Puntos.');
+      toast('Debes seleccionar un Cliente para pagos a Crédito / Fiado o Puntos.', 'warn');
       return;
     }
     const metodoDb = metodoSeleccionadoModal === 'Credito' ? 'Credito Interno' : 'Puntos';
@@ -495,7 +502,7 @@ async function confirmarPagoModal() {
     cargarProductos('');
 
   } catch (err) {
-    alert('Error al registrar venta: ' + err.message);
+    toast('Error al registrar venta: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = `<i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA`;
@@ -504,11 +511,17 @@ async function confirmarPagoModal() {
 
 async function guardarCotizacion() {
   if (cart.length === 0) {
-    alert('El carrito está vacío.');
+    toast('El carrito está vacío.', 'warn');
     return;
   }
 
-  const clienteNombre = prompt('Ingrese el nombre del cliente o referencia para la venta pausada:', 'Cliente Cotización');
+  const clienteNombre = await promptDialog({
+    title: 'Pausar venta',
+    message: 'Nombre del cliente o referencia para retomarla después:',
+    placeholder: 'Ej: Sra. Rojas / Mesa 3',
+    defaultValue: 'Cliente Cotización',
+    confirmText: 'Pausar',
+  });
   if (!clienteNombre) return;
 
   try {
@@ -524,11 +537,11 @@ async function guardarCotizacion() {
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
 
-    alert(`Venta pausada guardada con éxito (ID #${data.cotizacion_id}).`);
+    toast(`Venta pausada guardada (ID #${data.cotizacion_id}).`, 'success');
     cart = [];
     renderCart();
   } catch (err) {
-    alert('Error al guardar cotización: ' + err.message);
+    toast('Error al guardar cotización: ' + err.message, 'error');
   }
 }
 
@@ -584,8 +597,9 @@ async function cargarCotizacion(id) {
 
     renderCart();
     cerrarModalCotizaciones();
+    toast('Venta pausada restaurada al carrito.', 'success');
   } catch (err) {
-    alert('Error al restaurar cotización: ' + err.message);
+    toast('Error al restaurar cotización: ' + err.message, 'error');
   }
 }
 
@@ -609,7 +623,7 @@ async function registrarMovimientoPos() {
   const concepto = document.getElementById('posMovConcepto').value.trim();
 
   if (monto <= 0) {
-    alert('Ingresa un monto válido mayor a 0.');
+    toast('Ingresa un monto válido mayor a 0.', 'warn');
     return;
   }
 
@@ -625,10 +639,10 @@ async function registrarMovimientoPos() {
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
 
-    alert(data.mensaje);
+    toast(data.mensaje, 'success');
     cerrarModalMovimiento();
   } catch (err) {
-    alert('Error al registrar movimiento: ' + err.message);
+    toast('Error al registrar movimiento: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
   }

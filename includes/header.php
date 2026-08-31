@@ -91,6 +91,7 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
 </script>
 
 <script>window.CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;</script>
+<script src="assets/js/ui.js?v=<?= APP_VERSION ?>"></script>
 
 <nav class="navbar">
   <a href="index.php" class="brand">
