@@ -20,5 +20,15 @@ while ($row = $stmtCfg->fetch(PDO::FETCH_ASSOC)) {
     $configBalanza[$row['Clave']] = $row['Valor'];
 }
 
+// Datos del local para el encabezado y pie del comprobante impreso
+$stmtLocal = $pdo->query("
+    SELECT Clave, Valor FROM configuraciones
+    WHERE Clave IN ('MINIMARKET_NOMBRE', 'MINIMARKET_RUT', 'MINIMARKET_DIRECCION', 'MINIMARKET_GIRO', 'MINIMARKET_TELEFONO', 'TICKET_PIE_PAGINA')
+");
+$cfgLocal = [];
+while ($row = $stmtLocal->fetch(PDO::FETCH_ASSOC)) {
+    $cfgLocal[$row['Clave']] = $row['Valor'];
+}
+
 include __DIR__ . '/views/pos.view.php';
 require_once __DIR__ . '/includes/footer.php';

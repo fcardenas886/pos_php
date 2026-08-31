@@ -880,3 +880,83 @@ body {
 .ui-modal__msg { color: var(--text-muted); font-size: 0.9rem; line-height: 1.45; margin-bottom: 1rem; }
 .ui-modal__input { margin-bottom: 1rem; }
 .ui-modal__actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
+
+/* Ticket / comprobante de venta (impresión 80 mm) */
+.ticket-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.ticket-modal__card {
+  background: #fff;
+  color: #000;
+  border-radius: 12px;
+  width: 340px;
+  max-width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.ticket-paper {
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #000;
+  padding: 1.25rem;
+  overflow-y: auto;
+}
+
+.tk-center { text-align: center; }
+.tk-strong { font-weight: bold; }
+.tk-lg { font-size: 1.15em; }
+.tk-sep { border-top: 1px dashed #000; margin: 0.5rem 0; }
+.tk-sep--strong { border-top: 2px solid #000; margin: 0.75rem 0 0.5rem; }
+.tk-row { display: flex; justify-content: space-between; gap: 0.6rem; }
+.tk-items > div { margin-bottom: 0.1rem; }
+.tk-item-line { display: flex; justify-content: space-between; gap: 0.6rem; }
+.tk-item-sub { padding-left: 1rem; color: #333; }
+.tk-pagos > div { display: flex; justify-content: space-between; gap: 0.6rem; }
+.tk-credito { margin-top: 0.25rem; }
+.tk-firma { margin: 1rem 0 0.3rem; }
+.tk-firma__line { border-bottom: 1px solid #000; margin: 1.15rem 0 0.15rem; }
+.tk-firma__label { font-size: 0.9em; color: #333; }
+.tk-pie { margin-top: 0.35rem; }
+.tk-dte { margin-top: 0.4rem; }
+
+.ticket-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  background: #f3f4f6;
+  border-top: 1px solid #e5e7eb;
+}
+.ticket-modal__actions .btn { flex: 1; min-width: 90px; font-size: 0.85rem; padding: 0.5rem; }
+
+@media print {
+  body * { visibility: hidden !important; }
+  .ticket-paper, .ticket-paper * { visibility: visible !important; }
+  .ticket-paper {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 72mm !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    font-size: 11px !important;
+  }
+  .no-print { display: none !important; }
+  @page { size: 80mm auto; margin: 3mm; }
+}

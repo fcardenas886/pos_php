@@ -1,10 +1,15 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v2.7.0');
+define('APP_VERSION', 'v2.8.0');
 
 // Novedades reales por version, para la pantalla de bienvenida tras actualizar.
 // Al subir APP_VERSION, agregar aca la lista de cambios visibles para el usuario.
 define('APP_CHANGELOG', [
+    'v2.8.0' => [
+        'Comprobante de venta con formato para impresora térmica de 80 mm.',
+        'Al vender con crédito interno se imprime un comprobante de fiado con firma del cliente.',
+        'El comprobante muestra los datos del local, el desglose de pagos y el vuelto.',
+    ],
     'v2.7.0' => [
         'Los avisos del POS ahora son notificaciones (toasts) que no frenan la caja.',
         'Vaciar carrito y pausar venta usan ventanas del sistema, no las del navegador.',

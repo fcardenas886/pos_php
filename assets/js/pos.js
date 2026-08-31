@@ -385,9 +385,9 @@ function setFormaPago(metodo, btn) {
   const pnlMix = document.getElementById('panelMixtoModal');
   const pnlVale = document.getElementById('panelValeModal');
 
-  pnlEfec.style.display = metodo === 'Efectivo' ? 'block' : 'none';
-  pnlMix.style.display = metodo === 'Mixto' ? 'block' : 'none';
-  pnlVale.style.display = metodo === 'Vale' ? 'block' : 'none';
+  if (pnlEfec) pnlEfec.style.display = metodo === 'Efectivo' ? 'block' : 'none';
+  if (pnlMix) pnlMix.style.display = metodo === 'Mixto' ? 'block' : 'none';
+  if (pnlVale) pnlVale.style.display = metodo === 'Vale' ? 'block' : 'none';
 }
 
 function setMontoQuick(val) {
@@ -491,7 +491,20 @@ async function confirmarPagoModal() {
     if (!data.success) throw new Error(data.error);
 
     cerrarModalPago();
-    mostrarTicket(data, cart, total, recibido, vuelto);
+
+    // El vale aplicado también es un "medio de pago" en el comprobante
+    const pagosTicket = [];
+    if (valeAplicado) {
+      pagosTicket.push({ metodo: 'Vale Devolucion', monto: getValeMontoAplicado() });
+    }
+    pagos.forEach(p => pagosTicket.push(p));
+
+    const subtotalBruto = cart.reduce((s, i) => s + (i.cantidad * i.PrecioVenta), 0);
+    const descPromos = cart.reduce((s, i) => s + calcularDescuentoItem(i), 0);
+    mostrarTicket(data, cart, total, recibido, vuelto, pagosTicket, {
+      subtotal: Math.round(subtotalBruto),
+      descuento: Math.round(descPromos) + descGlobal,
+    });
 
     cart = [];
     document.getElementById('descuentoGlobal').value = '';
@@ -648,20 +661,76 @@ async function registrarMovimientoPos() {
   }
 }
 
-function mostrarTicket(data, items, total, pagado, vuelto) {
-  document.getElementById('ticketFecha').textContent = data.fecha;
-  
-  const detalleEl = document.getElementById('ticketDetalle');
-  detalleEl.innerHTML = items.map(i => `
-    <div style="display: flex; justify-content: space-between;">
-      <span>${i.cantidad}x ${escapeHtml(i.Nombre).substring(0, 18)}</span>
-      <span>$${formatNumber(i.cantidad * i.PrecioVenta)}</span>
-    </div>
-  `).join('');
+const NOMBRE_PAGO = {
+  'Efectivo': 'Efectivo',
+  'Tarjeta Debito': 'Tarjeta débito',
+  'Tarjeta Credito': 'Tarjeta crédito',
+  'Tarjeta': 'Tarjeta',
+  'Transferencia': 'Transferencia',
+  'Credito Interno': 'Crédito interno (fiado)',
+  'Credito': 'Crédito interno (fiado)',
+  'Fiado': 'Crédito interno (fiado)',
+  'Puntos': 'Puntos',
+  'Vale Devolucion': 'Vale / Nota de crédito',
+};
 
+function mostrarTicket(data, items, total, pagado, vuelto, pagos, meta) {
+  meta = meta || {};
+  document.getElementById('ticketFecha').textContent = data.fecha || '';
+  document.getElementById('ticketVentaNum').textContent = 'N° ' + (data.venta_id || '-');
+
+  const detalleEl = document.getElementById('ticketDetalle');
+  detalleEl.innerHTML = items.map(i => {
+    const lineTotal = Math.round(i.cantidad * i.PrecioVenta);
+    return `<div class="tk-item-line"><span>${escapeHtml(i.Nombre).substring(0, 24)}</span><span>$${formatNumber(lineTotal)}</span></div>` +
+           `<div class="tk-item-sub">${i.cantidad} x $${formatNumber(i.PrecioVenta)}</div>`;
+  }).join('');
+
+  const descuento = meta.descuento || 0;
+  const subtotal = meta.subtotal != null ? meta.subtotal : total;
+  const subRow = document.getElementById('ticketSubtotalRow');
+  const descRow = document.getElementById('ticketDescuentoRow');
+  if (descuento > 0) {
+    subRow.style.display = 'flex';
+    document.getElementById('ticketSubtotal').textContent = `$${formatNumber(subtotal)}`;
+    descRow.style.display = 'flex';
+    document.getElementById('ticketDescuento').textContent = `-$${formatNumber(descuento)}`;
+  } else {
+    subRow.style.display = 'none';
+    descRow.style.display = 'none';
+  }
   document.getElementById('ticketTotal').textContent = `$${formatNumber(total)}`;
-  document.getElementById('ticketPagado').textContent = `$${formatNumber(pagado)}`;
+
+  const pagosEl = document.getElementById('ticketPagos');
+  const listaPagos = (pagos && pagos.length)
+    ? pagos
+    : [{ metodo: 'Efectivo', monto: pagado }];
+  pagosEl.innerHTML = listaPagos
+    .map(p => `<div><span>${NOMBRE_PAGO[p.metodo] || p.metodo}</span><span>$${formatNumber(p.monto)}</span></div>`)
+    .join('');
+
   document.getElementById('ticketVuelto').textContent = `$${formatNumber(vuelto)}`;
+  document.getElementById('ticketVueltoRow').style.display = vuelto > 0 ? 'flex' : 'none';
+
+  // Comprobante de crédito interno / fiado
+  const credBox = document.getElementById('ticketCreditoBox');
+  if (data.credito) {
+    const c = data.credito;
+    document.getElementById('tkCredCliente').textContent = c.cliente || '';
+    const rutRow = document.getElementById('tkCredRutRow');
+    if (c.rut) {
+      rutRow.style.display = 'flex';
+      document.getElementById('tkCredRut').textContent = c.rut;
+    } else {
+      rutRow.style.display = 'none';
+    }
+    document.getElementById('tkCredMonto').textContent = `$${formatNumber(c.monto)}`;
+    document.getElementById('tkCredSaldo').textContent = `$${formatNumber(c.saldo_deudor)}`;
+    document.getElementById('tkCredCupo').textContent = `$${formatNumber(c.cupo_disponible)}`;
+    credBox.style.display = 'block';
+  } else {
+    credBox.style.display = 'none';
+  }
 
   // Mostrar u ocultar sección DTE según la respuesta
   const dteInfo = document.getElementById('ticketDteInfo');
@@ -670,25 +739,30 @@ function mostrarTicket(data, items, total, pagado, vuelto) {
   const localPrintBtn = document.getElementById('ticketLocalPrintBtn');
   const dtePrintBtn = document.getElementById('ticketDtePrintBtn');
 
+  // El comprobante interno SIEMPRE se puede imprimir (es el respaldo del local y,
+  // en ventas a crédito, lleva la firma del cliente).
+  if (localPrintBtn) localPrintBtn.style.display = 'inline-flex';
+
   if (dteInfo && dteFolio && dtePdfBtn) {
     if (data.dte && data.dte.success) {
       dteFolio.textContent = `Folio: ${data.dte.folio}`;
       dtePdfBtn.href = data.dte.pdf_url;
+      dtePdfBtn.style.display = 'inline-flex';
       dteInfo.style.display = 'block';
 
-      if (localPrintBtn) localPrintBtn.style.display = 'none';
       if (dtePrintBtn) {
-        dtePrintBtn.style.display = 'block';
+        dtePrintBtn.style.display = 'inline-flex';
         dtePrintBtn.dataset.url = data.dte.pdf_url;
       }
 
-      // Impresión Directa / Automática
-      setTimeout(() => {
-        imprimirPdfDirecto(data.dte.pdf_url);
-      }, 300);
+      // Impresión directa de la boleta electrónica (salvo venta a crédito:
+      // ahí el cajero imprime primero el comprobante firmado).
+      if (!data.credito) {
+        setTimeout(() => imprimirPdfDirecto(data.dte.pdf_url), 300);
+      }
     } else {
       dteInfo.style.display = 'none';
-      if (localPrintBtn) localPrintBtn.style.display = 'block';
+      dtePdfBtn.style.display = 'none';
       if (dtePrintBtn) dtePrintBtn.style.display = 'none';
     }
   }

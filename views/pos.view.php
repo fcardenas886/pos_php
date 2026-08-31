@@ -268,52 +268,72 @@
 </div>
 
 <!-- Modal de Ticket / Comprobante -->
-<div id="ticketModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
-  <div style="background: #fff; color: #000; width: 340px; border-radius: 12px; padding: 1.5rem; box-shadow: 0 20px 40px rgba(0,0,0,0.5); font-family: monospace;">
-    <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
-      <h2 style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.2rem;">MINIMARKET</h2>
-      <p style="font-size: 0.8rem;">Comprobante de Venta</p>
-      <p id="ticketFecha" style="font-size: 0.75rem; color: #555;"></p>
-    </div>
-
-    <div id="ticketDetalle" style="font-size: 0.85rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.3rem;">
-    </div>
-
-    <div style="border-top: 1px dashed #000; padding-top: 0.5rem; font-size: 0.95rem; font-weight: bold; display: flex; justify-content: space-between;">
-      <span>TOTAL:</span>
-      <span id="ticketTotal"></span>
-    </div>
-
-    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 0.25rem;">
-      <span>PAGADO:</span>
-      <span id="ticketPagado"></span>
-    </div>
-    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 0.1rem;">
-      <span>VUELTO:</span>
-      <span id="ticketVuelto"></span>
-    </div>
-
-    <!-- Info del DTE si aplica -->
-    <div id="ticketDteInfo" style="display: none; text-align: center; margin-top: 1rem; border: 1.5px dashed #10b981; padding: 0.75rem; border-radius: 8px; font-family: sans-serif; background: rgba(16, 185, 129, 0.05);">
-      <div style="color: #10b981; font-weight: bold; font-size: 0.75rem; margin-bottom: 0.25rem;">
-        <i class="fa-solid fa-circle-check"></i> Boleta Electrónica Emitida
+<div id="ticketModal" class="ticket-overlay" style="display: none;">
+  <div class="ticket-modal__card">
+    <div class="ticket-paper" id="ticketPaper">
+      <div class="tk-center">
+        <div class="tk-strong tk-lg"><?= htmlspecialchars($cfgLocal['MINIMARKET_NOMBRE'] ?? 'MINIMARKET') ?></div>
+        <?php if (!empty($cfgLocal['MINIMARKET_GIRO'])): ?><div><?= htmlspecialchars($cfgLocal['MINIMARKET_GIRO']) ?></div><?php endif; ?>
+        <?php if (!empty($cfgLocal['MINIMARKET_RUT'])): ?><div>RUT: <?= htmlspecialchars($cfgLocal['MINIMARKET_RUT']) ?></div><?php endif; ?>
+        <?php if (!empty($cfgLocal['MINIMARKET_DIRECCION'])): ?><div><?= htmlspecialchars($cfgLocal['MINIMARKET_DIRECCION']) ?></div><?php endif; ?>
+        <?php if (!empty($cfgLocal['MINIMARKET_TELEFONO'])): ?><div>Fono: <?= htmlspecialchars($cfgLocal['MINIMARKET_TELEFONO']) ?></div><?php endif; ?>
       </div>
-      <div id="ticketDteFolio" style="font-weight: bold; font-size: 0.9rem; color: #000; margin-bottom: 0.5rem;">Folio: -</div>
-      <a id="ticketDtePdfBtn" href="#" target="_blank" class="btn btn-success" style="padding: 0.4rem 0.6rem; font-size: 0.75rem; color: #fff; width: 100%; border-radius: 6px; display: inline-flex; justify-content: center; align-items: center; gap: 0.3rem; text-decoration: none; font-weight: bold; background: #10b981; border: none; cursor: pointer;">
-        <i class="fa-solid fa-file-pdf"></i> Ver PDF Oficial SII
-      </a>
+
+      <div class="tk-sep"></div>
+      <div class="tk-row"><span>Comprobante interno</span><span id="ticketVentaNum"></span></div>
+      <div class="tk-row"><span id="ticketFecha"></span><span>Caja: <?= htmlspecialchars($user['nombre']) ?></span></div>
+      <div class="tk-sep"></div>
+
+      <div id="ticketDetalle" class="tk-items"></div>
+
+      <div class="tk-sep"></div>
+      <div class="tk-row" id="ticketSubtotalRow" style="display: none;"><span>Subtotal</span><span id="ticketSubtotal"></span></div>
+      <div class="tk-row" id="ticketDescuentoRow" style="display: none;"><span>Descuento</span><span id="ticketDescuento"></span></div>
+      <div class="tk-row tk-strong tk-lg"><span>TOTAL</span><span id="ticketTotal"></span></div>
+
+      <div class="tk-sep"></div>
+      <div id="ticketPagos" class="tk-pagos"></div>
+      <div class="tk-row" id="ticketVueltoRow"><span>Vuelto</span><span id="ticketVuelto"></span></div>
+
+      <!-- Comprobante de crédito interno / fiado -->
+      <div id="ticketCreditoBox" class="tk-credito" style="display: none;">
+        <div class="tk-sep--strong"></div>
+        <div class="tk-center tk-strong">COMPROBANTE DE CRÉDITO INTERNO</div>
+        <div class="tk-row"><span>Cliente</span><span id="tkCredCliente"></span></div>
+        <div class="tk-row" id="tkCredRutRow"><span>RUT</span><span id="tkCredRut"></span></div>
+        <div class="tk-row"><span>Compra a crédito</span><span id="tkCredMonto"></span></div>
+        <div class="tk-row tk-strong"><span>Saldo total adeudado</span><span id="tkCredSaldo"></span></div>
+        <div class="tk-row"><span>Cupo disponible</span><span id="tkCredCupo"></span></div>
+        <div class="tk-firma">
+          <div class="tk-firma__line">&nbsp;</div>
+          <div class="tk-firma__label">Firma cliente</div>
+          <div class="tk-firma__line">&nbsp;</div>
+          <div class="tk-firma__label">Nombre y RUT</div>
+        </div>
+        <div class="tk-center" style="font-size: 0.9em;">Declaro recibir la mercadería y adeudar el monto indicado.</div>
+      </div>
+
+      <div class="tk-sep"></div>
+      <div class="tk-center tk-pie"><?= htmlspecialchars($cfgLocal['TICKET_PIE_PAGINA'] ?? '¡Gracias por su preferencia!') ?></div>
+
+      <!-- DTE (boleta electrónica) -->
+      <div id="ticketDteInfo" class="tk-dte tk-center" style="display: none;">
+        <div class="tk-strong">BOLETA ELECTRÓNICA</div>
+        <div id="ticketDteFolio">Folio: -</div>
+      </div>
     </div>
 
-    <div style="margin-top: 1.25rem; display: flex; gap: 0.5rem;">
-      <button id="ticketLocalPrintBtn" onclick="window.print()" class="btn btn-primary btn-block" style="font-size: 0.85rem; padding: 0.5rem;">
-        <i class="fa-solid fa-print"></i> Imprimir
+    <div class="ticket-modal__actions no-print">
+      <a id="ticketDtePdfBtn" href="#" target="_blank" class="btn btn-success" style="display: none;">
+        <i class="fa-solid fa-file-pdf"></i> Ver PDF SII
+      </a>
+      <button id="ticketLocalPrintBtn" onclick="window.print()" class="btn btn-primary">
+        <i class="fa-solid fa-print"></i> Imprimir comprobante
       </button>
-      <button id="ticketDtePrintBtn" onclick="imprimirPdfDirecto(this.dataset.url)" class="btn btn-success btn-block" style="font-size: 0.85rem; padding: 0.5rem; display: none; background: #10b981; border: none; color: #fff; cursor: pointer; font-weight: bold;">
-        <i class="fa-solid fa-print"></i> Imprimir DTE
+      <button id="ticketDtePrintBtn" onclick="imprimirPdfDirecto(this.dataset.url)" class="btn btn-success" style="display: none;">
+        <i class="fa-solid fa-print"></i> Imprimir boleta SII
       </button>
-      <button onclick="cerrarTicket()" class="btn btn-secondary btn-block" style="font-size: 0.85rem; padding: 0.5rem; background: #eee; color: #000; border: none; cursor: pointer;">
-        Cerrar
-      </button>
+      <button onclick="cerrarTicket()" class="btn btn-secondary">Cerrar</button>
     </div>
   </div>
 </div>

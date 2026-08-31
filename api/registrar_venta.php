@@ -371,6 +371,27 @@ try {
         $dteResponse = ['success' => false, 'error' => $dteEx->getMessage()];
     }
 
+    // Comprobante de crédito interno: datos del cliente y su cuenta tras esta compra
+    $creditoInfo = null;
+    if ($creditoUsado > 0 && $clienteID) {
+        $stmtCC = $pdo->prepare("SELECT Nombre, RutCuerpo, RutDv, LimiteCredito, SaldoDeudor FROM clientes WHERE ClienteID = :cid");
+        $stmtCC->execute([':cid' => $clienteID]);
+        $cc = $stmtCC->fetch();
+        if ($cc) {
+            $rut = null;
+            if (!empty($cc['RutCuerpo'])) {
+                $rut = number_format((int)$cc['RutCuerpo'], 0, '', '.') . '-' . $cc['RutDv'];
+            }
+            $creditoInfo = [
+                'cliente' => $cc['Nombre'],
+                'rut' => $rut,
+                'monto' => $creditoUsado,
+                'saldo_deudor' => (int)$cc['SaldoDeudor'],
+                'cupo_disponible' => max(0, (int)$cc['LimiteCredito'] - (int)$cc['SaldoDeudor']),
+            ];
+        }
+    }
+
     $resPayload = [
         'success' => true,
         'venta_id' => $ventaID,
@@ -382,6 +403,10 @@ try {
 
     if ($dteResponse) {
         $resPayload['dte'] = $dteResponse;
+    }
+
+    if ($creditoInfo) {
+        $resPayload['credito'] = $creditoInfo;
     }
 
     echo json_encode($resPayload);
