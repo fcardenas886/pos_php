@@ -85,43 +85,6 @@
 
     <!-- Panel de Resumen y Cobro -->
     <div class="cart-footer">
-      
-      <!-- Selector de Cliente con indicador de puntos -->
-      <div>
-        <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">CLIENTE ASIGNADO</label>
-        <select id="clienteSelect" class="form-control" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
-          <option value="" data-puntos="0">Cliente Genérico (Público General)</option>
-          <?php foreach ($clientes as $cl): ?>
-            <option value="<?= $cl['ClienteID'] ?>" data-puntos="<?= $cl['PuntosAcumulados'] ?>">
-              <?= htmlspecialchars($cl['Nombre']) ?> (<?= number_format($cl['PuntosAcumulados'], 0, ',', '.') ?> pts)
-            </option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-        <div>
-          <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">DOCUMENTO</label>
-          <select id="tipoDocumento" class="form-control" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
-            <option value="Boleta">Boleta</option>
-            <option value="Factura">Factura</option>
-            <option value="Sin Documento">Sin Documento</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">DESCUENTO ($)</label>
-          <input type="number" id="descuentoGlobal" class="form-control" placeholder="0" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" oninput="renderCart()">
-        </div>
-      </div>
-
-      <div>
-        <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">CÓDIGO VALE / N° BOLETA ORIGINAL</label>
-        <div style="display: flex; gap: 0.4rem;">
-          <input type="text" id="valeCodigoInput" class="form-control" placeholder="Ej: NC-XXXXXXXX o Boleta 18" style="padding: 0.4rem 0.6rem; font-size: 0.85rem; text-transform: uppercase;">
-          <button type="button" onclick="aplicarValeCarrito()" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Aplicar</button>
-        </div>
-        <div id="valeAplicadoInfo" style="font-size: 0.78rem; margin-top: 0.3rem; display: none;"></div>
-      </div>
 
       <div class="summary-row total">
         <span>TOTAL A PAGAR:</span>
@@ -140,87 +103,134 @@
 
 <!-- Modal Interactivo de Pago Avanzado (FormPagoPOS) -->
 <div id="pagoModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 1000; align-items: center; justify-content: center;">
-  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 20px; width: 560px; padding: 2rem; box-shadow: 0 25px 50px rgba(0,0,0,0.6);">
-    
+  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 20px; width: 920px; max-width: 95vw; padding: 2rem; box-shadow: 0 25px 50px rgba(0,0,0,0.6);">
+
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
       <h2 style="font-size: 1.35rem; font-weight: 700;">Finalizar y Procesar Pago</h2>
       <button onclick="cerrarModalPago()" class="btn btn-secondary" style="padding: 0.3rem 0.6rem;">&times;</button>
     </div>
 
-    <!-- Muestra Total a Pagar Grande -->
-    <div style="background: rgba(16,185,129,0.1); border: 1px solid var(--success); padding: 1rem; border-radius: 12px; text-align: center; margin-bottom: 1.25rem;">
-      <span style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">TOTAL A COBRAR</span>
-      <div id="modalMontoTotal" style="font-size: 2.5rem; font-weight: 800; color: var(--success); font-family: monospace;">$0</div>
-    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.75rem; align-items: start;">
 
-    <!-- Botones Selección Método de Pago -->
-    <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.5rem;">SELECCIONA FORMA DE PAGO</label>
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-bottom: 1.25rem;">
-      <button type="button" class="btn btn-secondary btn-metodo active" data-metodo="Efectivo" onclick="setFormaPago('Efectivo', this)">
-        <i class="fa-solid fa-money-bill-wave"></i> Efectivo
-      </button>
-      <button type="button" class="btn btn-secondary btn-metodo" data-metodo="Tarjeta Debito" onclick="setFormaPago('Tarjeta Debito', this)">
-        <i class="fa-solid fa-credit-card"></i> Tarjeta
-      </button>
-      <button type="button" class="btn btn-secondary btn-metodo" data-metodo="Transferencia" onclick="setFormaPago('Transferencia', this)">
-        <i class="fa-solid fa-building-columns"></i> Transferencia
-      </button>
-      <button type="button" class="btn btn-secondary btn-metodo" data-metodo="Credito" onclick="setFormaPago('Credito', this)">
-        <i class="fa-solid fa-handshake"></i> Fiado / Crédito
-      </button>
-      <button type="button" class="btn btn-secondary btn-metodo" data-metodo="Puntos" onclick="setFormaPago('Puntos', this)">
-        <i class="fa-solid fa-star"></i> Puntos
-      </button>
-      <button type="button" class="btn btn-secondary btn-metodo" data-metodo="Mixto" onclick="setFormaPago('Mixto', this)">
-        <i class="fa-solid fa-layer-group"></i> Pago Mixto
-      </button>
-    </div>
-
-    <!-- Panel Dinámico Efectivo / Botones Rápido -->
-    <div id="panelEfectivoModal" style="margin-bottom: 1.25rem;">
-      <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">BOTONES DE EFECTIVO RÁPIDO</label>
-      <div style="display: flex; gap: 0.4rem; margin-bottom: 0.75rem;">
-        <button type="button" onclick="setMontoQuick('exacto')" class="btn btn-secondary" style="flex:1; padding:0.5rem;">$ Exacto</button>
-        <button type="button" onclick="setMontoQuick(2000)" class="btn btn-secondary" style="flex:1; padding:0.5rem;">$2.000</button>
-        <button type="button" onclick="setMontoQuick(5000)" class="btn btn-secondary" style="flex:1; padding:0.5rem;">$5.000</button>
-        <button type="button" onclick="setMontoQuick(10000)" class="btn btn-secondary" style="flex:1; padding:0.5rem;">$10.000</button>
-        <button type="button" onclick="setMontoQuick(20000)" class="btn btn-secondary" style="flex:1; padding:0.5rem;">$20.000</button>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+      <!-- Columna Izquierda: Cliente, Documento, Descuento y Vale -->
+      <div style="display: flex; flex-direction: column; gap: 0.85rem;">
         <div>
-          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">MONTO RECIBIDO ($)</label>
-          <input type="number" id="montoRecibidoModal" class="form-control" placeholder="0" style="font-size: 1.2rem; font-weight: bold;" oninput="calcularVueltoModal()">
+          <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">CLIENTE ASIGNADO</label>
+          <select id="clienteSelect" class="form-control" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+            <option value="" data-puntos="0">Cliente Genérico (Público General)</option>
+            <?php foreach ($clientes as $cl): ?>
+              <option value="<?= $cl['ClienteID'] ?>" data-puntos="<?= $cl['PuntosAcumulados'] ?>">
+                <?= htmlspecialchars($cl['Nombre']) ?> (<?= number_format($cl['PuntosAcumulados'], 0, ',', '.') ?> pts)
+              </option>
+            <?php endforeach; ?>
+          </select>
         </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">DOCUMENTO</label>
+            <select id="tipoDocumento" class="form-control" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+              <option value="Boleta">Boleta</option>
+              <option value="Factura">Factura</option>
+              <option value="Sin Documento">Sin Documento</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">DESCUENTO ($)</label>
+            <input type="number" id="descuentoGlobal" class="form-control" placeholder="0" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" oninput="renderCart()">
+          </div>
+        </div>
+
         <div>
-          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">VUELTO A ENTREGAR ($)</label>
-          <input type="text" id="vueltoModal" class="form-control" value="$0" readonly style="font-size: 1.2rem; font-weight: bold; color: var(--success); background: rgba(0,0,0,0.3);">
+          <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">CÓDIGO VALE / N° BOLETA ORIGINAL</label>
+          <div style="display: flex; gap: 0.4rem;">
+            <input type="text" id="valeCodigoInput" class="form-control" placeholder="Ej: NC-XXXXXXXX o Boleta 18" style="padding: 0.4rem 0.6rem; font-size: 0.85rem; text-transform: uppercase;">
+            <button type="button" onclick="aplicarValeCarrito()" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Aplicar</button>
+          </div>
+          <div id="valeAplicadoInfo" style="font-size: 0.78rem; margin-top: 0.3rem; display: none;"></div>
+        </div>
+
+        <!-- Muestra Total a Pagar Grande -->
+        <div style="background: rgba(16,185,129,0.1); border: 1px solid var(--success); padding: 1rem; border-radius: 12px; text-align: center;">
+          <span style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">TOTAL A COBRAR</span>
+          <div id="modalMontoTotal" style="font-size: 2.5rem; font-weight: 800; color: var(--success); font-family: monospace;">$0</div>
         </div>
       </div>
-    </div>
 
-    <!-- Panel Dinámico Pago Mixto -->
-    <div id="panelMixtoModal" style="display: none; background: rgba(15,23,42,0.6); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-dark); margin-bottom: 1.25rem;">
-      <label style="font-size: 0.8rem; color: #818cf8; font-weight: 700; display: block; margin-bottom: 0.5rem;">DIVIDIR PAGO EN Varios MÉTODOS</label>
-      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+      <!-- Columna Derecha: Forma de Pago -->
+      <div style="display: flex; flex-direction: column; gap: 0.85rem;">
         <div>
-          <label style="font-size: 0.75rem; color: var(--text-muted);">EFECTIVO ($)</label>
-          <input type="number" id="mixtoEfectivo" class="form-control" placeholder="0">
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.5rem;">SELECCIONA FORMA DE PAGO</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+            <button type="button" class="btn btn-secondary btn-metodo active" data-metodo="Efectivo" onclick="setFormaPago('Efectivo', this)">
+              <i class="fa-solid fa-money-bill-wave"></i> Efectivo
+            </button>
+            <button type="button" class="btn btn-secondary btn-metodo" data-metodo="Tarjeta Debito" onclick="setFormaPago('Tarjeta Debito', this)">
+              <i class="fa-solid fa-credit-card"></i> Tarjeta
+            </button>
+            <button type="button" class="btn btn-secondary btn-metodo" data-metodo="Transferencia" onclick="setFormaPago('Transferencia', this)">
+              <i class="fa-solid fa-building-columns"></i> Transferencia
+            </button>
+            <button type="button" class="btn btn-secondary btn-metodo" data-metodo="Credito" onclick="setFormaPago('Credito', this)">
+              <i class="fa-solid fa-handshake"></i> Fiado / Crédito
+            </button>
+            <button type="button" class="btn btn-secondary btn-metodo" data-metodo="Puntos" onclick="setFormaPago('Puntos', this)">
+              <i class="fa-solid fa-star"></i> Puntos
+            </button>
+            <button type="button" class="btn btn-secondary btn-metodo" data-metodo="Mixto" onclick="setFormaPago('Mixto', this)">
+              <i class="fa-solid fa-layer-group"></i> Pago Mixto
+            </button>
+          </div>
         </div>
-        <div>
-          <label style="font-size: 0.75rem; color: var(--text-muted);">TARJETA ($)</label>
-          <input type="number" id="mixtoTarjeta" class="form-control" placeholder="0">
+
+        <!-- Panel Dinámico Efectivo / Botones Rápido -->
+        <div id="panelEfectivoModal">
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">BOTONES DE EFECTIVO RÁPIDO</label>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem;">
+            <button type="button" onclick="setMontoQuick('exacto')" class="btn btn-secondary" style="flex:1; padding:0.5rem;">$ Exacto</button>
+            <button type="button" onclick="setMontoQuick(2000)" class="btn btn-secondary" style="flex:1; padding:0.5rem;">$2.000</button>
+            <button type="button" onclick="setMontoQuick(5000)" class="btn btn-secondary" style="flex:1; padding:0.5rem;">$5.000</button>
+            <button type="button" onclick="setMontoQuick(10000)" class="btn btn-secondary" style="flex:1; padding:0.5rem;">$10.000</button>
+            <button type="button" onclick="setMontoQuick(20000)" class="btn btn-secondary" style="flex:1; padding:0.5rem;">$20.000</button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div>
+              <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">MONTO RECIBIDO ($)</label>
+              <input type="number" id="montoRecibidoModal" class="form-control" placeholder="0" style="font-size: 1.2rem; font-weight: bold;" oninput="calcularVueltoModal()">
+            </div>
+            <div>
+              <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">VUELTO A ENTREGAR ($)</label>
+              <input type="text" id="vueltoModal" class="form-control" value="$0" readonly style="font-size: 1.2rem; font-weight: bold; color: var(--success); background: rgba(0,0,0,0.3);">
+            </div>
+          </div>
         </div>
-        <div>
-          <label style="font-size: 0.75rem; color: var(--text-muted);">TRANSFERENCIA ($)</label>
-          <input type="number" id="mixtoTransf" class="form-control" placeholder="0">
+
+        <!-- Panel Dinámico Pago Mixto -->
+        <div id="panelMixtoModal" style="display: none; background: rgba(15,23,42,0.6); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-dark);">
+          <label style="font-size: 0.8rem; color: #818cf8; font-weight: 700; display: block; margin-bottom: 0.5rem;">DIVIDIR PAGO EN Varios MÉTODOS</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+            <div>
+              <label style="font-size: 0.75rem; color: var(--text-muted);">EFECTIVO ($)</label>
+              <input type="number" id="mixtoEfectivo" class="form-control" placeholder="0">
+            </div>
+            <div>
+              <label style="font-size: 0.75rem; color: var(--text-muted);">TARJETA ($)</label>
+              <input type="number" id="mixtoTarjeta" class="form-control" placeholder="0">
+            </div>
+            <div>
+              <label style="font-size: 0.75rem; color: var(--text-muted);">TRANSFERENCIA ($)</label>
+              <input type="number" id="mixtoTransf" class="form-control" placeholder="0">
+            </div>
+          </div>
         </div>
+
+        <button type="button" id="btnConfirmarPagoModal" onclick="confirmarPagoModal()" class="btn btn-success btn-block" style="padding: 1rem; font-size: 1.2rem;">
+          <i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA
+        </button>
       </div>
-    </div>
 
-    <button type="button" id="btnConfirmarPagoModal" onclick="confirmarPagoModal()" class="btn btn-success btn-block" style="padding: 1rem; font-size: 1.2rem;">
-      <i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA
-    </button>
+    </div>
   </div>
 </div>
 

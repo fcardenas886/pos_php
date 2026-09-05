@@ -99,6 +99,17 @@
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
         <div>
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">VENDER CON STOCK NEGATIVO</label>
+          <select name="config[PERMITIR_STOCK_NEGATIVO]" class="form-control">
+            <option value="false" <?= ($config['PERMITIR_STOCK_NEGATIVO'] ?? 'false') === 'false' ? 'selected' : '' ?>>No permitir (bloquear venta sin stock)</option>
+            <option value="true" <?= ($config['PERMITIR_STOCK_NEGATIVO'] ?? '') === 'true' ? 'selected' : '' ?>>Permitir (el stock puede quedar en negativo)</option>
+          </select>
+          <p style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.25rem;">Útil si registras ventas antes de actualizar el stock de una recepción. Con "Permitir", el sistema deja vender aunque no alcance el stock registrado.</p>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div>
           <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">SONIDO LECTOR RÁPIDO</label>
           <select name="config[SONIDO_LECTOR_RAPIDO]" class="form-control">
             <option value="SI" <?= ($config['SONIDO_LECTOR_RAPIDO'] ?? 'SI') === 'SI' ? 'selected' : '' ?>>Habilitado (Beep)</option>

@@ -45,6 +45,8 @@ try {
     }
     $turnoID = $turno['TurnoID'];
 
+    $permitirStockNegativo = $pdo->query("SELECT Valor FROM configuraciones WHERE Clave = 'PERMITIR_STOCK_NEGATIVO'")->fetchColumn() === 'true';
+
     $pdo->beginTransaction();
 
     // 1. Verificar stock y procesar ítems del carrito (aplicando promociones activas en backend)
@@ -54,7 +56,11 @@ try {
     foreach ($input['items'] as $item) {
         $pid = (int)$item['producto_id'];
         $cant = (float)$item['cantidad'];
-        
+
+        if ($pid <= 0 || $cant <= 0) {
+            throw new Exception("Cantidad inválida para el producto ID $pid.");
+        }
+
         $stmtP = $pdo->prepare("SELECT ProductoID, Nombre, PrecioVenta, CostoCompra, Stock, EsAfecto FROM productos WHERE ProductoID = :pid FOR UPDATE");
         $stmtP->execute([':pid' => $pid]);
         $prod = $stmtP->fetch();
@@ -63,7 +69,7 @@ try {
             throw new Exception("El producto ID $pid no fue encontrado.");
         }
 
-        if ($prod['Stock'] < $cant) {
+        if (!$permitirStockNegativo && $prod['Stock'] < $cant) {
             throw new Exception("Stock insuficiente para '{$prod['Nombre']}'. Disponible: {$prod['Stock']}");
         }
 

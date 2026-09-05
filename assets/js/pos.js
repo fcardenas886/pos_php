@@ -279,6 +279,14 @@ function renderCart() {
 
   totalEl.textContent = `$${formatNumber(totalFinal)}`;
 
+  // Cliente, Documento, Descuento y Vale ahora viven dentro del modal de pago,
+  // así que si se editan con el modal abierto hay que refrescar el total y el vuelto ahí también.
+  const pagoModalEl = document.getElementById('pagoModal');
+  if (pagoModalEl && pagoModalEl.style.display === 'flex') {
+    document.getElementById('modalMontoTotal').textContent = `$${formatNumber(totalFinal)}`;
+    calcularVueltoModal();
+  }
+
   // Actualizar el infoEl dinámicamente según el estado del carrito
   const infoEl = document.getElementById('valeAplicadoInfo');
   if (valeAplicado && infoEl) {

@@ -12,6 +12,7 @@ verifyCsrfApi();
 $user = currentUser();
 $input = json_decode(file_get_contents('php://input'), true);
 $codigoVale = trim($input['codigo'] ?? '');
+$supervisorPass = trim($input['supervisor_pass'] ?? '');
 
 if (empty($codigoVale)) {
     echo json_encode(['success' => false, 'error' => 'Código de vale no proporcionado.']);
@@ -20,6 +21,16 @@ if (empty($codigoVale)) {
 
 try {
     $pdo = getDB();
+
+    // Reembolsar en efectivo saca plata real de la caja: igual que anular una venta
+    // o un descuento grande, un Cajero necesita la clave de un Administrador/Supervisor.
+    if ($user['rol'] === 'Cajero') {
+        if (empty($supervisorPass) || !verificarClaveSupervisor($pdo, $supervisorPass)) {
+            echo json_encode(['success' => false, 'error' => 'Se requiere la clave de un Administrador o Supervisor para reembolsar en efectivo.']);
+            exit;
+        }
+    }
+
     $pdo->beginTransaction();
 
     // 1. Obtener y bloquear el Vale

@@ -447,12 +447,15 @@ async function reembolsarVale(codigo, disponible) {
   if (!confirm(`¿Confirmas el reembolso físico en Efectivo del vale ${codigo} por un monto de ${formatCLP(disponible)}?\n\nEsto registrará un EGRESO de dinero en la caja del turno activo.`)) {
     return;
   }
-  
+
+  const pass = prompt('Clave de Supervisor / Administrador para autorizar el reembolso (dejar en blanco si eres Admin):', '');
+  if (pass === null) return;
+
   try {
     const res = await fetch('api/reembolsar_vale.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN },
-      body: JSON.stringify({ codigo: codigo })
+      body: JSON.stringify({ codigo: codigo, supervisor_pass: pass })
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error);

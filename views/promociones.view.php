@@ -67,9 +67,14 @@
               </span>
             </td>
             <td style="text-align: center;">
-              <a href="promociones.php?eliminar=<?= $pr['PromocionID'] ?>" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; color: var(--danger); border-color: rgba(239, 68, 68, 0.2);" onclick="return confirm('¿Seguro que deseas eliminar esta promoción?')" title="Eliminar Promoción">
-                <i class="fa-solid fa-trash-can"></i>
-              </a>
+              <form method="POST" action="promociones.php" style="display:inline;" onsubmit="return confirm('¿Seguro que deseas eliminar esta promoción?')">
+                <?= csrfField() ?>
+                <input type="hidden" name="action" value="eliminar">
+                <input type="hidden" name="promo_id" value="<?= $pr['PromocionID'] ?>">
+                <button type="submit" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; color: var(--danger); border-color: rgba(239, 68, 68, 0.2);" title="Eliminar Promoción">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </form>
             </td>
           </tr>
         <?php endforeach; ?>

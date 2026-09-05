@@ -16,6 +16,11 @@ $tipo = $input['tipo'] ?? 'INGRESO'; // INGRESO o RETIRO
 $monto = (int)($input['monto'] ?? 0);
 $concepto = trim($input['concepto'] ?? 'Movimiento manual');
 
+if (!in_array($tipo, ['INGRESO', 'RETIRO'], true)) {
+    echo json_encode(['success' => false, 'error' => 'Tipo de movimiento inválido.']);
+    exit;
+}
+
 if ($monto <= 0) {
     echo json_encode(['success' => false, 'error' => 'El monto debe ser mayor a 0.']);
     exit;

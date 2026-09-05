@@ -74,15 +74,20 @@
                         onclick='abrirEditarModal(<?= json_encode($p, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>
                   <i class="fa-solid fa-pen-to-square"></i>
                 </button>
-                <?php if ($p['Activo']): ?>
-                  <a href="productos.php?toggle_activo=<?= $p['ProductoID'] ?>" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; color: var(--danger); border-color: rgba(239, 68, 68, 0.2);" title="Desactivar">
-                    <i class="fa-solid fa-ban"></i>
-                  </a>
-                <?php else: ?>
-                  <a href="productos.php?toggle_activo=<?= $p['ProductoID'] ?>" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="Activar">
-                    <i class="fa-solid fa-check"></i>
-                  </a>
-                <?php endif; ?>
+                <form method="POST" action="productos.php" style="display:inline;">
+                  <?= csrfField() ?>
+                  <input type="hidden" name="action" value="toggle_activo">
+                  <input type="hidden" name="producto_id" value="<?= $p['ProductoID'] ?>">
+                  <?php if ($p['Activo']): ?>
+                    <button type="submit" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; color: var(--danger); border-color: rgba(239, 68, 68, 0.2);" title="Desactivar">
+                      <i class="fa-solid fa-ban"></i>
+                    </button>
+                  <?php else: ?>
+                    <button type="submit" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="Activar">
+                      <i class="fa-solid fa-check"></i>
+                    </button>
+                  <?php endif; ?>
+                </form>
               </div>
             </td>
           </tr>

@@ -62,7 +62,7 @@
                 <i class="fa-solid fa-eye"></i> Cuenta
               </button>
               <?php if (($cl['SaldoDeudor'] ?? 0) > 0): ?>
-                <button onclick="abrirAbonoCliente(<?= $cl['ClienteID'] ?>, '<?= htmlspecialchars($cl['Nombre'], ENT_QUOTES) ?>', <?= $cl['SaldoDeudor'] ?>)" class="btn btn-success" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                <button onclick="abrirAbonoCliente(<?= $cl['ClienteID'] ?>, <?= htmlspecialchars(json_encode($cl['Nombre']), ENT_QUOTES) ?>, <?= $cl['SaldoDeudor'] ?>)" class="btn btn-success" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
                   <i class="fa-solid fa-money-bill-transfer"></i> Abonar
                 </button>
               <?php else: ?>
