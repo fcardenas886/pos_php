@@ -13,6 +13,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'save_config') {
         try {
+            // Manejar subida de archivo de logo si se adjuntó
+            if (!empty($_FILES['logo_file']) && $_FILES['logo_file']['error'] === UPLOAD_ERR_OK) {
+                $fileTmp = $_FILES['logo_file']['tmp_name'];
+                $fileName = $_FILES['logo_file']['name'];
+                $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                $permitidas = ['png', 'jpg', 'jpeg', 'svg', 'webp', 'gif'];
+
+                if (!in_array($ext, $permitidas, true)) {
+                    throw new Exception("Formato de imagen no permitido. Usa PNG, JPG, SVG o WebP.");
+                }
+
+                $uploadDir = __DIR__ . '/uploads/logo/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+
+                $nuevoNombre = 'logo_' . time() . '.' . $ext;
+                $destino = $uploadDir . $nuevoNombre;
+
+                if (move_uploaded_file($fileTmp, $destino)) {
+                    $_POST['config']['MINIMARKET_LOGO_URL'] = 'uploads/logo/' . $nuevoNombre;
+                }
+            }
+
             $stmt = $pdo->prepare("INSERT INTO configuraciones (Clave, Valor) VALUES (:clave, :valor) ON DUPLICATE KEY UPDATE Valor = VALUES(Valor)");
             
             foreach ($_POST['config'] as $clave => $valor) {

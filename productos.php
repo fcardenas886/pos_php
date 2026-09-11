@@ -86,20 +86,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Búsqueda
+// Búsqueda (por nombre, código principal, códigos alternativos o PLU)
 $search = trim($_GET['q'] ?? '');
 if (!empty($search)) {
     $stmtP = $pdo->prepare("
-        SELECT p.*, c.Nombre AS Categoria 
+        SELECT p.*, c.Nombre AS Categoria,
+               (SELECT COUNT(*) FROM productoscodigos pc WHERE pc.ProductoID = p.ProductoID) AS TotalCodigosAlt
         FROM productos p
         LEFT JOIN categorias c ON p.CategoriaID = c.CategoriaID
-        WHERE p.Nombre LIKE :q OR p.CodigoBarras = :exact_q
+        WHERE p.Nombre LIKE :q 
+           OR p.CodigoBarras = :exact_q 
+           OR p.CodigoPLU = :plu_q
+           OR EXISTS (SELECT 1 FROM productoscodigos pc WHERE pc.ProductoID = p.ProductoID AND pc.CodigoBarras = :exact_q2)
         ORDER BY p.Nombre ASC
     ");
-    $stmtP->execute([':q' => "%$search%", ':exact_q' => $search]);
+    $stmtP->execute([
+        ':q' => "%$search%",
+        ':exact_q' => $search,
+        ':plu_q' => $search,
+        ':exact_q2' => $search
+    ]);
 } else {
     $stmtP = $pdo->query("
-        SELECT p.*, c.Nombre AS Categoria 
+        SELECT p.*, c.Nombre AS Categoria,
+               (SELECT COUNT(*) FROM productoscodigos pc WHERE pc.ProductoID = p.ProductoID) AS TotalCodigosAlt
         FROM productos p
         LEFT JOIN categorias c ON p.CategoriaID = c.CategoriaID
         ORDER BY p.Nombre ASC LIMIT 100

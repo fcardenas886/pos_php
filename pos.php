@@ -30,6 +30,31 @@ while ($row = $stmtLocal->fetch(PDO::FETCH_ASSOC)) {
     $cfgLocal[$row['Clave']] = $row['Valor'];
 }
 
+// Cargar configuraciones de supervisión en caja
+$stmtSup = $pdo->query("
+    SELECT Clave, Valor FROM configuraciones 
+    WHERE Clave IN ('POS_REQ_SUPERVISOR_CANCELAR', 'POS_REQ_SUPERVISOR_ELIMINAR_ITEM', 'POS_DESCUENTO_MAX_PORC')
+");
+$configSupervision = [
+    'POS_REQ_SUPERVISOR_CANCELAR' => 'SI',
+    'POS_REQ_SUPERVISOR_ELIMINAR_ITEM' => 'SI',
+    'POS_DESCUENTO_MAX_PORC' => '5',
+];
+while ($row = $stmtSup->fetch(PDO::FETCH_ASSOC)) {
+    $configSupervision[$row['Clave']] = $row['Valor'];
+}
+
+// Cargar modo operativo del POS (supermercado, tactil, clasico)
+$stmtModo = $pdo->query("SELECT Valor FROM configuraciones WHERE Clave = 'POS_LAYOUT_MODO'");
+$posLayoutModo = $stmtModo ? ($stmtModo->fetchColumn() ?: 'supermercado') : 'supermercado';
+
+// Cargar diseño predeterminado de grilla POS
+$stmtGrid = $pdo->query("SELECT Valor FROM configuraciones WHERE Clave = 'POS_DISENO_GRID'");
+$posDisenoGridDefault = $stmtGrid ? ($stmtGrid->fetchColumn() ?: 'estandar') : 'estandar';
+
+// Cargar categorías para los filtros de catálogo y modo táctil
+$categorias = $pdo->query("SELECT CategoriaID, Nombre FROM categorias ORDER BY Nombre ASC")->fetchAll();
+
 // Cotización a cargar automáticamente en el carrito (viene de la pantalla de Cotizaciones)
 $cotizacionPreload = (int)($_GET['cotizacion'] ?? 0);
 

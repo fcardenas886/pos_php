@@ -437,6 +437,24 @@ body {
   font-size: 0.8rem;
 }
 
+.btn-delete-item {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.3rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-delete-item:hover {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.15);
+}
+
 .promo-badge {
   background: var(--success);
   color: #fff;
@@ -960,3 +978,1061 @@ body {
   .no-print { display: none !important; }
   @page { size: 80mm auto; margin: 3mm; }
 }
+
+/* ==========================================================================
+   PERSONALIZACIÓN VISUAL: TEMA CLARO / OSCURO & COLORES DE ACENTO
+   ========================================================================== */
+
+/* Colores de Acento Corporativo */
+[data-accent="indigo"], :root {
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-light: #eef2ff;
+}
+[data-accent="verde"] {
+  --primary: #10b981;
+  --primary-hover: #059669;
+  --primary-light: #ecfdf5;
+}
+[data-accent="naranja"] {
+  --primary: #f59e0b;
+  --primary-hover: #d97706;
+  --primary-light: #fffbeb;
+}
+[data-accent="cyan"] {
+  --primary: #06b6d4;
+  --primary-hover: #0891b2;
+  --primary-light: #ecfeff;
+}
+[data-accent="rojo"] {
+  --primary: #ef4444;
+  --primary-hover: #dc2626;
+  --primary-light: #fef2f2;
+}
+
+/* Modo Claro (Light Mode) */
+[data-theme="light"] {
+  --bg-dark: #f8fafc;
+  --surface-dark: #ffffff;
+  --border-dark: #cbd5e1;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --card-bg: #ffffff;
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+}
+[data-theme="light"] .navbar {
+  background: #ffffff;
+  border-bottom-color: #e2e8f0;
+}
+[data-theme="light"] .brand span {
+  color: #0f172a;
+}
+[data-theme="light"] .form-control {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] .form-control:focus {
+  background: #ffffff;
+  border-color: var(--primary);
+}
+[data-theme="light"] .product-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+[data-theme="light"] .product-name {
+  color: #0f172a;
+}
+[data-theme="light"] .product-stock {
+  background: #f1f5f9;
+  color: #475569;
+}
+[data-theme="light"] .table-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+[data-theme="light"] .table th {
+  background: #f8fafc;
+  color: #475569;
+  border-bottom-color: #e2e8f0;
+}
+[data-theme="light"] .table td {
+  border-bottom-color: #f1f5f9;
+  color: #1e293b;
+}
+[data-theme="light"] .btn-secondary {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+[data-theme="light"] .btn-secondary:hover {
+  background: #cbd5e1;
+}
+[data-theme="light"] .dropdown-menu {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+[data-theme="light"] .dropdown-item {
+  color: #334155;
+}
+[data-theme="light"] .dropdown-item:hover {
+  background: #f1f5f9;
+  color: var(--primary);
+}
+[data-theme="light"] .user-pill {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+[data-theme="light"] .login-body {
+  background-color: #f1f5f9;
+}
+[data-theme="light"] .login-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+}
+[data-theme="light"] .login-title {
+  color: #0f172a;
+}
+[data-theme="light"] .ui-modal__card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+[data-theme="light"] .ui-modal__title {
+  color: #0f172a;
+}
+[data-theme="light"] footer {
+  border-top-color: #e2e8f0;
+}
+
+/* ==========================================================================
+   LOGO CORPORATIVO & BOTÓN DE TEMA
+   ========================================================================== */
+
+.brand-logo-img {
+  max-height: 36px;
+  max-width: 130px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+.brand-logo-login {
+  max-height: 70px;
+  max-width: 220px;
+  object-fit: contain;
+  margin: 0 auto 0.75rem auto;
+  display: block;
+}
+
+.theme-toggle-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-dark);
+  color: var(--text-main);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 0.95rem;
+}
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(18deg) scale(1.08);
+}
+
+/* ==========================================================================
+   GRILLA DE PRODUCTOS EN POS: TÁCTIL Y COMPACTA
+   ========================================================================== */
+
+/* Modo Táctil (Tarjetas Grandes para Pantallas Touch) */
+.product-grid--tactil {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) !important;
+  gap: 1.25rem !important;
+}
+.product-grid--tactil .product-card {
+  height: 165px !important;
+  padding: 1.25rem !important;
+}
+.product-grid--tactil .product-name {
+  font-size: 1.05rem !important;
+  line-height: 1.35 !important;
+}
+.product-grid--tactil .product-price {
+  font-size: 1.45rem !important;
+}
+
+/* Modo Compacto (Lista Densa para Lector de Código de Barras) */
+.product-grid--compacto {
+  grid-template-columns: 1fr !important;
+  gap: 0.35rem !important;
+}
+.product-grid--compacto .product-card {
+  height: 46px !important;
+  min-height: 46px !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0.35rem 0.85rem !important;
+}
+.product-grid--compacto .product-name {
+  font-size: 0.9rem !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  flex: 1 !important;
+  margin-right: 0.75rem !important;
+}
+.product-grid--compacto .product-sku {
+  font-size: 0.75rem !important;
+  color: var(--text-muted) !important;
+  min-width: 95px !important;
+  margin-right: 0.75rem !important;
+}
+.product-grid--compacto .product-meta {
+  display: flex !important;
+  align-items: center !important;
+  gap: 1rem !important;
+}
+.product-grid--compacto .product-price {
+  font-size: 1.05rem !important;
+  min-width: 85px !important;
+  text-align: right !important;
+}
+.product-grid--compacto .product-stock {
+  font-size: 0.75rem !important;
+  min-width: 65px !important;
+  text-align: center !important;
+}
+
+/* ==========================================================================
+   LÍNEA DE TIEMPO / TIMELINE HISTORIAL ("ACERCA DE...")
+   ========================================================================== */
+
+.timeline {
+  position: relative;
+  padding-left: 2.25rem;
+  margin-top: 1.5rem;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--border-dark);
+}
+.timeline-item {
+  position: relative;
+  margin-bottom: 2rem;
+}
+.timeline-item:last-child {
+  margin-bottom: 0;
+}
+.timeline-marker {
+  position: absolute;
+  left: -2.25rem;
+  top: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-dark);
+  border: 3px solid var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+.timeline-item.active .timeline-marker {
+  border-color: var(--success);
+  background: var(--success);
+  box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.25);
+}
+.timeline-marker i {
+  font-size: 0.65rem;
+  color: #fff;
+}
+.timeline-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--shadow-lg);
+  transition: var(--transition);
+}
+.timeline-content:hover {
+  border-color: var(--primary);
+  transform: translateX(4px);
+}
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.timeline-version {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+[data-theme="light"] .timeline-version {
+  color: #0f172a;
+}
+.timeline-bullets {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.timeline-bullets li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.timeline-bullets li i {
+  color: var(--primary);
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+}
+
+/* ==========================================================================
+   POS MULTI-LAYOUT SYSTEM (v2.9.4)
+   - Modo 1: Supermercado / Escáner (Caja Rápida sin catálogo)
+   - Modo 2: Modo Táctil / Kiosco (Categorías y tarjetas grandes)
+   - Modo 3: Modo Clásico / Dividido (Catálogo personalizable)
+   ========================================================================== */
+
+/* Barra de control superior de modos */
+.pos-top-control-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pos-modes-switcher {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.pos-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.95rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  text-align: left;
+}
+
+.pos-mode-btn i {
+  font-size: 1.15rem;
+  transition: transform 0.2s ease;
+}
+
+.pos-mode-btn span {
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: block;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.pos-mode-btn small {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: block;
+}
+
+[data-theme="light"] .pos-mode-btn span {
+  color: #0f172a;
+}
+
+.pos-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.pos-mode-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+}
+
+.pos-mode-btn.active span,
+.pos-mode-btn.active small,
+.pos-mode-btn.active i {
+  color: #fff;
+}
+
+.pos-top-shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pos-shortcut-badge {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pos-shortcut-badge kbd {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-dark);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* Visibilidad de vistas estándar vs supermercado en el carrito */
+.pos-container.pos-mode--supermercado .pos-cart-standard-view {
+  display: none !important;
+}
+
+.pos-container:not(.pos-mode--supermercado) .pos-cart-super-view {
+  display: none !important;
+}
+
+/* Modo Supermercado */
+.pos-container.pos-mode--supermercado {
+  grid-template-columns: 1fr !important;
+  height: calc(100vh - 110px);
+}
+
+.pos-container.pos-mode--supermercado .pos-catalog {
+  display: none !important;
+}
+
+.pos-container.pos-mode--supermercado .pos-cart {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 100%;
+}
+
+.pos-cart-super-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Barra superior de escáner en Modo Supermercado */
+.super-scanner-bar {
+  padding: 0.85rem 1.25rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid var(--border-dark);
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.super-scanner-input-box {
+  position: relative;
+  flex: 1;
+}
+
+.super-scanner-input-box i {
+  position: absolute;
+  left: 1.15rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--primary);
+  font-size: 1.4rem;
+}
+
+.super-scanner-input {
+  padding-left: 3.2rem !important;
+  font-size: 1.15rem !important;
+  font-weight: 600;
+  height: 48px;
+  letter-spacing: 0.03em;
+  background: var(--bg-dark);
+  border: 2px solid var(--border-dark);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.super-scanner-input:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.25) !important;
+}
+
+/* Tabla central del carrito en Modo Supermercado */
+.cart-table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 1rem;
+}
+
+.pos-sale-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.pos-sale-table th {
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  border-bottom: 2px solid var(--border-dark);
+}
+
+[data-theme="light"] .pos-sale-table th {
+  background: #f1f5f9;
+}
+
+.pos-sale-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border-dark);
+  vertical-align: middle;
+}
+
+.pos-sale-table tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="light"] .pos-sale-table tr:hover td {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.pos-sale-table .item-num {
+  font-weight: 700;
+  color: var(--text-muted);
+  width: 40px;
+  font-family: monospace;
+}
+
+.pos-sale-table .item-sku {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.pos-sale-table .item-desc {
+  font-weight: 600;
+  color: #fff;
+  font-size: 1rem;
+}
+
+[data-theme="light"] .pos-sale-table .item-desc {
+  color: #0f172a;
+}
+
+.pos-sale-table .item-price {
+  font-family: monospace;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.pos-sale-table .item-subtotal {
+  font-family: monospace;
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: var(--success);
+  text-align: right;
+}
+
+/* Barra de Cobro Inferior de Supermercado */
+.super-checkout-bar {
+  background: rgba(0, 0, 0, 0.35);
+  border-top: 1px solid var(--border-dark);
+  padding: 0.85rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .super-checkout-bar {
+  background: #f8fafc;
+}
+
+.super-totals-display {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.super-total-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.super-total-amount {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--success);
+  font-family: monospace;
+  line-height: 1;
+}
+
+.btn-super-cobrar {
+  padding: 0.9rem 2.25rem !important;
+  font-size: 1.2rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.03em;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-super-cobrar:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(16, 185, 129, 0.6);
+}
+
+/* Modo Táctil / Kiosco */
+.pos-container.pos-mode--tactil {
+  grid-template-columns: 1fr 440px;
+}
+
+.pos-container.pos-mode--tactil .pos-tactil-categories {
+  display: flex !important;
+}
+
+.pos-container:not(.pos-mode--tactil) .pos-tactil-categories {
+  display: none !important;
+}
+
+.pos-tactil-categories {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.25rem 0.25rem 0.6rem 0.25rem;
+  margin-bottom: 0.25rem;
+  scrollbar-width: thin;
+}
+
+.tactil-cat-pill {
+  padding: 0.55rem 1.1rem;
+  border-radius: 25px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-dark);
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.tactil-cat-pill:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.tactil-cat-pill.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+}
+
+/* Tarjetas Táctiles */
+.product-grid--tactil {
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)) !important;
+  gap: 0.85rem !important;
+}
+
+.product-grid--tactil .product-card {
+  height: 150px !important;
+  padding: 1rem !important;
+  border-radius: 12px;
+  border-width: 1.5px;
+}
+
+.product-grid--tactil .product-name {
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+}
+
+.product-grid--tactil .product-price {
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+}
+
+/* Modo Clásico / Dividido */
+.pos-container.pos-mode--clasico {
+  grid-template-columns: 1fr 420px;
+}
+
+.pos-container.pos-mode--clasico .pos-clasico-filters {
+  display: flex !important;
+}
+
+.pos-container:not(.pos-mode--clasico) .pos-clasico-filters {
+  display: none !important;
+}
+
+.pos-clasico-filters {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.2rem 0 0.5rem 0;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pos-filter-group {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pos-filter-chip {
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-dark);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pos-filter-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.pos-filter-chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* Grilla Compacta para código de barras */
+.product-grid--compacto {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+  gap: 0.5rem !important;
+}
+
+.product-grid--compacto .product-card {
+  height: 95px !important;
+  padding: 0.5rem 0.65rem !important;
+}
+
+.product-grid--compacto .product-name {
+  font-size: 0.82rem !important;
+  line-height: 1.2 !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+.product-grid--compacto .product-sku {
+  font-size: 0.68rem !important;
+  color: var(--text-muted);
+}
+
+.product-grid--compacto .product-price {
+  font-size: 0.95rem !important;
+}
+
+.product-grid--compacto .product-stock {
+  font-size: 0.68rem !important;
+  padding: 0.05rem 0.3rem !important;
+}
+
+/* Pantalla de Bloqueo de Caja POS (Lock Screen) */
+.pos-lock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(10, 15, 29, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease;
+}
+
+.pos-lock-card {
+  background: var(--surface-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: 20px;
+  width: 460px;
+  max-width: 95vw;
+  padding: 2.25rem 2rem;
+  text-align: center;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 30px rgba(79, 70, 229, 0.15);
+  position: relative;
+}
+
+.pos-lock-clock-box {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 1.25rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.pos-lock-clock-time {
+  font-size: 3.2rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #fff;
+  font-family: monospace;
+  line-height: 1;
+  text-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+}
+
+.pos-lock-clock-date {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-transform: capitalize;
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+.pos-lock-icon-circle {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(79, 70, 229, 0.18);
+  border: 2px solid var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.75rem;
+  font-size: 1.5rem;
+  color: #818cf8;
+}
+
+.pos-lock-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.25rem;
+}
+
+.pos-lock-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+}
+
+.pos-lock-user-badge {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-dark);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.pos-lock-user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.pos-lock-input {
+  font-size: 1.1rem !important;
+  padding: 0.75rem 1rem !important;
+  text-align: center;
+  letter-spacing: 2px;
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: var(--border-dark) !important;
+}
+
+.pos-lock-input:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3) !important;
+}
+
+.pos-lock-error {
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  font-size: 0.82rem;
+  margin-bottom: 0.75rem;
+  text-align: left;
+}
+
+.pos-lock-btn {
+  padding: 0.75rem !important;
+  font-size: 0.95rem !important;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.pos-lock-footer-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-dark);
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.pos-lock-footer-note kbd {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* ==============================================================
+   CENTRO DE REPORTES & BUSINESS INTELLIGENCE
+============================================================== */
+.report-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.15rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.report-tab-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.report-tab-btn.active {
+  color: #fff;
+  background: var(--primary);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+}
+
+.report-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-dark);
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.report-preset-chip:hover {
+  color: #fff;
+  border-color: var(--primary);
+  background: rgba(79, 70, 229, 0.15);
+}
+
+.report-preset-chip.active {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+  font-weight: 600;
+}
+
+/* Optimización para Impresión Limpia de Reportes */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .navbar, .footer, .report-actions, .report-tabs-bar, .report-filters-card, .btn {
+    display: none !important;
+  }
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .table-card, .stat-card {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+  .table th, .table td {
+    color: #000 !important;
+    border-bottom: 1px solid #ddd !important;
+  }
+  .stat-value {
+    color: #000 !important;
+  }
+}
+
+
+

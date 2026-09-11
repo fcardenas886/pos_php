@@ -1,20 +1,32 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="<?= htmlspecialchars($temaModo ?? 'dark') ?>" data-accent="<?= htmlspecialchars($temaAcento ?? 'indigo') ?>">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - Minimarket POS</title>
+  <title><?= htmlspecialchars($nombreEmpresa ?? 'Minimarket POS') ?> - Acceso</title>
   <link rel="stylesheet" href="assets/css/style.css?v=<?= APP_VERSION ?>">
   <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
+  <script>
+    (function() {
+      try {
+        const localTheme = localStorage.getItem('theme_mode');
+        if (localTheme) document.documentElement.setAttribute('data-theme', localTheme);
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body class="login-body">
 
 <div class="login-card">
   <div class="login-header">
-    <div class="brand-icon" style="width: 54px; height: 54px; margin: 0 auto; font-size: 1.6rem;">
-      <i class="fa-solid fa-store"></i>
-    </div>
-    <h1 class="login-title">Minimarket POS</h1>
+    <?php if (!empty($logoUrl)): ?>
+      <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Logo" class="brand-logo-login">
+    <?php else: ?>
+      <div class="brand-icon" style="width: 54px; height: 54px; margin: 0 auto 0.75rem auto; font-size: 1.6rem;">
+        <i class="fa-solid fa-store"></i>
+      </div>
+    <?php endif; ?>
+    <h1 class="login-title"><?= htmlspecialchars($nombreEmpresa ?? 'Minimarket POS') ?></h1>
     <p style="color: var(--text-muted); font-size: 0.9rem;">Acceso al Sistema Web</p>
   </div>
 

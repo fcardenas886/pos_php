@@ -4,16 +4,52 @@ requireLogin();
 $user = currentUser();
 $currentPage = basename($_SERVER['PHP_SELF']);
 $esSupervisorNav = in_array($user['rol'], ['Administrador', 'Supervisor'], true);
+
+// Cargar personalización visual
+$pdoHeader = getDB();
+$stmtAppCfg = $pdoHeader->query("SELECT Clave, Valor FROM configuraciones WHERE Clave IN ('TEMA_MODO', 'TEMA_COLOR_ACENTO', 'MINIMARKET_LOGO_URL', 'MINIMARKET_NOMBRE')");
+$appCfg = [];
+while ($r = $stmtAppCfg->fetch(PDO::FETCH_ASSOC)) {
+    $appCfg[$r['Clave']] = $r['Valor'];
+}
+$temaModo = $appCfg['TEMA_MODO'] ?? 'dark';
+$temaAcento = $appCfg['TEMA_COLOR_ACENTO'] ?? 'indigo';
+$logoUrl = $appCfg['MINIMARKET_LOGO_URL'] ?? '';
+$nombreEmpresa = $appCfg['MINIMARKET_NOMBRE'] ?? 'Minimarket POS';
 ?>
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="<?= htmlspecialchars($temaModo) ?>" data-accent="<?= htmlspecialchars($temaAcento) ?>">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minimarket POS - Sistema Web Completo</title>
+  <title><?= htmlspecialchars($nombreEmpresa) ?> - Sistema Web</title>
   <link rel="stylesheet" href="assets/css/style.css?v=<?= APP_VERSION ?>">
   <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MinimarketPOS">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <link rel="icon" type="image/png" href="assets/icons/icon-192.png">
   <meta name="csrf-token" content="<?= htmlspecialchars(csrfToken()) ?>">
+  <script>
+    (function() {
+      try {
+        const localTheme = localStorage.getItem('theme_mode');
+        if (localTheme) document.documentElement.setAttribute('data-theme', localTheme);
+      } catch (e) {}
+    })();
+
+    // Registro automático del Service Worker PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+          .then((reg) => console.log('[PWA] Service Worker registrado correctamente:', reg.scope))
+          .catch((err) => console.warn('[PWA] No se pudo registrar el Service Worker:', err));
+      });
+    }
+  </script>
 </head>
 <body>
 
@@ -94,11 +130,15 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
 <script src="assets/js/ui.js?v=<?= APP_VERSION ?>"></script>
 
 <nav class="navbar">
-  <a href="index.php" class="brand">
-    <div class="brand-icon">
-      <i class="fa-solid fa-store"></i>
-    </div>
-    <span>Minimarket POS</span>
+  <a href="index.php" class="brand" style="display: flex; align-items: center; gap: 0.6rem; text-decoration: none;">
+    <?php if (!empty($logoUrl)): ?>
+      <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Logo" class="brand-logo-img">
+    <?php else: ?>
+      <div class="brand-icon">
+        <i class="fa-solid fa-store"></i>
+      </div>
+    <?php endif; ?>
+    <span><?= htmlspecialchars($nombreEmpresa) ?></span>
   </a>
 
   <ul class="nav-links">
@@ -134,7 +174,7 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
         <li class="dropdown-section" style="--section-color: #3b82f6;">
           <i class="fa-solid fa-receipt"></i> Ventas y Devoluciones
         </li>
-        <li><a href="ventas.php" class="dropdown-item"><i class="fa-solid fa-file-invoice"></i> Ventas y Anulaciones</a></li>
+        <li><a href="ventas.php" class="dropdown-item"><i class="fa-solid fa-receipt"></i> Ventas y Comprobantes</a></li>
         <li><a href="devoluciones.php" class="dropdown-item"><i class="fa-solid fa-rotate-left"></i> Devoluciones y Vales</a></li>
         <li><a href="cotizaciones.php" class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Cotizaciones</a></li>
       </ul>
@@ -142,12 +182,13 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
 
     <!-- Grupo: Mantenedores -->
     <li class="nav-item">
-      <div class="nav-link <?= in_array($currentPage, ['productos.php', 'categorias.php', 'clientes.php', 'promociones.php']) ? 'active' : '' ?>">
+      <div class="nav-link <?= in_array($currentPage, ['productos.php', 'actualizar_precios.php', 'categorias.php', 'clientes.php', 'promociones.php']) ? 'active' : '' ?>">
         <i class="fa-solid fa-folder-open"></i> Mantenedores <i class="fa-solid fa-chevron-down nav-caret"></i>
       </div>
       <ul class="dropdown-menu">
         <?php if ($esSupervisorNav): ?>
         <li><a href="productos.php" class="dropdown-item"><i class="fa-solid fa-box"></i> Productos y Precios</a></li>
+        <li><a href="actualizar_precios.php" class="dropdown-item"><i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> Actualizador Rápido Precios</a></li>
         <li><a href="categorias.php" class="dropdown-item"><i class="fa-solid fa-folder"></i> Categorías</a></li>
         <?php endif; ?>
         <li><a href="clientes.php" class="dropdown-item"><i class="fa-solid fa-users"></i> Clientes y Fiado</a></li>
@@ -191,11 +232,20 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
     <!-- Grupo: Reportes -->
     <?php if ($esSupervisorNav): ?>
     <li class="nav-item">
-      <div class="nav-link <?= in_array($currentPage, ['reporte_utilidades.php', 'reportes_z.php']) ? 'active' : '' ?>">
+      <div class="nav-link <?= in_array($currentPage, ['reportes.php', 'reporte_utilidades.php', 'reportes_z.php']) ? 'active' : '' ?>">
         <i class="fa-solid fa-chart-line"></i> Reportes <i class="fa-solid fa-chevron-down nav-caret"></i>
       </div>
-      <ul class="dropdown-menu">
-        <li><a href="reporte_utilidades.php" class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Utilidades y Márgenes</a></li>
+      <ul class="dropdown-menu" style="min-width: 250px;">
+        <li><a href="reportes.php" class="dropdown-item"><i class="fa-solid fa-chart-pie" style="color: var(--primary);"></i> <strong>Centro de Reportes</strong></a></li>
+        <li class="dropdown-divider"></li>
+        <li><a href="reportes.php?tab=ventas" class="dropdown-item"><i class="fa-solid fa-money-bill-wave"></i> Ventas y Medios de Pago</a></li>
+        <li><a href="reportes.php?tab=productos" class="dropdown-item"><i class="fa-solid fa-cubes-stacked"></i> Ranking y Rotación</a></li>
+        <li><a href="reportes.php?tab=inventario" class="dropdown-item"><i class="fa-solid fa-warehouse"></i> Valorización Inventario</a></li>
+        <li><a href="reportes.php?tab=creditos" class="dropdown-item"><i class="fa-solid fa-handshake"></i> Cartera y Fiados</a></li>
+        <li><a href="reportes.php?tab=compras" class="dropdown-item"><i class="fa-solid fa-truck-ramp-box"></i> Compras y Proveedores</a></li>
+        <li><a href="reportes.php?tab=cajeros" class="dropdown-item"><i class="fa-solid fa-users-gear"></i> Rendimiento de Cajeros</a></li>
+        <li><a href="reportes.php?tab=utilidades" class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Utilidades y Márgenes</a></li>
+        <li class="dropdown-divider"></li>
         <li><a href="reportes_z.php" class="dropdown-item"><i class="fa-solid fa-file-invoice-dollar"></i> Cierre Z Fiscal</a></li>
       </ul>
     </li>
@@ -212,19 +262,45 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
         <li><a href="cajas.php" class="dropdown-item"><i class="fa-solid fa-cash-register"></i> Cajas Físicas</a></li>
         <li><a href="configuracion.php" class="dropdown-item"><i class="fa-solid fa-sliders"></i> Ajustes Generales</a></li>
         <li><a href="ayuda.php" class="dropdown-item"><i class="fa-solid fa-circle-question"></i> Soporte / Ayuda</a></li>
+        <li><a href="acerca.php" class="dropdown-item"><i class="fa-solid fa-circle-info"></i> Acerca de y Novedades</a></li>
       </ul>
     </li>
     <?php endif; ?>
   </ul>
 
-  <div class="user-pill">
-    <i class="fa-solid fa-user"></i>
-    <span><?= htmlspecialchars($user['nombre']) ?></span>
-    <span class="user-badge"><?= htmlspecialchars($user['rol']) ?></span>
-    <a href="logout.php" title="Cerrar Sesión" style="color: var(--danger); margin-left: 0.5rem;">
-      <i class="fa-solid fa-right-from-bracket"></i>
-    </a>
+  <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <!-- Botón Modo Claro / Oscuro -->
+    <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleThemeLive()" title="Alternar Modo Claro / Oscuro">
+      <i class="fa-solid fa-sun" id="themeToggleIcon"></i>
+    </button>
+
+    <div class="user-pill">
+      <i class="fa-solid fa-user"></i>
+      <span><?= htmlspecialchars($user['nombre']) ?></span>
+      <span class="user-badge"><?= htmlspecialchars($user['rol']) ?></span>
+      <a href="logout.php" title="Cerrar Sesión" style="color: var(--danger); margin-left: 0.5rem;">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </a>
+    </div>
   </div>
 </nav>
+
+<script>
+function toggleThemeLive() {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = (cur === 'dark') ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('theme_mode', next); } catch(e) {}
+  updateThemeIcon();
+}
+function updateThemeIcon() {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  const icon = document.getElementById('themeToggleIcon');
+  if (icon) {
+    icon.className = (cur === 'dark') ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+  }
+}
+document.addEventListener('DOMContentLoaded', updateThemeIcon);
+</script>
 
 <main class="container">

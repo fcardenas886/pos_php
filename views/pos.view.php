@@ -13,15 +13,37 @@
 </div>
 <?php endif; ?>
 
-<div class="pos-container">
+<div class="pos-container" id="posContainer">
   
-  <!-- Columna Izquierda: Catálogo y Búsqueda -->
+  <!-- Barra de Estado de Conectividad PWA Offline (Solo se despliega en caso de contingencia o pendientes) -->
+  <div id="posOfflineStatusBar" style="grid-column: 1 / -1; display: none; align-items: center; justify-content: space-between; padding: 0.5rem 1rem; border-radius: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fbbf24; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <span id="posOfflineStatusDot" style="width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span>
+      <span id="posOfflineStatusText"><i class="fa-solid fa-triangle-exclamation"></i> <strong>Modo Contingencia (Sin Conexión)</strong> &bull; Las ventas se guardan en este equipo</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.6rem;">
+      <span id="posOfflineBadgePending" style="display: none; background: #f59e0b; color: #0f172a; font-size: 0.75rem; font-weight: bold; padding: 0.2rem 0.55rem; border-radius: 6px;">
+        <i class="fa-solid fa-cloud-arrow-up"></i> <span id="posOfflineCountText">0</span> por sincronizar
+      </span>
+      <button type="button" id="btnSincronizarOffline" onclick="sincronizarVentasPendientes()" class="btn btn-warning" style="display: none; padding: 0.2rem 0.6rem; font-size: 0.75rem; font-weight: bold;">
+        <i class="fa-solid fa-rotate"></i> Sincronizar
+      </button>
+    </div>
+  </div>
+  
+  <!-- Columna Izquierda: Catálogo y Búsqueda (Se oculta automáticamente en Modo Supermercado) -->
   <div class="pos-catalog">
     
     <div class="pos-search-bar" style="display: flex; gap: 0.75rem; align-items: center;">
       <div style="position: relative; flex: 1;">
         <i class="fa-solid fa-barcode" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.2rem;"></i>
-        <input type="text" id="posSearch" class="form-control" placeholder="Escanear código de barras o buscar por nombre..." style="padding-left: 2.8rem; font-size: 1.1rem;" autofocus autocomplete="off">
+        <input type="search" id="posSearch" name="pos_search_barcode_<?= time() ?>" class="form-control" placeholder="Escanear código de barras o buscar por nombre..." style="padding-left: 2.8rem; font-size: 1.1rem;" autofocus autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+      </div>
+      <!-- Indicador compacto de conectividad en línea con versión (Interactivo: clic para alternar simulación) -->
+      <div id="posPillOnline" onclick="toggleModoOfflineManual()" style="cursor: pointer; display: flex; align-items: center; gap: 0.4rem; padding: 0.55rem 0.85rem; border-radius: 8px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; font-size: 0.82rem; font-weight: 600; white-space: nowrap; user-select: none; transition: all 0.2s ease;" title="Conectado al servidor en tiempo real. Versión <?= APP_VERSION ?>. Clic para simular modo offline.">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+        <span>En Línea</span>
+        <span style="font-size: 0.72rem; opacity: 0.75; font-weight: 500; margin-left: 0.15rem; border-left: 1px solid rgba(16, 185, 129, 0.3); padding-left: 0.35rem;"><?= APP_VERSION ?></span>
       </div>
       <button type="button" id="btnCotizaciones" onclick="abrirModalCotizaciones()" class="btn btn-secondary" style="padding: 0.75rem 1rem; font-size: 0.9rem;" title="Ventas Pausadas / Cotizaciones">
         <i class="fa-solid fa-clock-rotate-left"></i> Pendientes
@@ -29,6 +51,51 @@
       <button type="button" id="btnMovimientoCaja" onclick="abrirModalMovimiento()" class="btn btn-secondary" style="padding: 0.75rem 1rem; font-size: 0.9rem;" title="Registrar Ingreso o Retiro de Caja">
         <i class="fa-solid fa-cash-register"></i> Retiro / Ingreso
       </button>
+    </div>
+
+    <!-- Píldoras de Categorías para Modo Táctil -->
+    <div id="posTactilCategories" class="pos-tactil-categories">
+      <button type="button" class="tactil-cat-pill active" onclick="setCategoriaTactil(0, this)">
+        <i class="fa-solid fa-border-all"></i> Todas
+      </button>
+      <?php foreach ($categorias as $cat): ?>
+        <button type="button" class="tactil-cat-pill" onclick="setCategoriaTactil(<?= (int)$cat['CategoriaID'] ?>, this)">
+          <?= htmlspecialchars($cat['Nombre']) ?>
+        </button>
+      <?php endforeach; ?>
+    </div>
+
+    <!-- Filtros de Catálogo Personalizable para Modo Clásico -->
+    <div id="posClasicoFilters" class="pos-clasico-filters">
+      <div class="pos-filter-group">
+        <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-right: 0.25rem;">
+          <i class="fa-solid fa-sliders"></i> Mostrar:
+        </span>
+        <button type="button" id="btnFiltroMasVendidos" onclick="setFiltroCatalogo('mas_vendidos', this)" class="pos-filter-chip active" title="Ordenar por los productos con mayor volumen histórico de venta">
+          <i class="fa-solid fa-fire" style="color: #f59e0b;"></i> Más Vendidos
+        </button>
+        <button type="button" id="btnFiltroOfertas" onclick="setFiltroCatalogo('ofertas', this)" class="pos-filter-chip" title="Mostrar sólo productos con ofertas y promociones vigentes">
+          <i class="fa-solid fa-tag" style="color: #10b981;"></i> En Oferta
+        </button>
+        <button type="button" id="btnFiltroTodos" onclick="setFiltroCatalogo('todos', this)" class="pos-filter-chip" title="Ver todo el catálogo alfabéticamente">
+          <i class="fa-solid fa-boxes-stacked"></i> Todos (A-Z)
+        </button>
+        <select id="selectFiltroCategoria" class="form-control" onchange="setFiltroCatalogoCategoria(this.value)" style="width: auto; padding: 0.25rem 0.6rem; font-size: 0.8rem; border-radius: 8px;">
+          <option value="0">📂 Por Categoría...</option>
+          <?php foreach ($categorias as $cat): ?>
+            <option value="<?= (int)$cat['CategoriaID'] ?>"><?= htmlspecialchars($cat['Nombre']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
+      <div style="display: flex; gap: 0.3rem; background: rgba(0,0,0,0.2); padding: 0.15rem; border-radius: 8px; border: 1px solid var(--border-dark);">
+        <button type="button" id="btnGridEstandar" onclick="cambiarDisenoGrid('estandar')" class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" title="Diseño Estándar">
+          <i class="fa-solid fa-table-cells-large"></i> Estándar
+        </button>
+        <button type="button" id="btnGridCompacto" onclick="cambiarDisenoGrid('compacto')" class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" title="Lista Compacta">
+          <i class="fa-solid fa-list-ul"></i> Compacta
+        </button>
+      </div>
     </div>
 
     <!-- Grilla de Productos -->
@@ -45,6 +112,9 @@
         <i class="fa-solid fa-gears" style="color: var(--primary);"></i> CAJA / OPERACIONES:
       </div>
       <div style="display: flex; gap: 0.5rem;">
+        <button type="button" onclick="bloquearCaja()" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.45rem 0.85rem; display: flex; align-items: center; gap: 0.4rem; border-radius: 6px; border: 1px solid var(--border-dark); color: #a78bfa;" title="Bloquear caja temporalmente (Alt+L o F9)">
+          <i class="fa-solid fa-lock"></i> Bloquear
+        </button>
         <button type="button" onclick="abrirModalConsultaPrecios()" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.45rem 0.85rem; display: flex; align-items: center; gap: 0.4rem; border-radius: 6px; border: 1px solid var(--border-dark);">
           <i class="fa-solid fa-magnifying-glass-dollar" style="color: #fbbf24;"></i> Consultar Precio
         </button>
@@ -56,45 +126,126 @@
 
   </div>
 
-  <!-- Columna Derecha: Carrito y Cobro -->
+  <!-- Columna Derecha / Centro: Carrito y Cobro -->
   <div class="pos-cart">
-    
-    <div class="cart-header">
-      <div style="display: flex; align-items: center; gap: 0.5rem;">
-        <i class="fa-solid fa-cart-shopping" style="color: var(--primary);"></i>
-        <h2 style="font-size: 1.1rem; font-weight: 600;">Carrito de Compra</h2>
+
+    <!-- VISTA A: MODO SUPERMERCADO (Se activa sólo en Modo Supermercado) -->
+    <div class="pos-cart-super-view">
+      <!-- Barra Superior de Escaneo Supermercado -->
+      <div class="super-scanner-bar">
+        <div class="super-scanner-input-box">
+          <i class="fa-solid fa-barcode"></i>
+          <input type="search" id="posSearchSuper" name="pos_search_super_<?= time() ?>" class="form-control super-scanner-input" placeholder="Escanear código de barras o escribir PLU / Nombre..." autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+        </div>
+        <div style="display: flex; gap: 0.4rem;">
+          <button type="button" onclick="bloquearCaja()" class="btn btn-secondary" style="padding: 0.6rem 0.9rem; font-size: 0.85rem; color: #a78bfa;" title="Bloquear caja temporalmente (Alt+L o F9)">
+            <i class="fa-solid fa-lock"></i> Bloquear
+          </button>
+          <button type="button" onclick="abrirModalConsultaPrecios()" class="btn btn-secondary" style="padding: 0.6rem 0.9rem; font-size: 0.85rem; color: #fbbf24;" title="Consultar precio de un producto">
+            <i class="fa-solid fa-magnifying-glass-dollar"></i> Consultar
+          </button>
+          <button type="button" onclick="guardarCotizacion()" class="btn btn-secondary" style="padding: 0.6rem 0.9rem; font-size: 0.85rem; color: #fbbf24;" title="Pausar venta actual">
+            <i class="fa-solid fa-pause"></i> Pausar
+          </button>
+          <button type="button" onclick="vaciarCarritoPos()" class="btn btn-secondary" style="padding: 0.6rem 0.9rem; font-size: 0.85rem; color: var(--danger);" title="Vaciar carrito">
+            <i class="fa-solid fa-trash-can"></i> Vaciar
+          </button>
+          <button type="button" onclick="abrirModalCotizaciones()" class="btn btn-secondary" style="padding: 0.6rem 0.9rem; font-size: 0.85rem;" title="Ventas pausadas pendientes">
+            <i class="fa-solid fa-clock-rotate-left"></i> Pendientes
+          </button>
+          <button type="button" onclick="abrirModalMovimiento()" class="btn btn-secondary" style="padding: 0.6rem 0.9rem; font-size: 0.85rem;" title="Retiro o ingreso de caja">
+            <i class="fa-solid fa-cash-register"></i> Retiro / Ingreso
+          </button>
+        </div>
       </div>
-      <div style="display: flex; gap: 0.4rem;">
-        <button type="button" onclick="guardarCotizacion()" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; color: #fbbf24;">
-          <i class="fa-solid fa-pause"></i> Pausar
-        </button>
-        <button type="button" id="btnVaciar" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; color: var(--danger);">
-          <i class="fa-solid fa-trash-can"></i> Vaciar
-        </button>
+
+      <!-- Grilla / Tabla Central de Productos en Modo Supermercado -->
+      <div class="cart-table-wrapper" id="cartTableWrapper">
+        <div id="cartTableEmpty" class="cart-empty" style="padding: 4rem 2rem;">
+          <i class="fa-solid fa-barcode" style="font-size: 4rem; color: var(--primary); opacity: 0.5; margin-bottom: 1rem;"></i>
+          <h3 style="font-size: 1.3rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;">Caja Lista para Escanear</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; max-width: 440px; margin: 0 auto;">
+            Usa el lector de código de barras o escribe el código / PLU en la barra superior para registrar artículos.
+          </p>
+        </div>
+
+        <table id="cartTable" class="pos-sale-table" style="display: none;">
+          <thead>
+            <tr>
+              <th style="width: 45px; text-align: center;">#</th>
+              <th style="width: 150px;">CÓDIGO / PLU</th>
+              <th>DESCRIPCIÓN DEL PRODUCTO</th>
+              <th style="width: 120px;">PRECIO UNIT.</th>
+              <th style="width: 130px; text-align: center;">CANTIDAD</th>
+              <th style="width: 140px;">DCTO / PROMO</th>
+              <th style="width: 130px; text-align: right;">SUBTOTAL</th>
+              <th style="width: 70px; text-align: center;">QUITAR</th>
+            </tr>
+          </thead>
+          <tbody id="cartTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Barra de Cobro Inferior de Supermercado -->
+      <div class="super-checkout-bar">
+        <div style="display: flex; align-items: center; gap: 2rem;">
+          <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">
+            <i class="fa-solid fa-boxes-stacked" style="color: var(--primary);"></i>
+            <span id="superItemCount" style="color: #fff; font-weight: 700;">0 productos</span> en esta venta
+          </div>
+          <div class="super-totals-display">
+            <span class="super-total-label">TOTAL A COBRAR:</span>
+            <span id="superCartTotal" class="super-total-amount">$0</span>
+          </div>
+        </div>
+        <div>
+          <button type="button" onclick="abrirModalPago()" class="btn btn-success btn-super-cobrar">
+            <i class="fa-solid fa-credit-card"></i> COBRAR VENTA (F12)
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Lista de Items en Carrito -->
-    <div id="cartItems" class="cart-items">
-      <div class="cart-empty">
-        <i class="fa-solid fa-basket-shopping"></i>
-        <p>El carrito está vacío</p>
-        <span>Escanea o haz clic en un producto</span>
+    <!-- VISTA B: MODO TÁCTIL Y CLÁSICO (Lista vertical estándar en la derecha) -->
+    <div class="pos-cart-standard-view" style="display: flex; flex-direction: column; height: 100%;">
+      <div class="cart-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-cart-shopping" style="color: var(--primary);"></i>
+          <h2 style="font-size: 1.1rem; font-weight: 600;">Carrito de Compra</h2>
+        </div>
+        <div style="display: flex; gap: 0.4rem;">
+          <button type="button" onclick="bloquearCaja()" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; color: #a78bfa;" title="Bloquear caja temporalmente (Alt+L o F9)">
+            <i class="fa-solid fa-lock"></i>
+          </button>
+          <button type="button" onclick="guardarCotizacion()" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; color: #fbbf24;">
+            <i class="fa-solid fa-pause"></i> Pausar
+          </button>
+          <button type="button" id="btnVaciar" onclick="vaciarCarritoPos()" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; color: var(--danger);">
+            <i class="fa-solid fa-trash-can"></i> Vaciar
+          </button>
+        </div>
       </div>
-    </div>
 
-    <!-- Panel de Resumen y Cobro -->
-    <div class="cart-footer">
-
-      <div class="summary-row total">
-        <span>TOTAL A PAGAR:</span>
-        <span id="cartTotal" style="color: var(--success);">$0</span>
+      <!-- Lista de Items en Carrito -->
+      <div id="cartItems" class="cart-items">
+        <div class="cart-empty">
+          <i class="fa-solid fa-basket-shopping"></i>
+          <p>El carrito está vacío</p>
+          <span>Escanea o haz clic en un producto</span>
+        </div>
       </div>
 
-      <button type="button" onclick="abrirModalPago()" class="btn btn-success btn-block" style="padding: 0.9rem; font-size: 1.1rem;">
-        <i class="fa-solid fa-credit-card"></i> COBRAR VENTA (F12)
-      </button>
+      <!-- Panel de Resumen y Cobro -->
+      <div class="cart-footer">
+        <div class="summary-row total">
+          <span>TOTAL A PAGAR:</span>
+          <span id="cartTotal" style="color: var(--success);">$0</span>
+        </div>
 
+        <button type="button" onclick="abrirModalPago()" class="btn btn-success btn-block" style="padding: 0.9rem; font-size: 1.1rem;">
+          <i class="fa-solid fa-credit-card"></i> COBRAR VENTA (F12)
+        </button>
+      </div>
     </div>
 
   </div>
@@ -136,8 +287,33 @@
             </select>
           </div>
           <div>
-            <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">DESCUENTO ($)</label>
-            <input type="number" id="descuentoGlobal" class="form-control" placeholder="0" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" oninput="renderCart()">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+              <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin: 0;">DESCUENTO</label>
+              <div style="display: flex; gap: 0.2rem;">
+                <button type="button" id="btnDescModoMonto" onclick="setModoDescuento('monto')" class="btn btn-secondary active" style="padding: 0.1rem 0.45rem; font-size: 0.7rem; font-weight: bold;" title="Descuento en pesos ($)">$</button>
+                <button type="button" id="btnDescModoPorc" onclick="setModoDescuento('porc')" class="btn btn-secondary" style="padding: 0.1rem 0.45rem; font-size: 0.7rem; font-weight: bold;" title="Descuento en porcentaje (%)">%</button>
+              </div>
+            </div>
+            <div style="position: relative;">
+              <input type="number" id="descuentoInput" class="form-control" placeholder="0" min="0" style="padding: 0.4rem 1.6rem 0.4rem 0.6rem; font-size: 0.85rem;" oninput="onDescuentoInputChange()" onkeydown="if(event.key==='Enter'){const el=document.getElementById('inputPassSupervisorInline');if(el&&el.offsetParent!==null){event.preventDefault();el.focus();}}">
+              <input type="hidden" id="descuentoGlobal" value="0">
+              <span id="descInputSuffix" style="position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: var(--text-muted); font-weight: bold; pointer-events: none;">$</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="descuentoAvisoSupervisor" style="display: none; flex-direction: column; gap: 0.4rem; font-size: 0.78rem; padding: 0.5rem 0.75rem; border-radius: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fbbf24;">
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <i class="fa-solid fa-shield-halved"></i> <span>Descuento supera el límite libre (<strong id="lblDescMaxPorc">5%</strong>). Requiere clave de supervisor:</span>
+          </div>
+          <div id="boxSupervisorAuthInline" style="display: flex; gap: 0.35rem; align-items: center;">
+            <input type="password" id="inputPassSupervisorInline" class="form-control" placeholder="Clave de Supervisor..." style="padding: 0.3rem 0.6rem; font-size: 0.82rem; flex: 1;" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-form-type="other" onkeydown="if(event.key==='Enter'){event.preventDefault();validarSupervisorDescuentoInline();}">
+            <button type="button" id="btnAuthSupervisorInline" onclick="validarSupervisorDescuentoInline()" class="btn btn-warning" style="padding: 0.3rem 0.75rem; font-size: 0.78rem; font-weight: bold; white-space: nowrap;">
+              <i class="fa-solid fa-key"></i> Autorizar
+            </button>
+          </div>
+          <div id="boxSupervisorAuthOk" style="display: none; align-items: center; gap: 0.4rem; color: #34d399; font-weight: 700;">
+            <i class="fa-solid fa-circle-check"></i> <span id="txtSupervisorAuthOk">Autorizado por Supervisor</span>
           </div>
         </div>
 
@@ -441,10 +617,80 @@ async function ejecutarConsultaPrecio() {
 }
 </script>
 
+<!-- Overlay Pantalla de Bloqueo de Caja (Lock Screen) -->
+<div id="posLockOverlay" class="pos-lock-overlay" style="display: none;">
+  <div class="pos-lock-card">
+    <!-- Reloj Digital en Tiempo Real -->
+    <div class="pos-lock-clock-box">
+      <div id="posLockClockTime" class="pos-lock-clock-time">00:00:00</div>
+      <div id="posLockClockDate" class="pos-lock-clock-date">Cargando fecha...</div>
+    </div>
+
+    <!-- Icono y Título de Bloqueo -->
+    <div class="pos-lock-icon-circle">
+      <i class="fa-solid fa-lock"></i>
+    </div>
+    <h2 class="pos-lock-title">Terminal de Caja Bloqueada</h2>
+    <p class="pos-lock-subtitle">Tu venta en curso y turno de caja están protegidos.</p>
+
+    <!-- Usuario / Cajero en Turno -->
+    <div class="pos-lock-user-badge">
+      <div style="display: flex; align-items: center; gap: 0.6rem;">
+        <div class="pos-lock-user-avatar">
+          <i class="fa-solid fa-user"></i>
+        </div>
+        <div style="text-align: left;">
+          <div style="font-weight: 700; color: #fff; font-size: 0.95rem;">
+            <?= htmlspecialchars($user['nombre'] ?? 'Cajero') ?>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">
+            @<?= htmlspecialchars($user['usuario'] ?? '') ?> &bull; <?= htmlspecialchars($user['rol'] ?? 'Cajero') ?>
+          </div>
+        </div>
+      </div>
+      <span class="badge badge-success" style="font-size: 0.75rem;">
+        <i class="fa-solid fa-circle-check"></i> Turno Activo
+      </span>
+    </div>
+
+    <!-- Formulario de Desbloqueo -->
+    <form id="formPosLockUnlock" onsubmit="desbloquearCaja(event)" style="margin-top: 1.25rem;" autocomplete="off">
+      <!-- Usuario explícito para encapsular credenciales en este formulario y evitar que el navegador rellene el buscador -->
+      <input type="text" name="username" value="<?= htmlspecialchars($user['nombre'] ?? 'cajero') ?>" autocomplete="username" style="display:none;" aria-hidden="true" tabindex="-1">
+      <div style="margin-bottom: 0.85rem;">
+        <input type="password" id="posLockPassword" class="form-control pos-lock-input" placeholder="Ingresa tu contraseña o PIN..." autocomplete="current-password" required>
+      </div>
+
+      <div id="posLockError" class="pos-lock-error" style="display: none;"></div>
+
+      <button type="submit" id="btnPosUnlock" class="btn btn-primary btn-block pos-lock-btn">
+        <i class="fa-solid fa-lock-open"></i> Desbloquear Terminal
+      </button>
+    </form>
+
+    <!-- Ayuda / Atajo -->
+    <div class="pos-lock-footer-note">
+      <i class="fa-solid fa-shield-halved" style="color: var(--primary); font-size: 1.1rem; margin-top: 0.15rem;"></i>
+      <div>
+        Puede desbloquear el cajero titular o cualquier <strong>supervisor/administrador</strong> con su contraseña.<br>
+        Atajo rápido: <kbd>Alt + L</kbd> o <kbd>F9</kbd> para bloquear.
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   window.BALANZA_PREFIJO_INDIVIDUAL = "<?= htmlspecialchars($configBalanza['BALANZA_PREFIJO_INDIVIDUAL'] ?? '20') ?>";
   window.BALANZA_TIPO_EAN = "<?= htmlspecialchars($configBalanza['BALANZA_TIPO_EAN'] ?? 'plu_peso') ?>";
   window.COTIZACION_PRELOAD = <?= $cotizacionPreload > 0 ? $cotizacionPreload : 'null' ?>;
+  window.CONFIG_SUPERVISION = <?= json_encode($configSupervision) ?>;
+  window.CURRENT_USER_ROL = "<?= htmlspecialchars($user['rol'] ?? 'Cajero') ?>";
+  window.CURRENT_USER_NAME = "<?= htmlspecialchars($user['nombre'] ?? '') ?>";
+  window.POS_DISENO_GRID_DEFAULT = "<?= htmlspecialchars($posDisenoGridDefault ?? 'estandar') ?>";
+  window.POS_LAYOUT_MODO = "<?= htmlspecialchars($posLayoutModo ?? 'supermercado') ?>";
+  window.CSRF_TOKEN = "<?= htmlspecialchars(csrfToken()) ?>";
+  window.APP_VERSION = "<?= APP_VERSION ?>";
 </script>
 
+<script src="assets/js/pos-offline-db.js?v=<?= APP_VERSION ?>"></script>
 <script src="assets/js/pos.js?v=<?= APP_VERSION ?>"></script>

@@ -29,6 +29,12 @@
   <button onclick="switchTab('tabBalanza')" class="btn btn-secondary tab-btn" id="btn-tabBalanza">
     ⚖️ Balanza de Pesaje
   </button>
+  <button onclick="switchTab('tabSupervision')" class="btn btn-secondary tab-btn" id="btn-tabSupervision">
+    🛡️ Supervisión en Caja (POS)
+  </button>
+  <button onclick="switchTab('tabApariencia')" class="btn btn-secondary tab-btn" id="btn-tabApariencia">
+    🎨 Apariencia y Marca
+  </button>
 </div>
 
 <!-- PESTAÑA 1: PARÁMETROS GENERALES -->
@@ -333,7 +339,315 @@
   </div>
 </div>
 
+<!-- PESTAÑA 5: SUPERVISIÓN EN CAJA (POS) -->
+<div id="tabSupervision" class="tab-pane" style="display: none;">
+  <div class="table-card" style="padding: 1.75rem; max-width: 800px;">
+    <form method="POST" action="configuracion.php" style="display: flex; flex-direction: column; gap: 1.25rem;">
+      <?= csrfField() ?>
+      <input type="hidden" name="action" value="save_config">
+
+      <div>
+        <h2 style="font-size: 1.15rem; font-weight: 700; color: #818cf8; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.4rem; margin-bottom: 0.4rem;">
+          <i class="fa-solid fa-user-shield"></i> Políticas de Supervisión y Control en Caja
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.85rem;">
+          Personaliza qué acciones del cajero en el punto de venta requieren la contraseña o autorización de un Administrador o Supervisor.
+        </p>
+      </div>
+
+      <!-- Control 1: Anular/Vaciar Venta en Proceso -->
+      <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border-dark); padding: 1.25rem; border-radius: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+          <div style="flex: 1;">
+            <label style="font-size: 0.95rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+              <i class="fa-solid fa-ban" style="color: var(--danger);"></i> Cancelar Venta en Curso (Vaciar Carrito)
+            </label>
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin: 0; line-height: 1.4;">
+              Si está activado, cuando un Cajero intente cancelar la venta en proceso o vaciar el carrito, el sistema solicitará la clave de un Supervisor para autorizar la acción.
+            </p>
+          </div>
+          <div style="width: 200px; flex-shrink: 0;">
+            <select name="config[POS_REQ_SUPERVISOR_CANCELAR]" class="form-control" style="font-weight: 600;">
+              <option value="SI" <?= ($config['POS_REQ_SUPERVISOR_CANCELAR'] ?? 'SI') === 'SI' ? 'selected' : '' ?>>🛡️ Exigir Supervisor</option>
+              <option value="NO" <?= ($config['POS_REQ_SUPERVISOR_CANCELAR'] ?? '') === 'NO' ? 'selected' : '' ?>>Permitir Libremente</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Control 2: Eliminar Producto de la Grilla -->
+      <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border-dark); padding: 1.25rem; border-radius: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+          <div style="flex: 1;">
+            <label style="font-size: 0.95rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+              <i class="fa-solid fa-trash-can" style="color: #f59e0b;"></i> Eliminar Producto del Carrito
+            </label>
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin: 0; line-height: 1.4;">
+              Si está activado, cuando un Cajero intente quitar un producto agregado a la grilla (usando el botón papelera o reduciendo la cantidad a cero), se exigirá la autorización de un Supervisor.
+            </p>
+          </div>
+          <div style="width: 200px; flex-shrink: 0;">
+            <select name="config[POS_REQ_SUPERVISOR_ELIMINAR_ITEM]" class="form-control" style="font-weight: 600;">
+              <option value="SI" <?= ($config['POS_REQ_SUPERVISOR_ELIMINAR_ITEM'] ?? 'SI') === 'SI' ? 'selected' : '' ?>>🛡️ Exigir Supervisor</option>
+              <option value="NO" <?= ($config['POS_REQ_SUPERVISOR_ELIMINAR_ITEM'] ?? '') === 'NO' ? 'selected' : '' ?>>Permitir Libremente</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Control 3: Descuento Máximo de Cajero por Porcentaje -->
+      <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border-dark); padding: 1.25rem; border-radius: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+          <div style="flex: 1;">
+            <label style="font-size: 0.95rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+              <i class="fa-solid fa-percent" style="color: #34d399;"></i> Descuento Máximo en Caja sin Supervisor (%)
+            </label>
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin: 0; line-height: 1.4;">
+              Porcentaje máximo que un cajero puede otorgar como descuento sin pedir autorización. Si el descuento aplicado supera este porcentaje (o si se establece en <strong>0%</strong>), será obligatorio ingresar la clave de un Supervisor para completar el cobro.
+            </p>
+          </div>
+          <div style="width: 200px; flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="number" name="config[POS_DESCUENTO_MAX_PORC]" class="form-control" min="0" max="100" step="1" value="<?= htmlspecialchars($config['POS_DESCUENTO_MAX_PORC'] ?? '5') ?>" style="font-size: 1.1rem; font-weight: 700; text-align: center;" required>
+              <span style="font-weight: 700; font-size: 1.1rem; color: #fff;">%</span>
+            </div>
+            <span style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 0.25rem; text-align: center;">0 = Siempre pide clave</span>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="align-self: flex-start; padding: 0.75rem 2rem; font-size: 1rem; font-weight: bold; margin-top: 0.5rem;">
+        <i class="fa-solid fa-floppy-disk"></i> Guardar Políticas de Supervisión
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- PESTAÑA 6: APARIENCIA Y MARCA -->
+<div id="tabApariencia" class="tab-pane" style="display: none;">
+  <div class="table-card" style="padding: 1.75rem; max-width: 850px;">
+    <form method="POST" action="configuracion.php" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <?= csrfField() ?>
+      <input type="hidden" name="action" value="save_config">
+
+      <div>
+        <h2 style="font-size: 1.1rem; font-weight: 600; color: #818cf8; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.4rem;">
+          <i class="fa-solid fa-palette"></i> Tema de Color y Apariencia
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.35rem;">Personaliza la apariencia general del sistema para adaptarlo a la iluminación de tu local y a los colores de tu marca.</p>
+      </div>
+
+      <!-- Modo de Color (Oscuro vs Claro) -->
+      <div>
+        <label style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.5rem;">MODO DE COLOR PREDETERMINADO</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <label style="display: flex; align-items: center; gap: 0.75rem; padding: 1rem; border: 2px solid <?= ($config['TEMA_MODO'] ?? 'dark') === 'dark' ? 'var(--primary)' : 'var(--border-dark)' ?>; border-radius: 12px; cursor: pointer; background: rgba(15,23,42,0.6);" id="lblTemaDark">
+            <input type="radio" name="config[TEMA_MODO]" value="dark" <?= ($config['TEMA_MODO'] ?? 'dark') === 'dark' ? 'checked' : '' ?> onchange="actualizarBordeTema('dark')">
+            <div>
+              <div style="font-weight: bold; color: var(--text-main);"><i class="fa-solid fa-moon"></i> Modo Oscuro (Dark)</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Ideal para turnos largos y pantallas nocturnas. Reduce el cansancio visual.</div>
+            </div>
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.75rem; padding: 1rem; border: 2px solid <?= ($config['TEMA_MODO'] ?? '') === 'light' ? 'var(--primary)' : 'var(--border-dark)' ?>; border-radius: 12px; cursor: pointer; background: rgba(255,255,255,0.06);" id="lblTemaLight">
+            <input type="radio" name="config[TEMA_MODO]" value="light" <?= ($config['TEMA_MODO'] ?? '') === 'light' ? 'checked' : '' ?> onchange="actualizarBordeTema('light')">
+            <div>
+              <div style="font-weight: bold; color: var(--text-main);"><i class="fa-solid fa-sun"></i> Modo Claro (Light)</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Fondo blanco y alto contraste. Recomendado para locales con mucha luz natural.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Color de Acento Corporativo -->
+      <div>
+        <label style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.5rem;">COLOR DE ACENTO CORPORATIVO (MARCA)</label>
+        <?php $curAcento = $config['TEMA_COLOR_ACENTO'] ?? 'indigo'; ?>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem;">
+          
+          <label class="accent-card" style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.75rem 0.5rem; border: 2px solid <?= $curAcento === 'indigo' ? '#4f46e5' : 'var(--border-dark)' ?>; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(30,41,59,0.5);">
+            <input type="radio" name="config[TEMA_COLOR_ACENTO]" value="indigo" <?= $curAcento === 'indigo' ? 'checked' : '' ?> style="display: none;" onchange="actualizarAcentoPreview(this.value, this)">
+            <span style="width: 28px; height: 28px; border-radius: 50%; background: #4f46e5; display: inline-block; box-shadow: 0 0 10px rgba(79,70,229,0.5);"></span>
+            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">Azul Índigo</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted);">Estándar</span>
+          </label>
+
+          <label class="accent-card" style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.75rem 0.5rem; border: 2px solid <?= $curAcento === 'verde' ? '#10b981' : 'var(--border-dark)' ?>; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(30,41,59,0.5);">
+            <input type="radio" name="config[TEMA_COLOR_ACENTO]" value="verde" <?= $curAcento === 'verde' ? 'checked' : '' ?> style="display: none;" onchange="actualizarAcentoPreview(this.value, this)">
+            <span style="width: 28px; height: 28px; border-radius: 50%; background: #10b981; display: inline-block; box-shadow: 0 0 10px rgba(16,185,129,0.5);"></span>
+            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">Verde Minimarket</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted);">Fresco / Eco</span>
+          </label>
+
+          <label class="accent-card" style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.75rem 0.5rem; border: 2px solid <?= $curAcento === 'naranja' ? '#f59e0b' : 'var(--border-dark)' ?>; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(30,41,59,0.5);">
+            <input type="radio" name="config[TEMA_COLOR_ACENTO]" value="naranja" <?= $curAcento === 'naranja' ? 'checked' : '' ?> style="display: none;" onchange="actualizarAcentoPreview(this.value, this)">
+            <span style="width: 28px; height: 28px; border-radius: 50%; background: #f59e0b; display: inline-block; box-shadow: 0 0 10px rgba(245,158,11,0.5);"></span>
+            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">Naranja / Ámbar</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted);">Comercial</span>
+          </label>
+
+          <label class="accent-card" style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.75rem 0.5rem; border: 2px solid <?= $curAcento === 'cyan' ? '#06b6d4' : 'var(--border-dark)' ?>; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(30,41,59,0.5);">
+            <input type="radio" name="config[TEMA_COLOR_ACENTO]" value="cyan" <?= $curAcento === 'cyan' ? 'checked' : '' ?> style="display: none;" onchange="actualizarAcentoPreview(this.value, this)">
+            <span style="width: 28px; height: 28px; border-radius: 50%; background: #06b6d4; display: inline-block; box-shadow: 0 0 10px rgba(6,182,212,0.5);"></span>
+            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">Cyan / Turquesa</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted);">Moderno</span>
+          </label>
+
+          <label class="accent-card" style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.75rem 0.5rem; border: 2px solid <?= $curAcento === 'rojo' ? '#ef4444' : 'var(--border-dark)' ?>; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(30,41,59,0.5);">
+            <input type="radio" name="config[TEMA_COLOR_ACENTO]" value="rojo" <?= $curAcento === 'rojo' ? 'checked' : '' ?> style="display: none;" onchange="actualizarAcentoPreview(this.value, this)">
+            <span style="width: 28px; height: 28px; border-radius: 50%; background: #ef4444; display: inline-block; box-shadow: 0 0 10px rgba(239,68,68,0.5);"></span>
+            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">Rojo Dinámico</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted);">Enérgico</span>
+          </label>
+
+        </div>
+      </div>
+
+      <!-- Logo del Negocio -->
+      <div>
+        <h2 style="font-size: 1.1rem; font-weight: 600; color: #818cf8; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.4rem;">
+          <i class="fa-solid fa-image"></i> Logo de la Empresa
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.35rem;">Aparecerá en la barra superior (Navbar), en la pantalla de bienvenida y en el inicio de sesión.</p>
+        
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; align-items: center; margin-top: 0.75rem;">
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <div>
+              <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">SUBIR ARCHIVO DE LOGO (PNG, JPG, SVG, WebP)</label>
+              <input type="file" name="logo_file" id="logoFileInput" class="form-control" accept="image/*" onchange="previewLogoFile(this)">
+            </div>
+            <div>
+              <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">O RUTA / URL DE IMAGEN EXISTENTE</label>
+              <input type="text" name="config[MINIMARKET_LOGO_URL]" id="logoUrlInput" value="<?= htmlspecialchars($config['MINIMARKET_LOGO_URL'] ?? '') ?>" class="form-control" placeholder="uploads/logo/... o https://..." oninput="previewLogoUrl(this.value)">
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.25); border: 2px dashed var(--border-dark); border-radius: 12px; padding: 1rem; min-height: 120px;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600;">VISTA PREVIA</div>
+            <?php $logoActual = $config['MINIMARKET_LOGO_URL'] ?? ''; ?>
+            <img id="logoPreviewImg" src="<?= htmlspecialchars($logoActual) ?>" alt="Logo Empresa" style="<?= empty($logoActual) ? 'display:none;' : 'display:block;' ?> max-height: 60px; max-width: 100%; object-fit: contain;">
+            <div id="logoPreviewPlaceholder" style="<?= !empty($logoActual) ? 'display:none;' : 'display:flex;' ?> flex-direction: column; align-items: center; color: var(--text-muted);">
+              <i class="fa-solid fa-store" style="font-size: 2rem; margin-bottom: 0.25rem; opacity: 0.5;"></i>
+              <span style="font-size: 0.75rem;">Sin logo personalizado</span>
+            </div>
+            <?php if (!empty($logoActual)): ?>
+              <button type="button" onclick="quitarLogo()" class="btn btn-secondary" style="margin-top: 0.5rem; font-size: 0.7rem; padding: 0.2rem 0.5rem; color: var(--danger);">
+                <i class="fa-solid fa-trash-can"></i> Quitar Logo
+              </button>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modo de Operación del POS (Caja Registradora) -->
+      <div>
+        <h2 style="font-size: 1.1rem; font-weight: 600; color: #818cf8; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.4rem;">
+          <i class="fa-solid fa-cash-register"></i> Modo de Operación de la Caja (POS)
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.35rem;">Elige el modo de caja que se utilizará por defecto en el punto de venta:</p>
+        
+        <?php $layoutModo = $config['POS_LAYOUT_MODO'] ?? 'supermercado'; ?>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 0.75rem;">
+          
+          <label id="lblModoSupermercado" class="pos-mode-card-cfg" style="display: flex; flex-direction: column; padding: 1.1rem; border: 2px solid <?= $layoutModo === 'supermercado' ? 'var(--primary)' : 'var(--border-dark)' ?>; border-radius: 12px; cursor: pointer; background: rgba(30,41,59,0.5); transition: all 0.2s ease;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.45rem;">
+              <input type="radio" name="config[POS_LAYOUT_MODO]" value="supermercado" <?= $layoutModo === 'supermercado' ? 'checked' : '' ?> onchange="actualizarBordeModoPos('supermercado')">
+              <strong style="color: var(--text-main); font-size: 0.95rem;"><i class="fa-solid fa-barcode"></i> Modo Supermercado</strong>
+            </div>
+            <span style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.45;">Caja Rápida por Escáner. Oculta el catálogo y muestra una tabla central amplia de venta para registrar artículos velozmente con lector de código de barras.</span>
+          </label>
+
+          <label id="lblModoTactil" class="pos-mode-card-cfg" style="display: flex; flex-direction: column; padding: 1.1rem; border: 2px solid <?= $layoutModo === 'tactil' ? 'var(--primary)' : 'var(--border-dark)' ?>; border-radius: 12px; cursor: pointer; background: rgba(30,41,59,0.5); transition: all 0.2s ease;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.45rem;">
+              <input type="radio" name="config[POS_LAYOUT_MODO]" value="tactil" <?= $layoutModo === 'tactil' ? 'checked' : '' ?> onchange="actualizarBordeModoPos('tactil')">
+              <strong style="color: var(--text-main); font-size: 0.95rem;"><i class="fa-solid fa-hand-pointer"></i> Modo Táctil / Kiosco</strong>
+            </div>
+            <span style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.45;">Optimizado para Touchscreen. Barra horizontal de categorías superiores y tarjetas grandes con alto contraste para presionar cómodamente con el dedo.</span>
+          </label>
+
+          <label id="lblModoClasico" class="pos-mode-card-cfg" style="display: flex; flex-direction: column; padding: 1.1rem; border: 2px solid <?= $layoutModo === 'clasico' ? 'var(--primary)' : 'var(--border-dark)' ?>; border-radius: 12px; cursor: pointer; background: rgba(30,41,59,0.5); transition: all 0.2s ease;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.45rem;">
+              <input type="radio" name="config[POS_LAYOUT_MODO]" value="clasico" <?= $layoutModo === 'clasico' ? 'checked' : '' ?> onchange="actualizarBordeModoPos('clasico')">
+              <strong style="color: var(--text-main); font-size: 0.95rem;"><i class="fa-solid fa-table-columns"></i> Modo Clásico Dividido</strong>
+            </div>
+            <span style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.45;">Diseño tradicional de 2 columnas (catálogo a la izquierda y carrito a la derecha) con filtros interactivos de Más Vendidos, Ofertas, Todos o por categoría.</span>
+          </label>
+
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="align-self: flex-start; padding: 0.75rem 2rem; font-size: 1rem; font-weight: bold; margin-top: 0.5rem;">
+        <i class="fa-solid fa-floppy-disk"></i> Guardar Apariencia y Marca
+      </button>
+    </form>
+  </div>
+</div>
+
 <script>
+function actualizarBordeTema(modo) {
+  const lblDark = document.getElementById('lblTemaDark');
+  const lblLight = document.getElementById('lblTemaLight');
+  if (modo === 'dark') {
+    lblDark.style.borderColor = 'var(--primary)';
+    lblLight.style.borderColor = 'var(--border-dark)';
+  } else {
+    lblLight.style.borderColor = 'var(--primary)';
+    lblDark.style.borderColor = 'var(--border-dark)';
+  }
+  document.documentElement.setAttribute('data-theme', modo);
+}
+
+function actualizarAcentoPreview(color, radioEl) {
+  document.documentElement.setAttribute('data-accent', color);
+  document.querySelectorAll('.accent-card').forEach(c => c.style.borderColor = 'var(--border-dark)');
+  if (radioEl) {
+    radioEl.closest('.accent-card').style.borderColor = 'var(--primary)';
+  }
+}
+
+function actualizarBordeModoPos(modo) {
+  const cards = {
+    supermercado: document.getElementById('lblModoSupermercado'),
+    tactil: document.getElementById('lblModoTactil'),
+    clasico: document.getElementById('lblModoClasico')
+  };
+  Object.keys(cards).forEach(k => {
+    if (cards[k]) {
+      cards[k].style.borderColor = (k === modo) ? 'var(--primary)' : 'var(--border-dark)';
+    }
+  });
+}
+
+function previewLogoFile(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = document.getElementById('logoPreviewImg');
+      const placeholder = document.getElementById('logoPreviewPlaceholder');
+      img.src = e.target.result;
+      img.style.display = 'block';
+      placeholder.style.display = 'none';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+function previewLogoUrl(url) {
+  const img = document.getElementById('logoPreviewImg');
+  const placeholder = document.getElementById('logoPreviewPlaceholder');
+  if (url && url.trim() !== '') {
+    img.src = url.trim();
+    img.style.display = 'block';
+    placeholder.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    placeholder.style.display = 'flex';
+  }
+}
+
+function quitarLogo() {
+  document.getElementById('logoUrlInput').value = '';
+  document.getElementById('logoPreviewImg').style.display = 'none';
+  document.getElementById('logoPreviewPlaceholder').style.display = 'flex';
+}
 function switchTab(tabId) {
   document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active', 'btn-primary'));
@@ -343,6 +657,7 @@ function switchTab(tabId) {
   
   if (selectedPane) selectedPane.style.display = 'block';
   if (selectedBtn) selectedBtn.classList.add('active', 'btn-primary');
+  try { localStorage.setItem('config_active_tab', tabId); } catch(e) {}
 }
 
 function toggleDteFields() {
@@ -376,5 +691,11 @@ function toggleDteFields() {
 // Ejecutar al cargar la página
 document.addEventListener("DOMContentLoaded", () => {
   toggleDteFields();
+  try {
+    const savedTab = localStorage.getItem('config_active_tab');
+    if (savedTab && document.getElementById(savedTab)) {
+      switchTab(savedTab);
+    }
+  } catch(e) {}
 });
 </script>

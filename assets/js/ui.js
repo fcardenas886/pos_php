@@ -56,12 +56,13 @@
 
   function buildModal(cfg) {
     const overlay = document.createElement('div');
+    const inputType = cfg.isPassword ? 'password' : 'text';
     overlay.className = 'ui-modal';
     overlay.innerHTML =
       '<div class="ui-modal__card" role="dialog" aria-modal="true">' +
         '<h3 class="ui-modal__title"></h3>' +
         '<p class="ui-modal__msg"></p>' +
-        (cfg.withInput ? '<input class="form-control ui-modal__input" type="text" autocomplete="off">' : '') +
+        (cfg.withInput ? '<input class="form-control ui-modal__input" type="' + inputType + '" autocomplete="off">' : '') +
         '<div class="ui-modal__actions">' +
           '<button class="btn btn-secondary ui-modal__cancel" type="button"></button>' +
           '<button class="btn ui-modal__ok" type="button"></button>' +
@@ -120,5 +121,16 @@
   };
   window.promptDialog = function (opts) {
     return openModal(Object.assign({ confirmText: 'Guardar', cancelText: 'Cancelar' }, opts || {}, { withInput: true }));
+  };
+  window.supervisorPromptDialog = function (opts) {
+    return openModal(Object.assign({
+      title: '🛡️ Autorización de Supervisor',
+      message: 'Ingresa la clave de un Supervisor o Administrador para autorizar esta operación:',
+      placeholder: '••••••••',
+      confirmText: 'Autorizar',
+      cancelText: 'Cancelar',
+      isPassword: true,
+      danger: opts && opts.danger ? true : false
+    }, opts || {}, { withInput: true }));
   };
 })();

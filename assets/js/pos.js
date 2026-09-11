@@ -20,89 +20,566 @@ function playBeep() {
   } catch (e) {}
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const searchInput = document.getElementById('posSearch');
-  const btnVaciar = document.getElementById('btnVaciar');
+let modoDescuento = 'monto'; // 'monto' | 'porc'
+let supervisorPassAutorizadoDescuento = null;
 
-  cargarProductos('');
+async function pedirAutorizacionSupervisor(accion, detalle = '') {
+  if (window.CURRENT_USER_ROL === 'Administrador' || window.CURRENT_USER_ROL === 'Supervisor') {
+    return { autorizado: true, supervisor_pass: null, supervisor_nombre: window.CURRENT_USER_NAME || 'Supervisor' };
+  }
 
-  let debounceTimer;
-  searchInput.addEventListener('input', (e) => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      cargarProductos(e.target.value.trim());
-    }, 250);
+  let promptMsg = 'Se requiere la clave de un Supervisor o Administrador para continuar.';
+  let promptTitle = '🛡️ Autorización de Supervisor';
+  let isDanger = false;
+
+  if (accion === 'cancelar_venta_proceso') {
+    promptTitle = '🛡️ Autorizar Cancelar Venta';
+    promptMsg = 'Se requiere clave de Supervisor para vaciar el carrito y cancelar la venta en proceso.';
+    isDanger = true;
+  } else if (accion === 'eliminar_item_carrito') {
+    promptTitle = '🛡️ Autorizar Eliminar Producto';
+    promptMsg = `Se requiere clave de Supervisor para quitar "${detalle}" de la venta.`;
+    isDanger = true;
+  } else if (accion === 'descuento_excedido') {
+    const maxPct = window.CONFIG_SUPERVISION?.POS_DESCUENTO_MAX_PORC ?? 5;
+    promptTitle = '🛡️ Autorizar Descuento Especial';
+    promptMsg = `El descuento aplicado supera el límite permitido sin supervisión (${maxPct}%). Ingresa la clave de un Supervisor para autorizar:`;
+  }
+
+  const pass = await supervisorPromptDialog({
+    title: promptTitle,
+    message: promptMsg,
+    danger: isDanger
   });
 
-  searchInput.addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const code = searchInput.value.trim();
-      if (!code) return;
+  if (!pass) {
+    return { autorizado: false };
+  }
 
-      const prefijoIndiv = window.BALANZA_PREFIJO_INDIVIDUAL || '20';
-      const tipoEan = window.BALANZA_TIPO_EAN || 'plu_peso';
+  try {
+    const res = await fetch('api/autorizar_supervisor.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': window.CSRF_TOKEN || ''
+      },
+      body: JSON.stringify({
+        password: pass,
+        accion: accion,
+        detalle: detalle
+      })
+    });
+    
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      toast('Error al comunicarse con el servidor.', 'error');
+      return { autorizado: false };
+    }
 
-      // Si cumple con el estándar EAN-13 de balanza individual
-      if (code.length === 13 && code.startsWith(prefijoIndiv)) {
-        const plu = code.substring(2, 6);
-        const cantidadBruta = parseInt(code.substring(6, 11)) || 0;
+    if (!data.success) {
+      toast(data.error || 'Clave de supervisor incorrecta.', 'error');
+      return { autorizado: false };
+    }
 
-        const res = await fetch(`api/buscar_producto.php?q=${encodeURIComponent(plu)}`);
-        const data = await res.json();
+    toast(`Autorizado por ${data.supervisor_nombre}`, 'success');
+    return { autorizado: true, supervisor_pass: pass, supervisor_nombre: data.supervisor_nombre };
+  } catch (e) {
+    toast('Error al verificar supervisor: ' + e.message, 'error');
+    return { autorizado: false };
+  }
+}
 
-        if (data.success && data.productos.length > 0) {
-          const match = data.productos.find(p => p.CodigoPLU === plu) || data.productos[0];
-          
-          let cantidadFinal = 1;
-          if (tipoEan === 'plu_peso') {
-            // Peso en gramos (ej. 01250g = 1.250kg)
-            cantidadFinal = cantidadBruta / 1000;
-          } else {
-            // Precio total en pesos (ej. 12500 = $12.500)
-            const precioVenta = parseInt(match.PrecioVenta) || 1;
-            cantidadFinal = Math.round((cantidadBruta / precioVenta) * 1000) / 1000;
-          }
+async function validarSupervisorDescuentoInline() {
+  const input = document.getElementById('inputPassSupervisorInline');
+  const pass = input ? input.value.trim() : '';
+  if (!pass) {
+    toast('Ingresa la clave de supervisor para autorizar el descuento.', 'warn');
+    if (input) input.focus();
+    return false;
+  }
 
-          agregarAlCarrito(match, cantidadFinal);
-          searchInput.value = '';
-          cargarProductos('');
-        } else {
-          toast(`Producto con PLU de balanza #${plu} no encontrado.`, 'error');
-        }
-      } else {
-        // Flujo de código de barra normal
-        const res = await fetch(`api/buscar_producto.php?q=${encodeURIComponent(code)}`);
-        const data = await res.json();
+  const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
+  const subtotalBruto = cart.reduce((s, i) => s + (i.cantidad * i.PrecioVenta), 0);
+  const pctEfectivo = subtotalBruto > 0 ? (descGlobal / subtotalBruto) * 100 : 0;
+  const detalle = `Descuento de $${formatNumber(descGlobal)} (${pctEfectivo.toFixed(1)}%)`;
 
-        if (data.success && data.productos.length > 0) {
-          const match = data.productos.find(p => p.CodigoBarras === code) || data.productos[0];
-          agregarAlCarrito(match);
-          searchInput.value = '';
-          cargarProductos('');
-        } else {
-          toast('Producto no encontrado', 'error');
-        }
+  const btn = document.getElementById('btnAuthSupervisorInline');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+  }
+
+  try {
+    const res = await fetch('api/autorizar_supervisor.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': window.CSRF_TOKEN || ''
+      },
+      body: JSON.stringify({
+        password: pass,
+        accion: 'descuento_excedido',
+        detalle: detalle
+      })
+    });
+
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      toast('Error al comunicarse con el servidor.', 'error');
+      return false;
+    }
+
+    if (!data.success) {
+      toast(data.error || 'Clave de supervisor incorrecta.', 'error');
+      if (input) {
+        input.value = '';
+        input.focus();
       }
+      return false;
+    }
+
+    supervisorPassAutorizadoDescuento = pass;
+    toast(`Autorizado correctamente por ${data.supervisor_nombre}`, 'success');
+
+    const boxInline = document.getElementById('boxSupervisorAuthInline');
+    const boxOk = document.getElementById('boxSupervisorAuthOk');
+    const txtOk = document.getElementById('txtSupervisorAuthOk');
+    if (boxInline) boxInline.style.display = 'none';
+    if (boxOk) {
+      boxOk.style.display = 'flex';
+      if (txtOk) txtOk.textContent = `Autorizado por ${data.supervisor_nombre}`;
+    }
+
+    return true;
+  } catch (e) {
+    toast('Error al verificar supervisor: ' + e.message, 'error');
+    return false;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fa-solid fa-key"></i> Autorizar`;
+    }
+  }
+}
+
+function setModoDescuento(modo) {
+  modoDescuento = modo;
+  const btnMonto = document.getElementById('btnDescModoMonto');
+  const btnPorc = document.getElementById('btnDescModoPorc');
+  const suffix = document.getElementById('descInputSuffix');
+  const input = document.getElementById('descuentoInput');
+
+  if (modo === 'porc') {
+    if (btnMonto) btnMonto.classList.remove('active', 'btn-primary');
+    if (btnPorc) btnPorc.classList.add('active', 'btn-primary');
+    if (suffix) suffix.textContent = '%';
+    if (input) {
+      input.placeholder = '0';
+      input.max = '100';
+    }
+  } else {
+    if (btnPorc) btnPorc.classList.remove('active', 'btn-primary');
+    if (btnMonto) btnMonto.classList.add('active', 'btn-primary');
+    if (suffix) suffix.textContent = '$';
+    if (input) {
+      input.placeholder = '0';
+      input.removeAttribute('max');
+    }
+  }
+  onDescuentoInputChange();
+}
+
+function onDescuentoInputChange() {
+  const input = document.getElementById('descuentoInput');
+  const hidden = document.getElementById('descuentoGlobal');
+  const rawVal = input ? parseFloat(input.value) : 0;
+  const subtotal = getCartSubtotal();
+  let descPesos = 0;
+  let pctEfectivo = 0;
+
+  if (modoDescuento === 'porc') {
+    const pct = Math.min(100, Math.max(0, isNaN(rawVal) ? 0 : rawVal));
+    pctEfectivo = pct;
+    descPesos = Math.round(subtotal * (pct / 100));
+  } else {
+    descPesos = Math.min(subtotal, Math.max(0, isNaN(rawVal) ? 0 : Math.round(rawVal)));
+    pctEfectivo = subtotal > 0 ? (descPesos / subtotal) * 100 : 0;
+  }
+
+  const prevDesc = parseInt(hidden ? hidden.value : 0) || 0;
+  if (hidden) hidden.value = descPesos;
+
+  // Si el monto de descuento cambió, invalidar autorización previa
+  if (prevDesc !== descPesos) {
+    supervisorPassAutorizadoDescuento = null;
+    const boxInline = document.getElementById('boxSupervisorAuthInline');
+    const boxOk = document.getElementById('boxSupervisorAuthOk');
+    const passInput = document.getElementById('inputPassSupervisorInline');
+    if (boxInline) boxInline.style.display = 'flex';
+    if (boxOk) boxOk.style.display = 'none';
+    if (passInput) passInput.value = '';
+  }
+
+  // Evaluar si requiere autorización de supervisor
+  const maxPorc = parseFloat(window.CONFIG_SUPERVISION?.POS_DESCUENTO_MAX_PORC ?? 5);
+  const avisoEl = document.getElementById('descuentoAvisoSupervisor');
+  const lblMaxEl = document.getElementById('lblDescMaxPorc');
+  if (lblMaxEl) lblMaxEl.textContent = `${maxPorc}%`;
+
+  if (window.CURRENT_USER_ROL === 'Cajero' && descPesos > 0 && (pctEfectivo > maxPorc || maxPorc === 0)) {
+    if (avisoEl) avisoEl.style.display = 'flex';
+  } else {
+    if (avisoEl) avisoEl.style.display = 'none';
+  }
+
+  renderCart();
+}
+
+function resetDescuento() {
+  const input = document.getElementById('descuentoInput');
+  const hidden = document.getElementById('descuentoGlobal');
+  const avisoEl = document.getElementById('descuentoAvisoSupervisor');
+  if (input) input.value = '';
+  if (hidden) hidden.value = '0';
+  if (avisoEl) avisoEl.style.display = 'none';
+
+  supervisorPassAutorizadoDescuento = null;
+  const passInline = document.getElementById('inputPassSupervisorInline');
+  if (passInline) passInline.value = '';
+  const boxInline = document.getElementById('boxSupervisorAuthInline');
+  const boxOk = document.getElementById('boxSupervisorAuthOk');
+  if (boxInline) boxInline.style.display = 'flex';
+  if (boxOk) boxOk.style.display = 'none';
+}
+
+// --- Control de Layout de Pantalla POS (Supermercado / Táctil / Clásico) ---
+let modoPosLayout = window.POS_LAYOUT_MODO || 'supermercado'; // 'supermercado' | 'tactil' | 'clasico'
+let filtroCatalogoActual = 'mas_vendidos'; // 'mas_vendidos' | 'ofertas' | 'todos' | 'categoria'
+let categoriaFiltroActual = 0;
+let categoriaTactilActual = 0;
+let disenoGridActual = 'estandar';
+
+function setModoPosLayout(modo) {
+  modoPosLayout = modo;
+  const container = document.getElementById('posContainer');
+  if (container) {
+    container.classList.remove('pos-mode--supermercado', 'pos-mode--tactil', 'pos-mode--clasico');
+    container.classList.add(`pos-mode--${modo}`);
+  }
+
+  if (modo === 'tactil') {
+    cambiarDisenoGrid('tactil');
+    cargarProductos('');
+  } else if (modo === 'clasico') {
+    let savedGrid = 'estandar';
+    try { savedGrid = localStorage.getItem('pos_diseno_grid') || 'estandar'; } catch(e) {}
+    cambiarDisenoGrid(savedGrid === 'tactil' ? 'estandar' : savedGrid);
+    cargarProductos('');
+  }
+
+  setTimeout(() => {
+    if (modo === 'supermercado') {
+      const superInput = document.getElementById('posSearchSuper');
+      if (superInput) superInput.focus();
+    } else {
+      const normalInput = document.getElementById('posSearch');
+      if (normalInput) normalInput.focus();
+    }
+  }, 100);
+
+  renderCart();
+}
+
+function setFiltroCatalogo(tipo, btn) {
+  filtroCatalogoActual = tipo;
+  categoriaFiltroActual = 0;
+
+  const chips = [
+    { id: 'btnFiltroMasVendidos', tipo: 'mas_vendidos' },
+    { id: 'btnFiltroOfertas', tipo: 'ofertas' },
+    { id: 'btnFiltroTodos', tipo: 'todos' }
+  ];
+  chips.forEach(c => {
+    const el = document.getElementById(c.id);
+    if (el) {
+      if (c.tipo === tipo) el.classList.add('active');
+      else el.classList.remove('active');
     }
   });
 
-  btnVaciar.addEventListener('click', async () => {
-    if (cart.length === 0) return;
+  const selectCat = document.getElementById('selectFiltroCategoria');
+  if (selectCat) selectCat.value = '0';
+
+  const searchInput = document.getElementById('posSearch');
+  if (searchInput) searchInput.value = '';
+
+  cargarProductos('');
+}
+
+function setFiltroCatalogoCategoria(catId) {
+  catId = parseInt(catId) || 0;
+  if (catId > 0) {
+    filtroCatalogoActual = 'categoria';
+    categoriaFiltroActual = catId;
+    ['btnFiltroMasVendidos', 'btnFiltroOfertas', 'btnFiltroTodos'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active');
+    });
+  } else {
+    const btn = document.getElementById('btnFiltroMasVendidos');
+    setFiltroCatalogo('mas_vendidos', btn);
+    return;
+  }
+
+  const searchInput = document.getElementById('posSearch');
+  if (searchInput) searchInput.value = '';
+
+  cargarProductos('');
+}
+
+function setCategoriaTactil(catId, btn) {
+  categoriaTactilActual = parseInt(catId) || 0;
+  const container = document.getElementById('posTactilCategories');
+  if (container) {
+    const pills = container.querySelectorAll('.tactil-cat-pill');
+    pills.forEach(p => p.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+
+  const searchInput = document.getElementById('posSearch');
+  if (searchInput) searchInput.value = '';
+
+  cargarProductos('');
+}
+
+// Helper unificado de búsqueda con tolerancia a fallos y fallback offline a IndexedDB
+async function buscarProductoConFallback(query) {
+  query = String(query).trim();
+  if (!query) return [];
+
+  // 1. Si no estamos forzados y no estamos en offline confirmado, intentar la API remota con timeout breve
+  if (!posModoOfflineForzado && !posEstadoOfflineActivo && navigator.onLine) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const res = await fetch(`api/buscar_producto.php?q=${encodeURIComponent(query)}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      const data = await res.json();
+      if (data && data.success && Array.isArray(data.productos)) {
+        return data.productos;
+      }
+    } catch (netErr) {
+      console.warn('[POS] API remota no respondió. Activando fallback offline para:', query);
+      marcarModoDesconectado(true);
+    }
+  } else {
+    marcarModoDesconectado(true);
+  }
+
+  // 2. Fallback transparente a IndexedDB
+  if (window.posOfflineDB) {
+    try {
+      const offlineResults = await window.posOfflineDB.buscarProductoOffline(query);
+      if (offlineResults && offlineResults.length > 0) {
+        return offlineResults;
+      }
+    } catch (idbErr) {
+      console.error('[POS] Error al consultar catálogo IndexedDB:', idbErr);
+    }
+  }
+
+  return [];
+}
+
+async function procesarEntradaCodigo(inputEl) {
+  if (!inputEl) return;
+  const code = inputEl.value.trim();
+  if (!code) return;
+
+  const prefijoIndiv = window.BALANZA_PREFIJO_INDIVIDUAL || '20';
+  const tipoEan = window.BALANZA_TIPO_EAN || 'plu_peso';
+
+  // Si cumple con el estándar EAN-13 de balanza individual
+  if (code.length === 13 && code.startsWith(prefijoIndiv)) {
+    const plu = code.substring(2, 6);
+    const cantidadBruta = parseInt(code.substring(6, 11)) || 0;
+
+    try {
+      const productos = await buscarProductoConFallback(plu);
+
+      if (productos.length > 0) {
+        const match = productos.find(p => p.CodigoPLU === plu) || productos[0];
+        
+        let cantidadFinal = 1;
+        if (tipoEan === 'plu_peso') {
+          cantidadFinal = cantidadBruta / 1000;
+        } else {
+          const precioVenta = parseInt(match.PrecioVenta) || 1;
+          cantidadFinal = Math.round((cantidadBruta / precioVenta) * 1000) / 1000;
+        }
+
+        agregarAlCarrito(match, cantidadFinal);
+        inputEl.value = '';
+        if (modoPosLayout !== 'supermercado') cargarProductos('');
+      } else {
+        toast(`Producto con PLU de balanza #${plu} no encontrado.`, 'error');
+      }
+    } catch (e) {
+      toast('Error al consultar balanza.', 'error');
+    }
+  } else {
+    // Flujo de código de barra normal
+    try {
+      const productos = await buscarProductoConFallback(code);
+
+      if (productos.length > 0) {
+        const match = productos.find(p => p.CodigoBarras === code || p.CodigoAltMatch === code) || productos[0];
+
+        // Si calzó específicamente con un código alternativo que define factor de pack o precio propio
+        if (match.CodigoAltMatch === code) {
+          const factor = parseFloat(match.AltCantidad || 1);
+          let precioPack = null;
+          let esPromoPack = false;
+
+          // Regla 1: Precio fijo explícito en el código alternativo
+          if (match.AltPrecioVenta !== null && match.AltPrecioVenta !== undefined && parseInt(match.AltPrecioVenta) > 0) {
+            precioPack = parseInt(match.AltPrecioVenta);
+          }
+          // Regla 2: Heredar automáticamente el precio de la promoción activa si el precio está vacío
+          else if (match.PromoTipo === 'MULTIBUY' && parseFloat(match.PromoCantMin) > 0) {
+            const cantMin = parseFloat(match.PromoCantMin);
+            const precioOf = parseInt(match.PromoPrecioOf);
+            if (factor >= cantMin && factor % cantMin === 0) {
+              precioPack = Math.round((factor / cantMin) * precioOf);
+              esPromoPack = true;
+            }
+          } else if (match.PromoTipo === 'DESCUENTO_UNIT' && parseFloat(match.PromoDescPorc) > 0) {
+            const descUnit = Math.round(parseInt(match.PrecioVenta) * (parseFloat(match.PromoDescPorc) / 100));
+            precioPack = Math.round((parseInt(match.PrecioVenta) - descUnit) * factor);
+            esPromoPack = true;
+          }
+
+          // Regla 3: Si no hay precio fijo ni promoción para esa cantidad, multiplicar precio base * factor
+          if (precioPack === null) {
+            precioPack = Math.round(parseInt(match.PrecioVenta) * factor);
+          }
+
+          const descPack = match.AltDescripcion ? match.AltDescripcion : (factor > 1 ? `Pack x${factor}` : '');
+
+          agregarAlCarrito(match, 1, factor, precioPack, descPack, esPromoPack);
+        } else {
+          agregarAlCarrito(match);
+        }
+
+        inputEl.value = '';
+        if (modoPosLayout !== 'supermercado') cargarProductos('');
+      } else {
+        toast(`Producto "${code}" no encontrado`, 'error');
+      }
+    } catch (e) {
+      toast('Error al consultar producto.', 'error');
+    }
+  }
+
+  inputEl.focus();
+}
+
+async function vaciarCarritoPos() {
+  if (cart.length === 0) return;
+  const reqSup = (window.CONFIG_SUPERVISION?.POS_REQ_SUPERVISOR_CANCELAR ?? 'SI') === 'SI';
+  if (window.CURRENT_USER_ROL === 'Cajero' && reqSup) {
+    const auth = await pedirAutorizacionSupervisor('cancelar_venta_proceso', `${cart.length} productos en el carrito`);
+    if (!auth.autorizado) return;
+  } else {
     const ok = await confirmDialog({
-      title: 'Vaciar carrito',
-      message: '¿Seguro que quieres quitar todos los productos del carrito?',
+      title: 'Cancelar venta en proceso',
+      message: '¿Seguro que quieres quitar todos los productos del carrito y cancelar la venta?',
       confirmText: 'Vaciar',
       danger: true,
     });
-    if (ok) {
-      cart = [];
-      renderCart();
-    }
+    if (!ok) return;
+  }
+  cart = [];
+  cotizacionActiva = null;
+  resetDescuento();
+  renderCart();
+  toast('Venta en proceso cancelada y carrito vaciado.', 'info');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('posSearch');
+  const superSearchInput = document.getElementById('posSearchSuper');
+
+  // Prevenir y limpiar de raíz cualquier inyección automática de "admin" o credenciales guardadas en el navegador
+  const limpiarAutofillCredenciales = () => {
+    [searchInput, superSearchInput].forEach(inp => {
+      if (!inp) return;
+      const v = (inp.value || '').trim().toLowerCase();
+      if (v === 'admin' || v === 'administrador' || v === 'root' || v === 'cajero' || v === 'supervisor') {
+        inp.value = '';
+      }
+    });
+  };
+
+  limpiarAutofillCredenciales();
+  setTimeout(limpiarAutofillCredenciales, 50);
+  setTimeout(limpiarAutofillCredenciales, 150);
+  setTimeout(limpiarAutofillCredenciales, 400);
+  setTimeout(limpiarAutofillCredenciales, 1000);
+
+  [searchInput, superSearchInput].forEach(inp => {
+    if (!inp) return;
+    inp.addEventListener('focus', () => {
+      const v = (inp.value || '').trim().toLowerCase();
+      if (v === 'admin' || v === 'administrador' || v === 'root' || v === 'cajero' || v === 'supervisor') {
+        inp.value = '';
+      }
+    });
   });
 
+  let debounceTimer;
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        cargarProductos(e.target.value.trim());
+      }, 250);
+    });
+
+    searchInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        await procesarEntradaCodigo(searchInput);
+      }
+    });
+  }
+
+  if (superSearchInput) {
+    superSearchInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        await procesarEntradaCodigo(superSearchInput);
+      }
+    });
+  }
+
   document.addEventListener('keydown', (e) => {
+    // Bloquear terminal con Alt + L o tecla F9
+    if ((e.altKey && (e.key === 'l' || e.key === 'L')) || e.key === 'F9') {
+      e.preventDefault();
+      bloquearCaja();
+      return;
+    }
+
     if (e.key === 'F12') {
+      // Si la caja está bloqueada, no abrir cobro
+      if (sessionStorage.getItem('pos_locked') === '1') return;
       e.preventDefault();
       abrirModalPago();
     }
@@ -112,36 +589,128 @@ document.addEventListener('DOMContentLoaded', () => {
   if (window.COTIZACION_PRELOAD) {
     cargarCotizacion(window.COTIZACION_PRELOAD);
   }
+
+  // Inicializar modo de layout POS configurado desde la base de datos (Configuraciones)
+  setModoPosLayout(window.POS_LAYOUT_MODO || 'supermercado');
+
+  // Si la caja estaba bloqueada antes de refrescar, restaurar el bloqueo
+  if (sessionStorage.getItem('pos_locked') === '1') {
+    bloquearCaja();
+  }
 });
 
-async function cargarProductos(query) {
+function cambiarDisenoGrid(modo) {
+  disenoGridActual = modo;
   const grid = document.getElementById('productGrid');
-  try {
-    const res = await fetch(`api/buscar_producto.php?q=${encodeURIComponent(query)}`);
-    const data = await res.json();
+  if (grid) {
+    grid.classList.remove('product-grid--tactil', 'product-grid--compacto');
+    if (modo === 'tactil') grid.classList.add('product-grid--tactil');
+    if (modo === 'compacto') grid.classList.add('product-grid--compacto');
+  }
 
-    if (!data.success) throw new Error(data.error);
-
-    productosCache = data.productos;
-
-    if (productosCache.length === 0) {
-      grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 2rem;">No se encontraron productos.</div>`;
-      return;
+  // Actualizar botones activos de densidad
+  const btns = {
+    estandar: document.getElementById('btnGridEstandar'),
+    compacto: document.getElementById('btnGridCompacto')
+  };
+  Object.keys(btns).forEach(k => {
+    if (btns[k]) {
+      if (k === modo) {
+        btns[k].classList.add('active', 'btn-primary');
+        btns[k].classList.remove('btn-secondary');
+      } else {
+        btns[k].classList.remove('active', 'btn-primary');
+        btns[k].classList.add('btn-secondary');
+      }
     }
+  });
 
+  try { localStorage.setItem('pos_diseno_grid', modo); } catch(e) {}
+  renderProductosGrid();
+}
+
+function renderProductosGrid() {
+  const grid = document.getElementById('productGrid');
+  if (!grid || !productosCache) return;
+
+  if (productosCache.length === 0) {
+    grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 2rem;">No se encontraron productos.</div>`;
+    return;
+  }
+
+  if (disenoGridActual === 'compacto') {
+    grid.innerHTML = productosCache.map(p => `
+      <div class="product-card" onclick="agregarAlCarritoId(${p.ProductoID})" title="Clic para agregar a la venta">
+        <div class="product-name" title="${escapeHtml(p.Nombre)}">${escapeHtml(p.Nombre)}</div>
+        <div class="product-sku">${p.CodigoBarras ? '#' + p.CodigoBarras : (p.CodigoPLU ? 'PLU #' + p.CodigoPLU : 'Sin código')}</div>
+        <div class="product-meta">
+          <div class="product-price">$${formatNumber(p.PrecioVenta)}</div>
+          <div class="product-stock" title="Stock en tienda">${p.Stock} disp.</div>
+        </div>
+      </div>
+    `).join('');
+  } else {
     grid.innerHTML = productosCache.map(p => `
       <div class="product-card" onclick="agregarAlCarritoId(${p.ProductoID})">
         <div class="product-name">${escapeHtml(p.Nombre)}</div>
-        <div style="font-size: 0.75rem; color: var(--text-muted);">${p.CodigoBarras ? '#' + p.CodigoBarras : 'Sin código'}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">${p.CodigoBarras ? '#' + p.CodigoBarras : (p.CodigoPLU ? 'PLU #' + p.CodigoPLU : 'Sin código')}</div>
         <div class="product-meta">
           <div class="product-price">$${formatNumber(p.PrecioVenta)}</div>
           <div class="product-stock">Stock: ${p.Stock}</div>
         </div>
       </div>
     `).join('');
+  }
+}
 
+async function cargarProductos(query = '') {
+  const grid = document.getElementById('productGrid');
+  if (!grid) return;
+
+  if (query) {
+    const productos = await buscarProductoConFallback(query);
+    productosCache = productos;
+    renderProductosGrid();
+    return;
+  }
+
+  let url = 'api/buscar_producto.php';
+  if (modoPosLayout === 'tactil') {
+    if (categoriaTactilActual > 0) {
+      url += `?filtro=categoria&cat=${categoriaTactilActual}`;
+    } else {
+      url += `?filtro=todos`;
+    }
+  } else {
+    if (filtroCatalogoActual === 'categoria' && categoriaFiltroActual > 0) {
+      url += `?filtro=categoria&cat=${categoriaFiltroActual}`;
+    } else {
+      url += `?filtro=${encodeURIComponent(filtroCatalogoActual || 'mas_vendidos')}`;
+    }
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error);
+
+    productosCache = data.productos;
+    renderProductosGrid();
+    marcarModoDesconectado(false);
   } catch (err) {
-    grid.innerHTML = `<div style="grid-column: 1/-1; color: var(--danger); text-align: center; padding: 2rem;">Error al cargar productos: ${err.message}</div>`;
+    console.warn('[POS] Error al cargar productos por red. Intentando IndexedDB...', err);
+    marcarModoDesconectado(true);
+    if (window.posOfflineDB) {
+      const offlineProds = await window.posOfflineDB.buscarProductoOffline('');
+      productosCache = offlineProds;
+      renderProductosGrid();
+    } else {
+      grid.innerHTML = `<div style="grid-column: 1/-1; color: var(--danger); text-align: center; padding: 2rem;">Error al cargar productos: ${err.message}</div>`;
+    }
   }
 }
 
@@ -150,37 +719,103 @@ function agregarAlCarritoId(id) {
   if (p) agregarAlCarrito(p);
 }
 
-function agregarAlCarrito(producto, cantidad = 1) {
-  const existIndex = cart.findIndex(item => item.ProductoID == producto.ProductoID);
-  
-  if (existIndex > -1) {
-    if (cart[existIndex].cantidad + cantidad > producto.Stock) {
-      toast(`No hay suficiente stock. Disponible: ${producto.Stock}`, 'warn');
-      return;
+function agregarAlCarrito(producto, cantidad = 1, factor = 1, precioPack = null, descPack = '', esPromoPack = false) {
+  factor = parseFloat(factor) || 1;
+  const precioBaseUnitario = parseInt(producto.PrecioVenta) || 0;
+
+  // Si no vino precioPack explícito pero factor > 1 y tiene promo activa (ej. llamadas programáticas)
+  if ((precioPack === null || precioPack === undefined) && factor > 1) {
+    if (producto.PromoTipo === 'MULTIBUY' && parseFloat(producto.PromoCantMin) > 0) {
+      const cantMin = parseFloat(producto.PromoCantMin);
+      const precioOf = parseInt(producto.PromoPrecioOf);
+      if (factor >= cantMin && factor % cantMin === 0) {
+        precioPack = Math.round((factor / cantMin) * precioOf);
+        esPromoPack = true;
+      }
+    } else if (producto.PromoTipo === 'DESCUENTO_UNIT' && parseFloat(producto.PromoDescPorc) > 0) {
+      const descUnit = Math.round(precioBaseUnitario * (parseFloat(producto.PromoDescPorc) / 100));
+      precioPack = Math.round((precioBaseUnitario - descUnit) * factor);
+      esPromoPack = true;
     }
+  }
+
+  const precioUnitario = (precioPack !== null && precioPack !== undefined && parseInt(precioPack) > 0)
+    ? parseInt(precioPack)
+    : Math.round(precioBaseUnitario * (factor > 1 && factor === Math.floor(factor) ? factor : 1));
+
+  const nombreFinal = descPack ? `${producto.Nombre} (${descPack})` : producto.Nombre;
+  const codigoUsado = producto.CodigoAltMatch || producto.CodigoBarras || '';
+
+  // Buscar si ya existe exactamente esta misma presentación (mismo producto y mismo factor/precio)
+  const existIndex = cart.findIndex(item => item.ProductoID == producto.ProductoID && (item.factor || 1) == factor && item.PrecioVenta == precioUnitario);
+  
+  // Unidades físicas totales que este producto ya ocupa en el carrito
+  const totalFisicoActual = cart
+    .filter(item => item.ProductoID == producto.ProductoID)
+    .reduce((sum, item) => sum + (item.cantidad * (item.factor || 1)), 0);
+
+  const unidadesNuevas = cantidad * factor;
+
+  if (totalFisicoActual + unidadesNuevas > parseFloat(producto.Stock)) {
+    toast(`No hay suficiente stock para "${producto.Nombre}". Disponible: ${producto.Stock} unidades (en carrito: ${totalFisicoActual}).`, 'warn');
+    return;
+  }
+
+  if (existIndex > -1) {
     cart[existIndex].cantidad += cantidad;
   } else {
-    if (producto.Stock < cantidad) {
-      toast('Sin stock disponible.', 'warn');
-      return;
-    }
     cart.push({
       ProductoID: producto.ProductoID,
-      Nombre: producto.Nombre,
-      PrecioVenta: parseInt(producto.PrecioVenta),
+      CodigoBarras: codigoUsado,
+      CodigoPLU: producto.CodigoPLU || '',
+      Nombre: nombreFinal,
+      NombreBase: producto.Nombre,
+      PrecioBaseUnitario: precioBaseUnitario,
+      PrecioVenta: precioUnitario,
       Stock: parseFloat(producto.Stock),
       cantidad: cantidad,
+      factor: factor,
+      descPack: descPack,
+      esPromoPack: esPromoPack,
       EsPesable: producto.EsPesable,
-      PromocionID: producto.PromocionID || null,
-      PromoTipo: producto.PromoTipo || null,
-      PromoCantMin: parseFloat(producto.PromoCantMin) || 0,
-      PromoDescPorc: parseFloat(producto.PromoDescPorc) || 0,
-      PromoPrecioOf: parseInt(producto.PromoPrecioOf) || 0
+      PromocionID: factor <= 1 ? (producto.PromocionID || null) : null,
+      PromoTipo: factor <= 1 ? (producto.PromoTipo || null) : null,
+      PromoCantMin: factor <= 1 ? (parseFloat(producto.PromoCantMin) || 0) : 0,
+      PromoDescPorc: factor <= 1 ? (parseFloat(producto.PromoDescPorc) || 0) : 0,
+      PromoPrecioOf: factor <= 1 ? (parseInt(producto.PromoPrecioOf) || 0) : 0
     });
   }
 
   playBeep();
   renderCart();
+}
+
+async function eliminarItemCarrito(index) {
+  const item = cart[index];
+  if (!item) return;
+
+  const reqSup = (window.CONFIG_SUPERVISION?.POS_REQ_SUPERVISOR_ELIMINAR_ITEM ?? 'SI') === 'SI';
+  if (window.CURRENT_USER_ROL === 'Cajero' && reqSup) {
+    const auth = await pedirAutorizacionSupervisor('eliminar_item_carrito', item.Nombre);
+    if (!auth.autorizado) return;
+  } else {
+    const ok = await confirmDialog({
+      title: 'Quitar producto',
+      message: `¿Seguro que deseas quitar "${item.Nombre}" del carrito?`,
+      confirmText: 'Quitar',
+      danger: true
+    });
+    if (!ok) return;
+  }
+
+  cart.splice(index, 1);
+  if (cart.length === 0) {
+    resetDescuento();
+  } else {
+    onDescuentoInputChange();
+  }
+  renderCart();
+  toast(`"${item.Nombre}" retirado del carrito.`, 'info');
 }
 
 function cambiarCantidad(index, delta) {
@@ -191,14 +826,21 @@ function cambiarCantidad(index, delta) {
   const nuevaCant = Math.round((item.cantidad + (delta * step)) * 1000) / 1000;
 
   if (nuevaCant <= 0) {
-    cart.splice(index, 1);
-  } else {
-    if (nuevaCant > item.Stock) {
-      toast(`Stock máximo disponible: ${item.Stock}`, 'warn');
-      return;
-    }
-    item.cantidad = nuevaCant;
+    eliminarItemCarrito(index);
+    return;
   }
+
+  const factor = item.factor || 1;
+  const totalFisicoOtros = cart
+    .filter((it, idx) => idx !== index && it.ProductoID === item.ProductoID)
+    .reduce((sum, it) => sum + (it.cantidad * (it.factor || 1)), 0);
+
+  if ((totalFisicoOtros + (nuevaCant * factor)) > item.Stock) {
+    toast(`Stock máximo disponible: ${item.Stock} unidades (${Math.floor(item.Stock / factor)} packs)`, 'warn');
+    return;
+  }
+  item.cantidad = nuevaCant;
+  onDescuentoInputChange();
   renderCart();
 }
 
@@ -226,58 +868,140 @@ function calcularDescuentoItem(item) {
 function renderCart() {
   const container = document.getElementById('cartItems');
   const totalEl = document.getElementById('cartTotal');
-
-  if (cart.length === 0) {
-    container.innerHTML = `
-      <div class="cart-empty">
-        <i class="fa-solid fa-basket-shopping"></i>
-        <p>El carrito está vacío</p>
-        <span>Escanea o haz clic en un producto</span>
-      </div>
-    `;
-    totalEl.textContent = '$0';
-    return;
-  }
+  const superTable = document.getElementById('cartTable');
+  const superTableBody = document.getElementById('cartTableBody');
+  const superTableEmpty = document.getElementById('cartTableEmpty');
+  const superTotalEl = document.getElementById('superCartTotal');
+  const superItemCountEl = document.getElementById('superItemCount');
 
   let totalFinal = getCartTotal();
 
-  container.innerHTML = cart.map((item, idx) => {
-    const subtotalNormal = item.cantidad * item.PrecioVenta;
-    const desc = calcularDescuentoItem(item);
-    const subtotalFinal = subtotalNormal - desc;
-
-    let promoBadgeHtml = '';
-    let oldPriceHtml = '';
-
-    if (desc > 0) {
-      if (item.PromoTipo === 'DESCUENTO_UNIT') {
-        promoBadgeHtml = `<span class="promo-badge">-${item.PromoDescPorc}% Dcto</span>`;
-      } else if (item.PromoTipo === 'MULTIBUY') {
-        promoBadgeHtml = `<span class="promo-badge promo-badge--pack">Promo Pack</span>`;
-      }
-      oldPriceHtml = `<span class="cart-item__old">$${formatNumber(subtotalNormal)}</span>`;
-    }
-
-    return `
-      <div class="cart-item">
-        <div class="cart-item__main">
-          <div class="cart-item__name">${escapeHtml(item.Nombre)}</div>
-          <div class="cart-item__unit">$${formatNumber(item.PrecioVenta)} c/u ${promoBadgeHtml}</div>
+  // 1. RENDER VISTA ESTÁNDAR (Clásico y Táctil)
+  if (container) {
+    if (cart.length === 0) {
+      container.innerHTML = `
+        <div class="cart-empty">
+          <i class="fa-solid fa-basket-shopping"></i>
+          <p>El carrito está vacío</p>
+          <span>Escanea o haz clic en un producto</span>
         </div>
+      `;
+    } else {
+      container.innerHTML = cart.map((item, idx) => {
+        const subtotalNormal = item.cantidad * item.PrecioVenta;
+        const desc = calcularDescuentoItem(item);
+        const subtotalFinal = subtotalNormal - desc;
 
-        <div class="cart-item__actions">
-          <div class="qty-controls">
-            <button class="btn-qty" onclick="cambiarCantidad(${idx}, -1)">&minus;</button>
-            <span class="qty-value">${item.cantidad}</span>
-            <button class="btn-qty" onclick="cambiarCantidad(${idx}, 1)">+</button>
+        let promoBadgeHtml = '';
+        let oldPriceHtml = '';
+
+        if (desc > 0) {
+          if (item.PromoTipo === 'DESCUENTO_UNIT') {
+            promoBadgeHtml = `<span class="promo-badge">-${item.PromoDescPorc}% Dcto</span>`;
+          } else if (item.PromoTipo === 'MULTIBUY') {
+            promoBadgeHtml = `<span class="promo-badge promo-badge--pack">Promo Pack</span>`;
+          }
+          oldPriceHtml = `<span class="cart-item__old">$${formatNumber(subtotalNormal)}</span>`;
+        } else if (item.esPromoPack) {
+          promoBadgeHtml = `<span class="promo-badge promo-badge--pack">Promo Pack</span>`;
+          const subtotalBase = item.cantidad * Math.round((item.PrecioBaseUnitario || item.PrecioVenta) * (item.factor || 1));
+          if (subtotalBase > subtotalNormal) {
+            oldPriceHtml = `<span class="cart-item__old">$${formatNumber(subtotalBase)}</span>`;
+          }
+        }
+
+        return `
+          <div class="cart-item">
+            <div class="cart-item__main">
+              <div class="cart-item__name">${escapeHtml(item.Nombre)}</div>
+              <div class="cart-item__unit">$${formatNumber(item.PrecioVenta)} c/u ${promoBadgeHtml}</div>
+            </div>
+
+            <div class="cart-item__actions">
+              <div class="qty-controls">
+                <button class="btn-qty" onclick="cambiarCantidad(${idx}, -1)">&minus;</button>
+                <span class="qty-value">${item.cantidad}</span>
+                <button class="btn-qty" onclick="cambiarCantidad(${idx}, 1)">+</button>
+              </div>
+              <div class="cart-item__subtotal">
+                ${oldPriceHtml}<span>$${formatNumber(subtotalFinal)}</span>
+                <button type="button" class="btn-delete-item" onclick="eliminarItemCarrito(${idx})" title="Eliminar producto del carrito">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </div>
           </div>
-          <div class="cart-item__subtotal">${oldPriceHtml}<span>$${formatNumber(subtotalFinal)}</span></div>
-        </div>
-      </div>
-    `;
-  }).join('');
+        `;
+      }).join('');
+    }
+  }
 
-  totalEl.textContent = `$${formatNumber(totalFinal)}`;
+  // 2. RENDER VISTA SUPERMERCADO (Tabla central amplia)
+  if (superTableBody) {
+    if (cart.length === 0) {
+      if (superTableEmpty) superTableEmpty.style.display = 'block';
+      if (superTable) superTable.style.display = 'none';
+      superTableBody.innerHTML = '';
+    } else {
+      if (superTableEmpty) superTableEmpty.style.display = 'none';
+      if (superTable) superTable.style.display = 'table';
+      
+      superTableBody.innerHTML = cart.map((item, idx) => {
+        const subtotalNormal = item.cantidad * item.PrecioVenta;
+        const desc = calcularDescuentoItem(item);
+        const subtotalFinal = subtotalNormal - desc;
+
+        let promoCellHtml = '<span style="color: var(--text-muted);">&minus;</span>';
+        if (desc > 0) {
+          if (item.PromoTipo === 'DESCUENTO_UNIT') {
+            promoCellHtml = `<span class="promo-badge">-${item.PromoDescPorc}% ($${formatNumber(desc)})</span>`;
+          } else if (item.PromoTipo === 'MULTIBUY') {
+            promoCellHtml = `<span class="promo-badge promo-badge--pack">Pack (-$${formatNumber(desc)})</span>`;
+          }
+        } else if (item.esPromoPack) {
+          const ahorro = Math.max(0, (((item.PrecioBaseUnitario || item.PrecioVenta) * (item.factor || 1)) - item.PrecioVenta) * item.cantidad);
+          promoCellHtml = `<span class="promo-badge promo-badge--pack">Pack (-$${formatNumber(ahorro)})</span>`;
+        }
+
+        const sku = item.CodigoBarras ? item.CodigoBarras : (item.CodigoPLU ? `PLU #${item.CodigoPLU}` : '&minus;');
+        const esPesableBadge = parseInt(item.EsPesable) === 1 ? '<span style="font-size: 0.72rem; color: #818cf8; margin-left: 0.4rem;"><i class="fa-solid fa-weight-scale"></i> Kg</span>' : '';
+
+        return `
+          <tr>
+            <td class="item-num" style="text-align: center;">${idx + 1}</td>
+            <td class="item-sku">${sku}</td>
+            <td>
+              <div class="item-desc">${escapeHtml(item.Nombre)} ${esPesableBadge}</div>
+            </td>
+            <td class="item-price">$${formatNumber(item.PrecioVenta)}</td>
+            <td style="text-align: center;">
+              <div class="qty-controls" style="display: inline-flex;">
+                <button type="button" class="btn-qty" onclick="cambiarCantidad(${idx}, -1)">&minus;</button>
+                <span class="qty-value">${item.cantidad}</span>
+                <button type="button" class="btn-qty" onclick="cambiarCantidad(${idx}, 1)">+</button>
+              </div>
+            </td>
+            <td>${promoCellHtml}</td>
+            <td class="item-subtotal">$${formatNumber(subtotalFinal)}</td>
+            <td style="text-align: center;">
+              <button type="button" class="btn-delete-item" onclick="eliminarItemCarrito(${idx})" title="Quitar producto de la venta">
+                <i class="fa-solid fa-trash-can" style="font-size: 1.05rem;"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  // Totales en ambos formatos
+  if (totalEl) totalEl.textContent = `$${formatNumber(totalFinal)}`;
+  if (superTotalEl) superTotalEl.textContent = `$${formatNumber(totalFinal)}`;
+  if (superItemCountEl) {
+    const totalCant = cart.reduce((s, i) => s + i.cantidad, 0);
+    const itemS = cart.length === 1 ? 'ítem' : 'ítems';
+    superItemCountEl.textContent = `${cart.length} ${itemS} (${totalCant} un.)`;
+  }
 
   // Cliente, Documento, Descuento y Vale ahora viven dentro del modal de pago,
   // así que si se editan con el modal abierto hay que refrescar el total y el vuelto ahí también.
@@ -443,6 +1167,40 @@ async function confirmarPagoModal() {
   const clienteID = document.getElementById('clienteSelect').value;
   const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
 
+  // Validación de descuento que requiera supervisor
+  const subtotalBruto = cart.reduce((s, i) => s + (i.cantidad * i.PrecioVenta), 0);
+  const maxPorc = parseFloat(window.CONFIG_SUPERVISION?.POS_DESCUENTO_MAX_PORC ?? 5);
+  const pctEfectivo = subtotalBruto > 0 ? (descGlobal / subtotalBruto) * 100 : 0;
+
+  let supervisorPass = null;
+  if (window.CURRENT_USER_ROL === 'Cajero' && descGlobal > 0 && (pctEfectivo > maxPorc || maxPorc === 0)) {
+    if (supervisorPassAutorizadoDescuento) {
+      supervisorPass = supervisorPassAutorizadoDescuento;
+    } else {
+      const inputInline = document.getElementById('inputPassSupervisorInline');
+      if (inputInline && inputInline.value.trim() !== '') {
+        const okInline = await validarSupervisorDescuentoInline();
+        if (!okInline) return;
+        supervisorPass = supervisorPassAutorizadoDescuento;
+      } else {
+        const auth = await pedirAutorizacionSupervisor('descuento_excedido', `Descuento de $${formatNumber(descGlobal)} (${pctEfectivo.toFixed(1)}%)`);
+        if (!auth.autorizado) {
+          return;
+        }
+        supervisorPass = auth.supervisor_pass;
+        supervisorPassAutorizadoDescuento = auth.supervisor_pass;
+        const boxInline = document.getElementById('boxSupervisorAuthInline');
+        const boxOk = document.getElementById('boxSupervisorAuthOk');
+        const txtOk = document.getElementById('txtSupervisorAuthOk');
+        if (boxInline) boxInline.style.display = 'none';
+        if (boxOk) {
+          boxOk.style.display = 'flex';
+          if (txtOk) txtOk.textContent = `Autorizado por ${auth.supervisor_nombre}`;
+        }
+      }
+    }
+  }
+
   let pagos = [];
   let recibido = total;
   let vuelto = 0;
@@ -484,27 +1242,94 @@ async function confirmarPagoModal() {
   btn.disabled = true;
   btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Registrando Venta...`;
 
+  const payloadVenta = {
+    items: cart.map(i => ({
+      producto_id: i.ProductoID,
+      cantidad: i.cantidad,
+      factor: i.factor || 1,
+      precio_unitario: i.PrecioVenta,
+      nombre_item: i.Nombre,
+      descripcion_pack: i.descPack || ''
+    })),
+    tipo_documento: tipoDoc,
+    cliente_id: clienteID,
+    descuento_global: descGlobal,
+    supervisor_pass: supervisorPass,
+    vale_codigo: valeAplicado ? valeAplicado.codigo : null,
+    cotizacion_id: cotizacionActiva,
+    pagos: pagos,
+    monto_pagado: recibido,
+    vuelto: vuelto,
+    monto_total: total
+  };
+
+  let dataVenta = null;
+  let esOffline = false;
+
+  // 1. Si no estamos en contingencia forzada y hay red, intentar enviar al servidor
+  if (!posModoOfflineForzado && !posEstadoOfflineActivo && navigator.onLine) {
+    try {
+      const res = await fetch('api/registrar_venta.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN || '' },
+        body: JSON.stringify(payloadVenta)
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      dataVenta = data;
+      marcarModoDesconectado(false);
+    } catch (errNet) {
+      console.warn('[POS] Error al contactar el servidor:', errNet);
+      if (!navigator.onLine || errNet.name === 'TypeError' || errNet.message.includes('fetch') || errNet.message.includes('Failed to fetch')) {
+        esOffline = true;
+        marcarModoDesconectado(true);
+      } else {
+        toast(errNet.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA`;
+        return;
+      }
+    }
+  } else {
+    esOffline = true;
+    marcarModoDesconectado(true);
+  }
+
+  // 2. Si no hay conexión o falló la red, encolar en IndexedDB local
+  if (esOffline) {
+    if (metodoSeleccionadoModal === 'Credito' || metodoSeleccionadoModal === 'Fiado') {
+      toast('Las ventas a Crédito / Fiado no están permitidas sin conexión a internet por seguridad de saldo.', 'error');
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA`;
+      return;
+    }
+    if (valeAplicado) {
+      toast('El canje de vales no está permitido sin conexión a internet.', 'error');
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA`;
+      return;
+    }
+
+    try {
+      const resOff = await window.posOfflineDB.encolarVenta(payloadVenta);
+      dataVenta = {
+        success: true,
+        es_offline: true,
+        id_temporal: resOff.id_temporal,
+        venta_id: resOff.id_temporal,
+        fecha: resOff.fecha
+      };
+      await actualizarBadgePendientes();
+      toast('⚠️ Venta registrada en MODO OFFLINE (se guardó en el equipo).', 'warn');
+    } catch (errOff) {
+      toast('Error crítico al guardar venta local: ' + errOff.message, 'error');
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA`;
+      return;
+    }
+  }
+
   try {
-    const res = await fetch('api/registrar_venta.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN },
-      body: JSON.stringify({
-        items: cart.map(i => ({ producto_id: i.ProductoID, cantidad: i.cantidad })),
-        tipo_documento: tipoDoc,
-        cliente_id: clienteID,
-        descuento_global: descGlobal,
-        vale_codigo: valeAplicado ? valeAplicado.codigo : null,
-        cotizacion_id: cotizacionActiva,
-        pagos: pagos,
-        monto_pagado: recibido,
-        vuelto: vuelto
-      })
-    });
-
-    const data = await res.json();
-
-    if (!data.success) throw new Error(data.error);
-
     cerrarModalPago();
 
     // El vale aplicado también es un "medio de pago" en el comprobante
@@ -514,24 +1339,23 @@ async function confirmarPagoModal() {
     }
     pagos.forEach(p => pagosTicket.push(p));
 
-    const subtotalBruto = cart.reduce((s, i) => s + (i.cantidad * i.PrecioVenta), 0);
     const descPromos = cart.reduce((s, i) => s + calcularDescuentoItem(i), 0);
-    mostrarTicket(data, cart, total, recibido, vuelto, pagosTicket, {
+    mostrarTicket(dataVenta, cart, total, recibido, vuelto, pagosTicket, {
       subtotal: Math.round(subtotalBruto),
       descuento: Math.round(descPromos) + descGlobal,
     });
 
     cart = [];
     cotizacionActiva = null;
-    document.getElementById('descuentoGlobal').value = '';
+    resetDescuento();
     valeAplicado = null;
     document.getElementById('valeCodigoInput').value = '';
     document.getElementById('valeAplicadoInfo').style.display = 'none';
     renderCart();
     cargarProductos('');
 
-  } catch (err) {
-    toast('Error al registrar venta: ' + err.message, 'error');
+  } catch (errPost) {
+    toast('Error post-venta: ' + errPost.message, 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = `<i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA`;
@@ -573,6 +1397,7 @@ async function guardarCotizacion() {
     toast(`Venta pausada como cotización #${data.cotizacion_id}.`, 'success');
     cart = [];
     cotizacionActiva = null;
+    resetDescuento();
     renderCart();
   } catch (err) {
     toast('Error al guardar cotización: ' + err.message, 'error');
@@ -704,7 +1529,11 @@ const NOMBRE_PAGO = {
 function mostrarTicket(data, items, total, pagado, vuelto, pagos, meta) {
   meta = meta || {};
   document.getElementById('ticketFecha').textContent = data.fecha || '';
-  document.getElementById('ticketVentaNum').textContent = 'N° ' + (data.venta_id || '-');
+  if (data.es_offline) {
+    document.getElementById('ticketVentaNum').innerHTML = '<span style="color:#f59e0b;font-weight:bold;">COMPROBANTE PROVISIONAL (OFFLINE)</span>';
+  } else {
+    document.getElementById('ticketVentaNum').textContent = 'N° ' + (data.venta_id || '-');
+  }
 
   const detalleEl = document.getElementById('ticketDetalle');
   detalleEl.innerHTML = items.map(i => {
@@ -841,3 +1670,423 @@ function escapeHtml(str) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
   });
 }
+
+// ----------------------------------------------------
+// BLOQUEO RÁPIDO DE PANTALLA DE CAJA (LOCK SCREEN)
+// ----------------------------------------------------
+let posLockClockInterval = null;
+
+function actualizarRelojBloqueo() {
+  const now = new Date();
+  const timeEl = document.getElementById('posLockClockTime');
+  const dateEl = document.getElementById('posLockClockDate');
+  
+  if (timeEl) {
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    timeEl.textContent = `${hours}:${minutes}:${seconds}`;
+  }
+  
+  if (dateEl) {
+    const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    dateEl.textContent = now.toLocaleDateString('es-CL', opciones);
+  }
+}
+
+function bloquearCaja() {
+  const overlay = document.getElementById('posLockOverlay');
+  if (!overlay) return;
+
+  try {
+    sessionStorage.setItem('pos_locked', '1');
+  } catch (e) {}
+
+  overlay.style.display = 'flex';
+  const passInput = document.getElementById('posLockPassword');
+  if (passInput) {
+    passInput.value = '';
+    setTimeout(() => passInput.focus(), 150);
+  }
+  const errEl = document.getElementById('posLockError');
+  if (errEl) {
+    errEl.style.display = 'none';
+    errEl.textContent = '';
+  }
+
+  actualizarRelojBloqueo();
+  if (posLockClockInterval) clearInterval(posLockClockInterval);
+  posLockClockInterval = setInterval(actualizarRelojBloqueo, 1000);
+}
+
+async function desbloquearCaja(e) {
+  if (e) e.preventDefault();
+  
+  const passInput = document.getElementById('posLockPassword');
+  const btn = document.getElementById('btnPosUnlock');
+  const errEl = document.getElementById('posLockError');
+  const password = passInput ? passInput.value.trim() : '';
+
+  if (!password) {
+    if (errEl) {
+      errEl.style.display = 'block';
+      errEl.textContent = 'Por favor ingresa la contraseña o PIN.';
+    }
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...';
+  }
+  if (errEl) errEl.style.display = 'none';
+
+  try {
+    const res = await fetch('api/desbloquear_caja.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': window.CSRF_TOKEN || ''
+      },
+      body: JSON.stringify({ password: password })
+    });
+
+    const data = await res.json();
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-lock-open"></i> Desbloquear Terminal';
+    }
+
+    if (!data.success) {
+      if (errEl) {
+        errEl.style.display = 'block';
+        errEl.textContent = data.error || 'Contraseña incorrecta.';
+      }
+      if (passInput) {
+        passInput.select();
+      }
+      return;
+    }
+
+    // Desbloqueo exitoso
+    try {
+      sessionStorage.removeItem('pos_locked');
+    } catch (e) {}
+
+    if (posLockClockInterval) {
+      clearInterval(posLockClockInterval);
+      posLockClockInterval = null;
+    }
+
+    const overlay = document.getElementById('posLockOverlay');
+    if (overlay) overlay.style.display = 'none';
+
+    toast(data.mensaje || 'Caja desbloqueada correctamente.', 'success');
+
+    // Refocar el campo de escaneo adecuado según el modo de caja
+    setTimeout(() => {
+      const superInput = document.getElementById('posSearchSuper');
+      const normalInput = document.getElementById('posSearch');
+      if (window.modoPosLayout === 'supermercado' && superInput) {
+        superInput.focus();
+      } else if (normalInput) {
+        normalInput.focus();
+      }
+    }, 150);
+
+  } catch (err) {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-lock-open"></i> Desbloquear Terminal';
+    }
+    if (errEl) {
+      errEl.style.display = 'block';
+      errEl.textContent = 'Error de conexión con el servidor.';
+    }
+  }
+}
+
+/* ==========================================================================
+ * 🌐 CONTROLADOR DE CONECTIVIDAD Y SINCRONIZACIÓN OFFLINE PWA (HEARTBEAT ACTIVO)
+ * ========================================================================== */
+
+let posModoOfflineForzado = false;
+let posEstadoOfflineActivo = false;
+let posUltimoCheckConectividad = 0;
+let posVerificandoConexion = false;
+
+function toggleModoOfflineManual() {
+  posModoOfflineForzado = !posModoOfflineForzado;
+  if (posModoOfflineForzado) {
+    marcarModoDesconectado(true);
+    toast('🔌 Modo Contingencia (Offline) forzado manualmente para pruebas.', 'warn');
+  } else {
+    toast('🟢 Restaurando modo automático. Verificando red...', 'info');
+    verificarConectividadReal(true).then((online) => {
+      if (online) {
+        toast('🟢 Conexión con el servidor confirmada.', 'success');
+        sincronizarVentasPendientes();
+      } else {
+        toast('⚠️ El servidor sigue sin responder. Modo Offline activo.', 'warn');
+      }
+    });
+  }
+}
+
+function marcarModoDesconectado(desconectado) {
+  const fueCambio = (posEstadoOfflineActivo !== desconectado);
+  posEstadoOfflineActivo = desconectado;
+
+  const bar = document.getElementById('posOfflineStatusBar');
+  const pill = document.getElementById('posPillOnline');
+  const dot = document.getElementById('posOfflineStatusDot');
+  const txt = document.getElementById('posOfflineStatusText');
+
+  const appVer = window.APP_VERSION || 'v4.0.1';
+
+  if (desconectado) {
+    if (bar) bar.style.display = 'flex';
+    if (pill) {
+      pill.style.background = 'rgba(245, 158, 11, 0.15)';
+      pill.style.borderColor = '#f59e0b';
+      pill.style.color = '#fbbf24';
+      const label = posModoOfflineForzado ? 'Offline (Prueba)' : 'Offline';
+      pill.innerHTML = `<span style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span><span>${label}</span><span style="font-size: 0.72rem; opacity: 0.75; font-weight: 500; margin-left: 0.15rem; border-left: 1px solid rgba(245, 158, 11, 0.3); padding-left: 0.35rem;">${appVer}</span>`;
+      pill.title = posModoOfflineForzado
+        ? 'Modo Offline forzado manualmente. Clic para reactivar conexión automática.'
+        : 'Sin conexión con el servidor. Clic para forzar reintento.';
+    }
+    if (dot) dot.style.background = '#f59e0b';
+    if (txt) {
+      txt.innerHTML = posModoOfflineForzado
+        ? '<i class="fa-solid fa-flask"></i> <strong>Modo Contingencia Forzado (Prueba)</strong> &bull; Operando sobre IndexedDB'
+        : '<i class="fa-solid fa-triangle-exclamation"></i> <strong>Modo Contingencia (Sin Conexión)</strong> &bull; Las ventas se guardan en este equipo';
+    }
+  } else {
+    if (pill) {
+      pill.style.background = 'rgba(16, 185, 129, 0.12)';
+      pill.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+      pill.style.color = '#10b981';
+      pill.innerHTML = `<span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span><span>En Línea</span><span style="font-size: 0.72rem; opacity: 0.75; font-weight: 500; margin-left: 0.15rem; border-left: 1px solid rgba(16, 185, 129, 0.3); padding-left: 0.35rem;">${appVer}</span>`;
+      pill.title = `Conectado al servidor en tiempo real. Versión ${appVer}. Clic para simular modo offline de prueba.`;
+    }
+    actualizarBadgePendientes();
+  }
+
+  return fueCambio;
+}
+
+async function verificarConectividadReal(forzar = false) {
+  // Si está forzado manualmente, siempre es offline
+  if (posModoOfflineForzado) {
+    marcarModoDesconectado(true);
+    return false;
+  }
+
+  // Si el navegador mismo no tiene adaptador de red activo
+  if (!navigator.onLine) {
+    marcarModoDesconectado(true);
+    return false;
+  }
+
+  // Evitar solapamientos o consultas redundantes en menos de 2.5s a menos que sea forzado
+  const ahora = Date.now();
+  if (!forzar && (ahora - posUltimoCheckConectividad < 2500 || posVerificandoConexion)) {
+    return !posEstadoOfflineActivo;
+  }
+
+  posUltimoCheckConectividad = ahora;
+  posVerificandoConexion = true;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+    const res = await fetch(`api/ping.php?_t=${ahora}`, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      marcarModoDesconectado(true);
+      return false;
+    }
+
+    const data = await res.json();
+    if (!data || !data.success) {
+      marcarModoDesconectado(true);
+      return false;
+    }
+
+    // Si estamos en localhost y el servidor reporta que no hay salida a internet
+    if (data.has_internet === false) {
+      marcarModoDesconectado(true);
+      return false;
+    }
+
+    // Servidor activo y con conexión
+    const eraOffline = posEstadoOfflineActivo;
+    marcarModoDesconectado(false);
+
+    // Si acabamos de recuperar la conexión tras estar desconectados, sincronizar inmediatamente
+    if (eraOffline) {
+      console.log('[POS] Reconexión exitosa verificada por Heartbeat.');
+      sincronizarVentasPendientes();
+      sincronizarCatalogoOfflineSilencioso();
+    }
+
+    return true;
+  } catch (err) {
+    // Falla de red, timeout o servidor inalcanzable
+    marcarModoDesconectado(true);
+    return false;
+  } finally {
+    posVerificandoConexion = false;
+  }
+}
+
+async function actualizarBadgePendientes() {
+  if (!window.posOfflineDB) return;
+  try {
+    const count = await window.posOfflineDB.contarVentasPendientes();
+    const bar = document.getElementById('posOfflineStatusBar');
+    const badge = document.getElementById('posOfflineBadgePending');
+    const countEl = document.getElementById('posOfflineCountText');
+    const btnSync = document.getElementById('btnSincronizarOffline');
+
+    if (count > 0) {
+      if (bar) bar.style.display = 'flex';
+      if (badge) badge.style.display = 'inline-flex';
+      if (countEl) countEl.textContent = count;
+      if (btnSync) btnSync.style.display = 'inline-flex';
+    } else {
+      if (badge) badge.style.display = 'none';
+      if (btnSync) btnSync.style.display = 'none';
+      // Solo ocultar la barra si estamos genuinamente online y no hay pendientes
+      if (!posEstadoOfflineActivo && bar) {
+        bar.style.display = 'none';
+      }
+    }
+  } catch (e) {
+    console.error('[POS] Error al contar pendientes:', e);
+  }
+}
+
+async function sincronizarCatalogoOfflineSilencioso() {
+  if (posEstadoOfflineActivo || posModoOfflineForzado || !window.posOfflineDB) return;
+  try {
+    const res = await fetch('api/catalogo_offline.php?_t=' + Date.now());
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && data.success) {
+      await window.posOfflineDB.guardarCatalogo(data);
+      console.log('[POS] Catálogo offline actualizado en segundo plano.');
+    }
+  } catch (e) {
+    console.warn('[POS] No se pudo sincronizar el catálogo offline en este ciclo:', e);
+  }
+}
+
+let sincronizandoOfflineEnCurso = false;
+async function sincronizarVentasPendientes() {
+  if (sincronizandoOfflineEnCurso || !window.posOfflineDB) return;
+  if (posEstadoOfflineActivo || posModoOfflineForzado) {
+    toast('Sin conexión al servidor. No se puede sincronizar aún.', 'warn');
+    return;
+  }
+
+  const pendientes = await window.posOfflineDB.obtenerVentasPendientes();
+  if (!pendientes || pendientes.length === 0) {
+    await actualizarBadgePendientes();
+    return;
+  }
+
+  sincronizandoOfflineEnCurso = true;
+  const btnSync = document.getElementById('btnSincronizarOffline');
+  if (btnSync) {
+    btnSync.disabled = true;
+    btnSync.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando...';
+  }
+
+  try {
+    const res = await fetch('api/sincronizar_offline.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': window.CSRF_TOKEN || ''
+      },
+      body: JSON.stringify({ ventas: pendientes })
+    });
+
+    const data = await res.json();
+    if (data.success && Array.isArray(data.sincronizadas)) {
+      const idsSincronizados = data.sincronizadas.map(s => s.id_temporal);
+      await window.posOfflineDB.eliminarVentasSincronizadas(idsSincronizados);
+      await actualizarBadgePendientes();
+      marcarModoDesconectado(false);
+      toast(`🟢 ${data.total_sincronizadas} venta(s) offline sincronizada(s) con éxito en el servidor.`, 'success');
+    } else {
+      throw new Error(data.error || 'Respuesta inesperada del servidor');
+    }
+  } catch (err) {
+    console.error('[POS] Error sincronizando ventas offline:', err);
+    toast('No se pudo completar la sincronización automática: ' + err.message, 'error');
+    marcarModoDesconectado(true);
+  } finally {
+    sincronizandoOfflineEnCurso = false;
+    if (btnSync) {
+      btnSync.disabled = false;
+      btnSync.innerHTML = '<i class="fa-solid fa-rotate"></i> Sincronizar';
+    }
+  }
+}
+
+// Escuchadores de eventos de red nativos del navegador
+window.addEventListener('online', () => {
+  console.log('[POS] Evento online del sistema operativo detectado.');
+  verificarConectividadReal(true);
+});
+
+window.addEventListener('offline', () => {
+  console.warn('[POS] Evento offline del sistema operativo detectado.');
+  marcarModoDesconectado(true);
+});
+
+window.addEventListener('focus', () => {
+  verificarConectividadReal();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    verificarConectividadReal();
+  }
+});
+
+// Inicialización diferida al cargar la ventana
+window.addEventListener('load', () => {
+  // Comprobación activa inmediata al cargar
+  verificarConectividadReal(true);
+  actualizarBadgePendientes();
+  sincronizarCatalogoOfflineSilencioso();
+
+  // Heartbeat activo periódico cada 5 segundos para detectar caídas de red al instante
+  setInterval(() => {
+    verificarConectividadReal();
+  }, 5000);
+
+  // Intento periódico de sincronización cada 25 segundos si hay pendientes
+  setInterval(() => {
+    if (!posEstadoOfflineActivo && !posModoOfflineForzado) {
+      sincronizarVentasPendientes();
+    }
+  }, 25000);
+});
+
+

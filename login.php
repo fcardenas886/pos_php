@@ -60,4 +60,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+try {
+    $pdoLogin = getDB();
+    $stmtLoginCfg = $pdoLogin->query("SELECT Clave, Valor FROM configuraciones WHERE Clave IN ('TEMA_MODO', 'TEMA_COLOR_ACENTO', 'MINIMARKET_LOGO_URL', 'MINIMARKET_NOMBRE')");
+    $loginCfg = [];
+    while ($r = $stmtLoginCfg->fetch(PDO::FETCH_ASSOC)) {
+        $loginCfg[$r['Clave']] = $r['Valor'];
+    }
+    $temaModo = $loginCfg['TEMA_MODO'] ?? 'dark';
+    $temaAcento = $loginCfg['TEMA_COLOR_ACENTO'] ?? 'indigo';
+    $logoUrl = $loginCfg['MINIMARKET_LOGO_URL'] ?? '';
+    $nombreEmpresa = $loginCfg['MINIMARKET_NOMBRE'] ?? 'Minimarket POS';
+} catch (Exception $e) {
+    $temaModo = 'dark';
+    $temaAcento = 'indigo';
+    $logoUrl = '';
+    $nombreEmpresa = 'Minimarket POS';
+}
+
 include __DIR__ . '/views/login.view.php';
