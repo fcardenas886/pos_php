@@ -1,6 +1,6 @@
 // Service Worker Autónomo para Minimarket POS
 // Versión de caché alineada con el sistema
-const CACHE_NAME = 'minimarket-pos-cache-v4.0.1';
+const CACHE_NAME = 'minimarket-pos-cache-v4.1.0';
 
 const PRECACHE_ASSETS = [
   'pos.php',
@@ -9,6 +9,7 @@ const PRECACHE_ASSETS = [
   'assets/js/pos.js',
   'assets/js/ui.js',
   'assets/js/pos-offline-db.js',
+  'assets/js/printer-direct.js',
   'assets/vendor/fontawesome/css/all.min.css',
   'assets/icons/icon-192.png',
   'assets/icons/icon-512.png',

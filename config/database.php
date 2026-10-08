@@ -1,10 +1,16 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v4.0.1');
+define('APP_VERSION', 'v4.1.0');
 
 // Novedades reales por versión, para la pantalla de bienvenida y el módulo "Acerca de".
 // Registra la cronología completa de la evolución del sistema desde su inicio.
 define('APP_CHANGELOG', [
+    'v4.1.0' => [
+        'Impresión Térmica Directa ESC/POS (80mm): Conexión directa nativa por Web Serial y WebUSB desde Google Chrome/Edge sin necesidad de controladores de Windows ni permisos de administrador.',
+        'Apertura Automática de Gaveta de Dinero: Disparo instantáneo de micropulso de 24V al puerto DK (RJ11) al cobrar y botón manual en el POS para abrir gaveta sin gastar papel.',
+        'Corte Automático por Guillotina: Comando de corte limpio incorporado en el protocolo de ticket térmico.',
+        'Panel de Diagnóstico y Pruebas en Vivo: Nueva pestaña en Configuración para vincular el puerto de la impresora (COM / USB) y probar la apertura de gaveta con 1 solo clic.',
+    ],
     'v4.0.1' => [
         'Heartbeat Activo de Conectividad: Monitorización continua de red cada 5 segundos mediante ping ultraligero para conmutación inmediata a contingencia.',
         'Simulador de Modo Offline con 1 Clic: Píldora interactiva que permite alternar y probar ventas locales en IndexedDB sin desconectar cables ni routers.',

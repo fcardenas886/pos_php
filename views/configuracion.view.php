@@ -16,12 +16,15 @@
 <?php endif; ?>
 
 <!-- Tabs de Navegación de Configuración -->
-<div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.5rem;">
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.5rem; flex-wrap: wrap;">
   <button onclick="switchTab('tabGenerales')" class="btn btn-secondary tab-btn active" id="btn-tabGenerales">
     ⚙️ Parámetros Generales
   </button>
   <button onclick="switchTab('tabTerminales')" class="btn btn-secondary tab-btn" id="btn-tabTerminales">
     💻 Terminales de Caja
+  </button>
+  <button onclick="switchTab('tabImpresora')" class="btn btn-secondary tab-btn" id="btn-tabImpresora">
+    🖨️ Impresora y Gaveta
   </button>
   <button onclick="switchTab('tabHaulmer')" class="btn btn-secondary tab-btn" id="btn-tabHaulmer">
     🧾 Boleta Electrónica (SII / Haulmer)
@@ -581,7 +584,163 @@
   </div>
 </div>
 
+<!-- PESTAÑA 7: IMPRESORA TÉRMICA Y GAVETA DIRECTA -->
+<div id="tabImpresora" class="tab-pane" style="display: none;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 1100px;">
+    
+    <!-- Tarjeta 1: Conexión y Hardware -->
+    <div class="table-card" style="padding: 1.75rem;">
+      <h2 style="font-size: 1.1rem; font-weight: 600; color: #818cf8; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.4rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between;">
+        <span><i class="fa-solid fa-plug"></i> Conexión Directa (Sin Drivers / Sin Admin)</span>
+        <span id="directPrinterStatusText"><span style="color:#94a3b8;"><i class="fa-solid fa-circle-xmark"></i> Sin vincular</span></span>
+      </h2>
+
+      <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin-bottom: 1.25rem;">
+        Conecta tu impresora térmica <strong>POSBANK A11 Prime (80mm)</strong> directamente desde Google Chrome o Microsoft Edge. No requiere instalar controladores en Windows ni permisos de administrador.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <div>
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">VELOCIDAD DE PUERTO SERIE (BAUD RATE)</label>
+          <select id="cfgPrinterBaud" class="form-control" onchange="cambiarBaudios(this.value)">
+            <option value="9600" selected>9600 bps (Estándar POSBANK / ESC-POS)</option>
+            <option value="19200">19200 bps</option>
+            <option value="38400">38400 bps</option>
+            <option value="115200">115200 bps (Terminales POS modernas)</option>
+          </select>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Si no imprime en 9600 bps, prueba seleccionando 115200 bps.</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+          <button type="button" onclick="conectarImpresoraSerial()" class="btn btn-primary" style="padding: 0.75rem 1rem; font-size: 0.95rem; font-weight: 600; justify-content: center;">
+            <i class="fa-solid fa-microchip"></i> 1. Conectar por Puerto Serie / COM (Web Serial)
+          </button>
+          
+          <button type="button" onclick="conectarImpresoraUsb()" class="btn btn-secondary" style="padding: 0.75rem 1rem; font-size: 0.95rem; font-weight: 600; justify-content: center;">
+            <i class="fa-brands fa-usb"></i> 2. Conectar por Cable USB Directo (WebUSB)
+          </button>
+
+          <button type="button" id="btnDisconnectPrinter" onclick="desvincularImpresora()" class="btn btn-danger" style="display: none; padding: 0.5rem 1rem; font-size: 0.85rem; justify-content: center;">
+            <i class="fa-solid fa-link-slash"></i> Desvincular Impresora Actual
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tarjeta 2: Panel de Pruebas en Vivo -->
+    <div class="table-card" style="padding: 1.75rem; display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <h2 style="font-size: 1.1rem; font-weight: 600; color: #34d399; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.4rem; margin-bottom: 1rem;">
+          <i class="fa-solid fa-vial-circle-check"></i> Pruebas en Vivo en este Equipo
+        </h2>
+
+        <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin-bottom: 1.25rem;">
+          Prueba el hardware inmediatamente. Si la gaveta salta o el papel se imprime, el sistema ya está listo para ventas en caja.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <button type="button" onclick="probarGavetaDirecta()" class="btn btn-warning" style="padding: 1rem; font-size: 1.05rem; font-weight: 700; justify-content: center; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);">
+            <i class="fa-solid fa-cash-register"></i> 💵 Probar Apertura de Gaveta
+          </button>
+          <span style="font-size: 0.75rem; color: var(--text-muted); text-align: center;">Envía el micropulso eléctrico de 24V al puerto DK. No gasta papel.</span>
+
+          <button type="button" onclick="probarTicketDirecto()" class="btn btn-success" style="padding: 1rem; font-size: 1.05rem; font-weight: 700; justify-content: center; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+            <i class="fa-solid fa-receipt"></i> 🧾 Imprimir Ticket de Prueba (80mm) + Corte
+          </button>
+          <span style="font-size: 0.75rem; color: var(--text-muted); text-align: center;">Imprime diagnóstico con membrete, estado de periféricos y corta el papel.</span>
+        </div>
+      </div>
+
+      <!-- Ajustes de comportamiento -->
+      <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed var(--border-dark);">
+        <h3 style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem;">COMPORTAMIENTO EN EL PUNTO DE VENTA (POS)</h3>
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: var(--text-muted); cursor: pointer; margin-bottom: 0.4rem;">
+          <input type="checkbox" id="chkAutoDrawer" checked onchange="guardarPrefImpresora('autodrawer', this.checked)">
+          <span>Abrir cajón de dinero automáticamente en cada venta</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: var(--text-muted); cursor: pointer;">
+          <input type="checkbox" id="chkAutoCut" checked onchange="guardarPrefImpresora('autocut', this.checked)">
+          <span>Cortar papel automáticamente con guillotina</span>
+        </label>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script src="assets/js/printer-direct.js"></script>
 <script>
+// Funciones de Impresora Directa
+function cambiarBaudios(baud) {
+  if (window.directPrinter) {
+    window.directPrinter.baudRate = parseInt(baud, 10);
+    localStorage.setItem('pos_direct_printer_baud', baud);
+  }
+}
+
+async function conectarImpresoraSerial() {
+  try {
+    const baud = document.getElementById('cfgPrinterBaud').value;
+    const name = await window.directPrinter.connectSerial(baud);
+    alert('¡Conexión establecida con éxito con: ' + name + '!\nAhora presiona "Probar Apertura de Gaveta" o "Imprimir Ticket de Prueba".');
+  } catch (e) {
+    if (e.name !== 'NotFoundError') {
+      alert('Aviso al conectar puerto serie: ' + e.message);
+    }
+  }
+}
+
+async function conectarImpresoraUsb() {
+  try {
+    const name = await window.directPrinter.connectUsb();
+    alert('¡Conexión USB establecida con éxito con: ' + name + '!\nAhora presiona "Probar Apertura de Gaveta" o "Imprimir Ticket de Prueba".');
+  } catch (e) {
+    if (e.name !== 'NotFoundError') {
+      alert('Aviso al conectar USB: ' + e.message);
+    }
+  }
+}
+
+async function desvincularImpresora() {
+  if (confirm('¿Deseas desvincular la impresora directa de este navegador?')) {
+    await window.directPrinter.disconnect();
+  }
+}
+
+async function probarGavetaDirecta() {
+  try {
+    if (!window.directPrinter || window.directPrinter.type === 'none') {
+      return alert('Primero debes hacer clic en "1. Conectar por Puerto Serie / COM" o "2. Conectar por Cable USB Directo".');
+    }
+    await window.directPrinter.openDrawer();
+  } catch (e) {
+    alert('Error al abrir gaveta: ' + e.message);
+  }
+}
+
+async function probarTicketDirecto() {
+  try {
+    if (!window.directPrinter || window.directPrinter.type === 'none') {
+      return alert('Primero debes hacer clic en "1. Conectar por Puerto Serie / COM" o "2. Conectar por Cable USB Directo".');
+    }
+    const businessName = document.querySelector("input[name='config[MINIMARKET_NOMBRE]']")?.value || 'MINIMARKET';
+    const rut = document.querySelector("input[name='config[MINIMARKET_RUT]']")?.value || '';
+    await window.directPrinter.printTestTicket(businessName, rut);
+  } catch (e) {
+    alert('Error al imprimir ticket: ' + e.message);
+  }
+}
+
+function guardarPrefImpresora(key, val) {
+  if (key === 'autodrawer') {
+    localStorage.setItem('pos_direct_printer_autodrawer', val ? 'true' : 'false');
+    if (window.directPrinter) window.directPrinter.autoDrawer = val;
+  } else if (key === 'autocut') {
+    localStorage.setItem('pos_direct_printer_autocut', val ? 'true' : 'false');
+    if (window.directPrinter) window.directPrinter.autoCut = val;
+  }
+}
 function actualizarBordeTema(modo) {
   const lblDark = document.getElementById('lblTemaDark');
   const lblLight = document.getElementById('lblTemaLight');
@@ -691,6 +850,23 @@ function toggleDteFields() {
 // Ejecutar al cargar la página
 document.addEventListener("DOMContentLoaded", () => {
   toggleDteFields();
+  
+  // Sincronizar estado de impresora directa
+  if (window.directPrinter) {
+    const savedBaud = localStorage.getItem('pos_direct_printer_baud');
+    if (savedBaud && document.getElementById('cfgPrinterBaud')) {
+      document.getElementById('cfgPrinterBaud').value = savedBaud;
+    }
+    const chkDrawer = document.getElementById('chkAutoDrawer');
+    if (chkDrawer) chkDrawer.checked = window.directPrinter.autoDrawer;
+    const chkCut = document.getElementById('chkAutoCut');
+    if (chkCut) chkCut.checked = window.directPrinter.autoCut;
+    
+    if (window.directPrinter.type !== 'none') {
+      window.directPrinter.updateUiStatus(true, window.directPrinter.portName);
+    }
+  }
+
   try {
     const savedTab = localStorage.getItem('config_active_tab');
     if (savedTab && document.getElementById(savedTab)) {

@@ -1623,8 +1623,58 @@ function mostrarTicket(data, items, total, pagado, vuelto, pagos, meta) {
     }
   }
 
+  // Guardar última venta para posible reimpresión directa
+  window.ultimaVentaData = data;
+
+  const directPrintBtn = document.getElementById('ticketDirectPrintBtn');
+  const directDrawerBtn = document.getElementById('ticketDirectDrawerBtn');
+
+  // Si hay impresora directa configurada (Web Serial o WebUSB)
+  if (window.directPrinter && window.directPrinter.type !== 'none') {
+    if (directPrintBtn) directPrintBtn.style.display = 'inline-flex';
+    if (directDrawerBtn) directDrawerBtn.style.display = 'inline-flex';
+
+    // Imprimir directamente en segundo plano y disparar apertura de gaveta
+    window.directPrinter.printSale(data, window.LOCAL_CONFIG || {}).then(() => {
+      toast('Ticket impreso y gaveta abierta en POSBANK', 'success');
+    }).catch(err => {
+      console.warn('[DirectPrinter] Error al imprimir directo:', err);
+      toast('Aviso impresora directa: ' + err.message, 'warning');
+    });
+  } else {
+    if (directPrintBtn) directPrintBtn.style.display = 'none';
+    if (directDrawerBtn) directDrawerBtn.style.display = 'none';
+  }
+
   const modal = document.getElementById('ticketModal');
   modal.style.display = 'flex';
+}
+
+async function reimprimirTicketDirecto() {
+  if (!window.ultimaVentaData) return;
+  if (!window.directPrinter || window.directPrinter.type === 'none') {
+    alert('No hay impresora directa vinculada. Configúrala en Configuración > Impresora y Gaveta.');
+    return;
+  }
+  try {
+    await window.directPrinter.printSale(window.ultimaVentaData, window.LOCAL_CONFIG || {});
+    toast('Ticket reimpreso correctamente', 'success');
+  } catch (e) {
+    alert('Error al reimprimir: ' + e.message);
+  }
+}
+
+async function abrirGavetaRapida() {
+  if (!window.directPrinter || window.directPrinter.type === 'none') {
+    alert('Para abrir la gaveta directamente, vincula la impresora en Configuración > Impresora y Gaveta.');
+    return;
+  }
+  try {
+    await window.directPrinter.openDrawer();
+    toast('Cajón de dinero abierto', 'info');
+  } catch (e) {
+    alert('Error al abrir gaveta: ' + e.message);
+  }
 }
 
 function imprimirPdfDirecto(pdfUrl) {

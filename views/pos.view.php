@@ -45,6 +45,12 @@
         <span>En Línea</span>
         <span style="font-size: 0.72rem; opacity: 0.75; font-weight: 500; margin-left: 0.15rem; border-left: 1px solid rgba(16, 185, 129, 0.3); padding-left: 0.35rem;"><?= APP_VERSION ?></span>
       </div>
+      <a href="configuracion.php" id="printerStatusBadge" class="badge badge-secondary" style="text-decoration: none; padding: 0.6rem 0.75rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem;" title="Configurar Impresora Directa">
+        <i class="fa-solid fa-print"></i> Impresora
+      </a>
+      <button type="button" id="btnAbrirGavetaDirecta" onclick="abrirGavetaRapida()" class="btn btn-secondary" style="padding: 0.75rem 0.9rem; font-size: 0.85rem; font-weight: 600;" title="Abrir Cajón / Gaveta de Dinero (Ctrl + F10)">
+        <i class="fa-solid fa-cash-register"></i> Abrir Gaveta
+      </button>
       <button type="button" id="btnCotizaciones" onclick="abrirModalCotizaciones()" class="btn btn-secondary" style="padding: 0.75rem 1rem; font-size: 0.9rem;" title="Ventas Pausadas / Cotizaciones">
         <i class="fa-solid fa-clock-rotate-left"></i> Pendientes
       </button>
@@ -510,6 +516,12 @@
     </div>
 
     <div class="ticket-modal__actions no-print">
+      <button id="ticketDirectPrintBtn" type="button" onclick="reimprimirTicketDirecto()" class="btn btn-warning" style="display: none;">
+        <i class="fa-solid fa-bolt"></i> Imprimir Directo
+      </button>
+      <button id="ticketDirectDrawerBtn" type="button" onclick="abrirGavetaRapida()" class="btn btn-secondary" style="display: none;">
+        <i class="fa-solid fa-cash-register"></i> Abrir Gaveta
+      </button>
       <a id="ticketDtePdfBtn" href="#" target="_blank" class="btn btn-success" style="display: none;">
         <i class="fa-solid fa-file-pdf"></i> Ver PDF SII
       </a>
@@ -690,7 +702,16 @@ async function ejecutarConsultaPrecio() {
   window.POS_LAYOUT_MODO = "<?= htmlspecialchars($posLayoutModo ?? 'supermercado') ?>";
   window.CSRF_TOKEN = "<?= htmlspecialchars(csrfToken()) ?>";
   window.APP_VERSION = "<?= APP_VERSION ?>";
+  window.LOCAL_CONFIG = <?= json_encode([
+    'MINIMARKET_NOMBRE' => $cfgLocal['MINIMARKET_NOMBRE'] ?? 'Minimarket',
+    'MINIMARKET_RUT' => $cfgLocal['MINIMARKET_RUT'] ?? '',
+    'MINIMARKET_GIRO' => $cfgLocal['MINIMARKET_GIRO'] ?? '',
+    'MINIMARKET_DIRECCION' => $cfgLocal['MINIMARKET_DIRECCION'] ?? '',
+    'MINIMARKET_TELEFONO' => $cfgLocal['MINIMARKET_TELEFONO'] ?? '',
+    'TICKET_PIE_PAGINA' => $cfgLocal['TICKET_PIE_PAGINA'] ?? '¡Gracias por su preferencia!',
+  ]) ?>;
 </script>
 
 <script src="assets/js/pos-offline-db.js?v=<?= APP_VERSION ?>"></script>
+<script src="assets/js/printer-direct.js?v=<?= APP_VERSION ?>"></script>
 <script src="assets/js/pos.js?v=<?= APP_VERSION ?>"></script>
