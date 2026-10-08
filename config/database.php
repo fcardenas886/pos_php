@@ -1,10 +1,14 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v4.3.1');
+define('APP_VERSION', 'v4.3.2');
 
 // Novedades reales por versión, para la pantalla de bienvenida y el módulo "Acerca de".
 // Registra la cronología completa de la evolución del sistema desde su inicio.
 define('APP_CHANGELOG', [
+    'v4.3.2' => [
+        'Ajuste Compacto y Fijo en una Sola Línea del Menú: Se eliminó el salto de línea que hacía caer "Admin" a una segunda fila y estiraba verticalmente la barra de navegación.',
+        'Dimensiones Optimizadas y Anti-Wrap: Ajuste de espaciados, paddings y flexbox para que todos los accesos quepan ordenadamente en una sola fila en cualquier resolución.',
+    ],
     'v4.3.1' => [
         'Navegación Fluida y Soporte Táctil en Menús: Corrección del cierre involuntario al mover el mouse y soporte integral para alternar menús desplegables con un solo clic o toque en pantallas táctiles.',
         'Puente Hover Anti-Flicker: Eliminación de la brecha física que cerraba los desplegables al mover el cursor hacia las opciones.',

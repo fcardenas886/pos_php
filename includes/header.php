@@ -268,7 +268,7 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
     <?php endif; ?>
   </ul>
 
-  <div style="display: flex; align-items: center; gap: 0.75rem;">
+  <div style="display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0;">
     <!-- Botón Modo Claro / Oscuro -->
     <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleThemeLive()" title="Alternar Modo Claro / Oscuro">
       <i class="fa-solid fa-sun" id="themeToggleIcon"></i>
