@@ -1,10 +1,15 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v4.1.0');
+define('APP_VERSION', 'v4.1.1');
 
 // Novedades reales por versión, para la pantalla de bienvenida y el módulo "Acerca de".
 // Registra la cronología completa de la evolución del sistema desde su inicio.
 define('APP_CHANGELOG', [
+    'v4.1.1' => [
+        'Cierre Blindado y Ágil de Comprobante de Venta: Corrección de overflow en flexbox para que los botones de acción nunca se corten en pantallas estándar de POS.',
+        'Múltiples Vías de Cierre Rápido: Botón superior (X), cierre con tecla Escape o Enter, y cierre al hacer clic fuera del ticket.',
+        'Recuperación Automática del Foco: Tras cerrar el comprobante, el cursor vuelve inmediatamente a la barra de escaneo (Modo Supermercado o Clásico) listo para la siguiente venta.',
+    ],
     'v4.1.0' => [
         'Impresión Térmica Directa ESC/POS (80mm): Conexión directa nativa por Web Serial y WebUSB desde Google Chrome/Edge sin necesidad de controladores de Windows ni permisos de administrador.',
         'Apertura Automática de Gaveta de Dinero: Disparo instantáneo de micropulso de 24V al puerto DK (RJ11) al cobrar y botón manual en el POS para abrir gaveta sin gastar papel.',

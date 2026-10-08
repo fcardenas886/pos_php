@@ -903,7 +903,7 @@ body {
 .ticket-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 3000;
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
   display: flex;
@@ -913,16 +913,41 @@ body {
 }
 
 .ticket-modal__card {
+  position: relative;
   background: #fff;
   color: #000;
   border-radius: 12px;
-  width: 340px;
-  max-width: 100%;
+  width: 360px;
+  max-width: 95vw;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
   overflow: hidden;
+}
+
+.ticket-modal__close-btn {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.08);
+  border: none;
+  color: #4b5563;
+  font-size: 1.15rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 20;
+}
+.ticket-modal__close-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  transform: scale(1.08);
 }
 
 .ticket-paper {
@@ -931,6 +956,8 @@ body {
   line-height: 1.45;
   color: #000;
   padding: 1.25rem;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -955,11 +982,12 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  padding: 1rem 1.25rem;
+  padding: 0.9rem 1.25rem;
   background: #f3f4f6;
   border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
 }
-.ticket-modal__actions .btn { flex: 1; min-width: 90px; font-size: 0.85rem; padding: 0.5rem; }
+.ticket-modal__actions .btn { flex: 1; min-width: 90px; font-size: 0.85rem; padding: 0.55rem 0.75rem; }
 
 @media print {
   body * { visibility: hidden !important; }

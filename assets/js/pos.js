@@ -570,6 +570,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.addEventListener('keydown', (e) => {
+    // Si el comprobante/ticket está abierto, cerrar con Escape o Enter
+    const ticketModal = document.getElementById('ticketModal');
+    if (ticketModal && ticketModal.style.display !== 'none') {
+      if (e.key === 'Escape' || e.key === 'Enter') {
+        e.preventDefault();
+        cerrarTicket();
+        return;
+      }
+    }
+
     // Bloquear terminal con Alt + L o tecla F9
     if ((e.altKey && (e.key === 'l' || e.key === 'L')) || e.key === 'F9') {
       e.preventDefault();
@@ -1647,7 +1657,14 @@ function mostrarTicket(data, items, total, pagado, vuelto, pagos, meta) {
   }
 
   const modal = document.getElementById('ticketModal');
-  modal.style.display = 'flex';
+  if (modal) {
+    modal.style.display = 'flex';
+    // Dar foco rápido al botón de cerrar para permitir cerrar con Espacio/Enter de inmediato
+    setTimeout(() => {
+      const btnCerrar = document.getElementById('btnCerrarTicket');
+      if (btnCerrar) btnCerrar.focus();
+    }, 100);
+  }
 }
 
 async function reimprimirTicketDirecto() {
@@ -1707,8 +1724,27 @@ function imprimirPdfDirecto(pdfUrl) {
 }
 
 function cerrarTicket() {
-  document.getElementById('ticketModal').style.display = 'none';
-  document.getElementById('posSearch').focus();
+  const modal = document.getElementById('ticketModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+
+  // Restaurar el foco inmediatamente al escáner de códigos de barras según el modo activo
+  setTimeout(() => {
+    if (window.modoPosLayout === 'supermercado' || (typeof modoPosLayout !== 'undefined' && modoPosLayout === 'supermercado')) {
+      const superInput = document.getElementById('posSearchSuper');
+      if (superInput) {
+        superInput.focus();
+        superInput.select();
+      }
+    } else {
+      const normalInput = document.getElementById('posSearch');
+      if (normalInput) {
+        normalInput.focus();
+        normalInput.select();
+      }
+    }
+  }, 50);
 }
 
 function formatNumber(num) {

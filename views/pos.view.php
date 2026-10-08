@@ -460,8 +460,11 @@
 </div>
 
 <!-- Modal de Ticket / Comprobante -->
-<div id="ticketModal" class="ticket-overlay" style="display: none;">
+<div id="ticketModal" class="ticket-overlay" style="display: none;" onclick="if (event.target === this) cerrarTicket()">
   <div class="ticket-modal__card">
+    <button type="button" class="ticket-modal__close-btn no-print" onclick="cerrarTicket()" title="Cerrar comprobante (Esc)">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
     <div class="ticket-paper" id="ticketPaper">
       <div class="tk-center">
         <div class="tk-strong tk-lg"><?= htmlspecialchars($cfgLocal['MINIMARKET_NOMBRE'] ?? 'MINIMARKET') ?></div>
@@ -525,13 +528,15 @@
       <a id="ticketDtePdfBtn" href="#" target="_blank" class="btn btn-success" style="display: none;">
         <i class="fa-solid fa-file-pdf"></i> Ver PDF SII
       </a>
-      <button id="ticketLocalPrintBtn" onclick="window.print()" class="btn btn-primary">
+      <button id="ticketLocalPrintBtn" type="button" onclick="window.print()" class="btn btn-primary">
         <i class="fa-solid fa-print"></i> Imprimir comprobante
       </button>
-      <button id="ticketDtePrintBtn" onclick="imprimirPdfDirecto(this.dataset.url)" class="btn btn-success" style="display: none;">
+      <button id="ticketDtePrintBtn" type="button" onclick="imprimirPdfDirecto(this.dataset.url)" class="btn btn-success" style="display: none;">
         <i class="fa-solid fa-print"></i> Imprimir boleta SII
       </button>
-      <button onclick="cerrarTicket()" class="btn btn-secondary">Cerrar</button>
+      <button id="btnCerrarTicket" type="button" onclick="cerrarTicket()" class="btn btn-secondary">
+        <i class="fa-solid fa-xmark"></i> Cerrar (Esc)
+      </button>
     </div>
   </div>
 </div>
