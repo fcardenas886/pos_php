@@ -1,10 +1,16 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v4.1.1');
+define('APP_VERSION', 'v4.2.0');
 
 // Novedades reales por versión, para la pantalla de bienvenida y el módulo "Acerca de".
 // Registra la cronología completa de la evolución del sistema desde su inicio.
 define('APP_CHANGELOG', [
+    'v4.2.0' => [
+        'Productos con Precio Variable / Abierto: Soporte nativo para artículos de valor dinámico (plantas, flores, artesanías, remates o servicios) marcados en el catálogo.',
+        'Ventana Emergente Rápida en el POS: Al escanear o seleccionar un producto variable, el sistema solicita de inmediato el precio de venta acordado con autofoco numérico y confirmación con Enter.',
+        'Convivencia de Precios Múltiples en el Carrito: Posibilidad de vender varias unidades del mismo producto variable con precios distintos en líneas separadas.',
+        'Identificación Visual y Compatibilidad Total: Insignias distintivas en catálogo y carrito, con soporte para modo online y modo contingencia offline (IndexedDB).',
+    ],
     'v4.1.1' => [
         'Cierre Blindado y Ágil de Comprobante de Venta: Corrección de overflow en flexbox para que los botones de acción nunca se corten en pantallas estándar de POS.',
         'Múltiples Vías de Cierre Rápido: Botón superior (X), cierre con tecla Escape o Enter, y cierre al hacer clic fuera del ticket.',

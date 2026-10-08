@@ -18,7 +18,7 @@ try {
     if (!empty($query)) {
         // Búsqueda directa por texto / código de barra principal / códigos alternativos / PLU
         $stmt = $pdo->prepare("
-            SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.CostoCompra, p.Stock, p.StockMinimo, p.UnidadMedida, p.EsPesable, p.CodigoPLU, p.CategoriaID,
+            SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.CostoCompra, p.Stock, p.StockMinimo, p.UnidadMedida, p.EsPesable, p.EsPrecioVariable, p.CodigoPLU, p.CategoriaID,
                    cat.Nombre AS CategoriaNombre,
                    pr.PromocionID, pr.Tipo AS PromoTipo, pr.CantidadMinima AS PromoCantMin, pr.DescuentoPorcentaje AS PromoDescPorc, pr.PrecioOferta AS PromoPrecioOf,
                    pc_match.CodigoBarras AS CodigoAltMatch,
@@ -50,7 +50,7 @@ try {
     } elseif ($filtro === 'mas_vendidos') {
         // Ordenado por mayor volumen de venta histórico en detalleventas (compatible con ONLY_FULL_GROUP_BY)
         $stmt = $pdo->query("
-            SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.Stock, p.StockMinimo, p.UnidadMedida, p.EsPesable, p.CodigoPLU, p.CategoriaID,
+            SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.Stock, p.StockMinimo, p.UnidadMedida, p.EsPesable, p.EsPrecioVariable, p.CodigoPLU, p.CategoriaID,
                    pr.PromocionID, pr.Tipo AS PromoTipo, pr.CantidadMinima AS PromoCantMin, pr.DescuentoPorcentaje AS PromoDescPorc, pr.PrecioOferta AS PromoPrecioOf,
                    COALESCE(ventas.TotalVendido, 0) AS TotalVendido
             FROM productos p
@@ -67,7 +67,7 @@ try {
     } elseif ($filtro === 'ofertas') {
         // Solo productos con promociones u ofertas activas
         $stmt = $pdo->query("
-            SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.Stock, p.StockMinimo, p.UnidadMedida, p.EsPesable, p.CodigoPLU, p.CategoriaID,
+            SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.Stock, p.StockMinimo, p.UnidadMedida, p.EsPesable, p.EsPrecioVariable, p.CodigoPLU, p.CategoriaID,
                    pr.PromocionID, pr.Tipo AS PromoTipo, pr.CantidadMinima AS PromoCantMin, pr.DescuentoPorcentaje AS PromoDescPorc, pr.PrecioOferta AS PromoPrecioOf
             FROM productos p
             INNER JOIN promociones pr ON p.ProductoID = pr.ProductoID AND pr.Activa = TRUE AND pr.FechaInicio <= NOW() AND pr.FechaFin >= NOW()
@@ -78,7 +78,7 @@ try {
     } elseif ($filtro === 'categoria' && $categoriaId > 0) {
         // Filtrado por categoría específica
         $stmt = $pdo->prepare("
-            SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.Stock, p.StockMinimo, p.UnidadMedida, p.EsPesable, p.CodigoPLU, p.CategoriaID,
+            SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.Stock, p.StockMinimo, p.UnidadMedida, p.EsPesable, p.EsPrecioVariable, p.CodigoPLU, p.CategoriaID,
                    pr.PromocionID, pr.Tipo AS PromoTipo, pr.CantidadMinima AS PromoCantMin, pr.DescuentoPorcentaje AS PromoDescPorc, pr.PrecioOferta AS PromoPrecioOf
             FROM productos p
             LEFT JOIN promociones pr ON p.ProductoID = pr.ProductoID AND pr.Activa = TRUE AND pr.FechaInicio <= NOW() AND pr.FechaFin >= NOW()
@@ -90,7 +90,7 @@ try {
     } else {
         // Catálogo general (Todos, orden alfabético)
         $stmt = $pdo->query("
-            SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.Stock, p.StockMinimo, p.UnidadMedida, p.EsPesable, p.CodigoPLU, p.CategoriaID,
+            SELECT p.ProductoID, p.CodigoBarras, p.Nombre, p.PrecioVenta, p.Stock, p.StockMinimo, p.UnidadMedida, p.EsPesable, p.EsPrecioVariable, p.CodigoPLU, p.CategoriaID,
                    pr.PromocionID, pr.Tipo AS PromoTipo, pr.CantidadMinima AS PromoCantMin, pr.DescuentoPorcentaje AS PromoDescPorc, pr.PrecioOferta AS PromoPrecioOf
             FROM productos p
             LEFT JOIN promociones pr ON p.ProductoID = pr.ProductoID AND pr.Activa = TRUE AND pr.FechaInicio <= NOW() AND pr.FechaFin >= NOW()

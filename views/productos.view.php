@@ -55,13 +55,31 @@
             <td><code><?= htmlspecialchars($p['CodigoBarras'] ?: 'SIN CÓDIGO') ?></code></td>
             <td style="font-weight: 600; color: #fff;">
               <?= htmlspecialchars($p['Nombre']) ?>
+              <?php if (!empty($p['EsPrecioVariable'])): ?>
+                <span class="badge badge-info" style="font-size: 0.65rem; padding: 0.15rem 0.35rem; margin-left: 0.3rem; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);" title="El precio se solicita en el POS al momento de vender">
+                  <i class="fa-solid fa-tag"></i> Variable
+                </span>
+              <?php endif; ?>
+              <?php if (!empty($p['EsPesable'])): ?>
+                <span class="badge badge-warning" style="font-size: 0.65rem; padding: 0.15rem 0.35rem; margin-left: 0.3rem;" title="Balanza Kg">
+                  <i class="fa-solid fa-weight-scale"></i> Kg
+                </span>
+              <?php endif; ?>
               <?php if (!$p['Activo']): ?>
                 <span class="badge badge-danger" style="font-size: 0.65rem; padding: 0.15rem 0.3rem; margin-left: 0.4rem;">INACTIVO</span>
               <?php endif; ?>
             </td>
             <td><?= htmlspecialchars($p['Categoria'] ?: 'General') ?></td>
             <td style="font-weight: 600;"><?= $p['Stock'] ?></td>
-            <td style="font-weight: 700; color: var(--success);"><?= formatCLP($p['PrecioVenta']) ?></td>
+            <td style="font-weight: 700; color: var(--success);">
+              <?php if (!empty($p['EsPrecioVariable'])): ?>
+                <span style="color: #60a5fa; font-size: 0.85rem;" title="Precio fijado en mostrador al vender">
+                  <?= $p['PrecioVenta'] > 0 ? formatCLP($p['PrecioVenta']) . ' <small>(sug.)</small>' : '<i class="fa-solid fa-hand-holding-dollar"></i> Variable' ?>
+                </span>
+              <?php else: ?>
+                <?= formatCLP($p['PrecioVenta']) ?>
+              <?php endif; ?>
+            </td>
             <td>
               <?php if (!$p['Activo']): ?>
                 <span class="badge badge-secondary">Inactivo</span>
@@ -167,6 +185,18 @@
         </div>
       </div>
 
+      <div style="display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.15rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <input type="checkbox" name="es_precio_variable" id="prodEsPrecioVariableInput" value="1" onchange="togglePrecioVariableField()" style="width: 18px; height: 18px; cursor: pointer;">
+          <label for="prodEsPrecioVariableInput" style="font-size: 0.85rem; font-weight: 600; cursor: pointer; user-select: none; color: #60a5fa;">
+            <i class="fa-solid fa-tag"></i> Precio Variable / Abierto (Pedir precio en caja)
+          </label>
+        </div>
+        <small id="prodPrecioVarHint" style="display: none; color: #93c5fd; font-size: 0.75rem; padding-left: 1.6rem;">
+          <i class="fa-solid fa-circle-info"></i> Al vender este producto (ej. plantas, flores), el POS solicitará el precio con una ventana rápida. El precio de arriba puede ser $0 o sugerido.
+        </small>
+      </div>
+
       <div style="display: flex; align-items: center; gap: 0.5rem;">
         <input type="checkbox" name="activo" id="prodActivoInput" value="1" checked style="width: 18px; height: 18px; cursor: pointer;">
         <label for="prodActivoInput" style="font-size: 0.85rem; font-weight: 600; cursor: pointer; user-select: none;">Producto Activo (disponible para venta)</label>
@@ -196,6 +226,20 @@ function togglePluField() {
   }
 }
 
+function togglePrecioVariableField() {
+  const isVar = document.getElementById('prodEsPrecioVariableInput').checked;
+  const hint = document.getElementById('prodPrecioVarHint');
+  const precioInput = document.getElementById('prodPrecioVentaInput');
+  if (isVar) {
+    hint.style.display = 'block';
+    precioInput.placeholder = '0 (o sugerido)';
+    if (precioInput.value === '') precioInput.value = '0';
+  } else {
+    hint.style.display = 'none';
+    precioInput.placeholder = '1500';
+  }
+}
+
 function abrirNuevoModal() {
   document.getElementById('modalTitle').textContent = 'Agregar Nuevo Producto';
   document.getElementById('prodIdInput').value = '';
@@ -208,8 +252,10 @@ function abrirNuevoModal() {
   document.getElementById('prodStockMinimoInput').value = '0';
   document.getElementById('prodActivoInput').checked = true;
   document.getElementById('prodEsPesableInput').checked = false;
+  document.getElementById('prodEsPrecioVariableInput').checked = false;
   document.getElementById('prodCodigoPLUInput').value = '';
   togglePluField();
+  togglePrecioVariableField();
 
   // Stock editable solo al crear (stock inicial)
   var stockInput = document.getElementById('prodStockInput');
@@ -232,8 +278,10 @@ function abrirEditarModal(p) {
   document.getElementById('prodStockMinimoInput').value = p.StockMinimo;
   document.getElementById('prodActivoInput').checked = parseInt(p.Activo) === 1;
   document.getElementById('prodEsPesableInput').checked = parseInt(p.EsPesable) === 1;
+  document.getElementById('prodEsPrecioVariableInput').checked = parseInt(p.EsPrecioVariable) === 1;
   document.getElementById('prodCodigoPLUInput').value = p.CodigoPLU || '';
   togglePluField();
+  togglePrecioVariableField();
 
   // Al editar, el stock actual es de solo lectura: se ajusta por Compras/ventas/Ajustes
   var stockInput = document.getElementById('prodStockInput');

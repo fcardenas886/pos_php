@@ -562,6 +562,44 @@
   </div>
 </div>
 
+<!-- Modal Ingreso de Precio Variable / Abierto -->
+<div id="precioVariableModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 2800; justify-content: center; align-items: center; padding: 1rem;" onclick="if(event.target === this) cerrarModalPrecioVariable()">
+  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 16px; width: 420px; max-width: 95vw; padding: 1.75rem; box-shadow: var(--shadow-lg); position: relative; display: flex; flex-direction: column; gap: 1.25rem;">
+    <button type="button" onclick="cerrarModalPrecioVariable()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; line-height: 1;"><i class="fa-solid fa-xmark"></i></button>
+    
+    <div>
+      <div style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; font-weight: 700; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;">
+        <i class="fa-solid fa-tag"></i> Producto con Precio Variable
+      </div>
+      <h2 id="precioVariableNombre" style="font-size: 1.25rem; font-weight: 700; color: #fff; margin: 0; line-height: 1.3;">Planta Variada</h2>
+      <p id="precioVariableMeta" style="color: var(--text-muted); font-size: 0.8rem; margin: 0.25rem 0 0 0;">Ingrese el precio acordado para este producto</p>
+    </div>
+
+    <form id="formPrecioVariable" onsubmit="confirmarPrecioVariableModal(event)" style="display: flex; flex-direction: column; gap: 1.25rem; margin: 0;">
+      <div>
+        <label for="precioVariableMonto" style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">
+          PRECIO DE VENTA ($ CLP) *
+        </label>
+        <div style="position: relative;">
+          <span style="position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%); font-size: 1.8rem; font-weight: 700; color: var(--success);">$</span>
+          <input type="number" id="precioVariableMonto" min="1" step="1" required class="form-control" placeholder="0" 
+                 style="font-size: 2rem; font-weight: 800; text-align: right; padding-left: 2.8rem; padding-right: 1.25rem; height: 3.8rem; color: var(--success); border: 2px solid rgba(16, 185, 129, 0.4);" 
+                 autocomplete="off">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem;">
+        <button type="submit" class="btn btn-success btn-block" style="padding: 0.85rem 1rem; font-size: 1rem; font-weight: 700; flex: 2; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+          <i class="fa-solid fa-check"></i> Agregar (Enter)
+        </button>
+        <button type="button" onclick="cerrarModalPrecioVariable()" class="btn btn-secondary" style="padding: 0.85rem 1rem; font-size: 0.95rem; flex: 1;">
+          Cancelar (Esc)
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 async function abrirModalConsultaPrecios() {
   document.getElementById('consultaPrecioSearch').value = '';

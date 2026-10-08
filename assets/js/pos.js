@@ -570,6 +570,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.addEventListener('keydown', (e) => {
+    // Si el modal de precio variable está abierto, cerrar con Escape
+    const pvModal = document.getElementById('precioVariableModal');
+    if (pvModal && pvModal.style.display !== 'none') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        cerrarModalPrecioVariable();
+        return;
+      }
+    }
+
     // Si el comprobante/ticket está abierto, cerrar con Escape o Enter
     const ticketModal = document.getElementById('ticketModal');
     if (ticketModal && ticketModal.style.display !== 'none') {
@@ -654,7 +664,7 @@ function renderProductosGrid() {
         <div class="product-name" title="${escapeHtml(p.Nombre)}">${escapeHtml(p.Nombre)}</div>
         <div class="product-sku">${p.CodigoBarras ? '#' + p.CodigoBarras : (p.CodigoPLU ? 'PLU #' + p.CodigoPLU : 'Sin código')}</div>
         <div class="product-meta">
-          <div class="product-price">$${formatNumber(p.PrecioVenta)}</div>
+          <div class="product-price">${parseInt(p.EsPrecioVariable) === 1 ? '<span style="color: #60a5fa; font-size: 0.82em;"><i class="fa-solid fa-tag"></i> Variable</span>' : '$' + formatNumber(p.PrecioVenta)}</div>
           <div class="product-stock" title="Stock en tienda">${p.Stock} disp.</div>
         </div>
       </div>
@@ -665,7 +675,7 @@ function renderProductosGrid() {
         <div class="product-name">${escapeHtml(p.Nombre)}</div>
         <div style="font-size: 0.75rem; color: var(--text-muted);">${p.CodigoBarras ? '#' + p.CodigoBarras : (p.CodigoPLU ? 'PLU #' + p.CodigoPLU : 'Sin código')}</div>
         <div class="product-meta">
-          <div class="product-price">$${formatNumber(p.PrecioVenta)}</div>
+          <div class="product-price">${parseInt(p.EsPrecioVariable) === 1 ? '<span style="color: #60a5fa; font-size: 0.85em;"><i class="fa-solid fa-tag"></i> Variable</span>' : '$' + formatNumber(p.PrecioVenta)}</div>
           <div class="product-stock">Stock: ${p.Stock}</div>
         </div>
       </div>
@@ -729,7 +739,84 @@ function agregarAlCarritoId(id) {
   if (p) agregarAlCarrito(p);
 }
 
+let pendingPrecioVariableItem = null;
+
+function abrirModalPrecioVariable(producto, cantidad = 1, factor = 1, descPack = '', esPromoPack = false) {
+  pendingPrecioVariableItem = { producto, cantidad, factor, descPack, esPromoPack };
+  
+  const modal = document.getElementById('precioVariableModal');
+  const nomEl = document.getElementById('precioVariableNombre');
+  const metaEl = document.getElementById('precioVariableMeta');
+  const montoInput = document.getElementById('precioVariableMonto');
+
+  if (nomEl) nomEl.textContent = producto.Nombre;
+  if (metaEl) {
+    const stockStr = (producto.Stock !== undefined && producto.Stock !== null) ? `Stock: ${producto.Stock} un.` : '';
+    const codStr = producto.CodigoBarras ? `Código: ${producto.CodigoBarras}` : (producto.CodigoPLU ? `PLU: #${producto.CodigoPLU}` : '');
+    metaEl.textContent = [codStr, stockStr].filter(Boolean).join(' • ') || 'Ingrese el precio acordado para este producto';
+  }
+
+  // Si tiene un precio sugerido mayor a 0, precargarlo; sino dejar vacío
+  if (montoInput) {
+    const sug = parseInt(producto.PrecioVenta) || 0;
+    montoInput.value = sug > 0 ? sug : '';
+  }
+
+  if (modal) {
+    modal.style.display = 'flex';
+    setTimeout(() => {
+      if (montoInput) {
+        montoInput.focus();
+        montoInput.select();
+      }
+    }, 80);
+  }
+}
+
+function cerrarModalPrecioVariable() {
+  const modal = document.getElementById('precioVariableModal');
+  if (modal) modal.style.display = 'none';
+  pendingPrecioVariableItem = null;
+
+  // Devolver el foco al escáner según el modo
+  setTimeout(() => {
+    if (window.modoPosLayout === 'supermercado' || (typeof modoPosLayout !== 'undefined' && modoPosLayout === 'supermercado')) {
+      const superInput = document.getElementById('posSearchSuper');
+      if (superInput) { superInput.focus(); superInput.select(); }
+    } else {
+      const normalInput = document.getElementById('posSearch');
+      if (normalInput) { normalInput.focus(); normalInput.select(); }
+    }
+  }, 50);
+}
+
+function confirmarPrecioVariableModal(event) {
+  if (event) event.preventDefault();
+  if (!pendingPrecioVariableItem) return;
+
+  const montoInput = document.getElementById('precioVariableMonto');
+  const precio = parseInt(montoInput ? montoInput.value : 0) || 0;
+
+  if (precio <= 0) {
+    toast('Por favor ingrese un precio mayor a $0.', 'warn');
+    if (montoInput) montoInput.focus();
+    return;
+  }
+
+  const item = pendingPrecioVariableItem;
+  cerrarModalPrecioVariable();
+
+  // Llamar agregarAlCarrito con el precio variable asignado explícitamente en precioPack
+  agregarAlCarrito(item.producto, item.cantidad, item.factor, precio, item.descPack, item.esPromoPack);
+}
+
 function agregarAlCarrito(producto, cantidad = 1, factor = 1, precioPack = null, descPack = '', esPromoPack = false) {
+  // Si el producto tiene precio variable y no se le ha asignado precio aún, pedirlo en modal
+  if (parseInt(producto.EsPrecioVariable) === 1 && (precioPack === null || precioPack === undefined)) {
+    abrirModalPrecioVariable(producto, cantidad, factor, descPack, esPromoPack);
+    return;
+  }
+
   factor = parseFloat(factor) || 1;
   const precioBaseUnitario = parseInt(producto.PrecioVenta) || 0;
 
@@ -756,7 +843,7 @@ function agregarAlCarrito(producto, cantidad = 1, factor = 1, precioPack = null,
   const nombreFinal = descPack ? `${producto.Nombre} (${descPack})` : producto.Nombre;
   const codigoUsado = producto.CodigoAltMatch || producto.CodigoBarras || '';
 
-  // Buscar si ya existe exactamente esta misma presentación (mismo producto y mismo factor/precio)
+  // Buscar si ya existe exactamente esta misma presentación (mismo producto, mismo factor y mismo precio)
   const existIndex = cart.findIndex(item => item.ProductoID == producto.ProductoID && (item.factor || 1) == factor && item.PrecioVenta == precioUnitario);
   
   // Unidades físicas totales que este producto ya ocupa en el carrito
@@ -788,7 +875,8 @@ function agregarAlCarrito(producto, cantidad = 1, factor = 1, precioPack = null,
       descPack: descPack,
       esPromoPack: esPromoPack,
       EsPesable: producto.EsPesable,
-      PromocionID: factor <= 1 ? (producto.PromocionID || null) : null,
+      EsPrecioVariable: producto.EsPrecioVariable,
+      PromocionID: factor <= 1 ? (producto.PromoTipo ? producto.PromocionID : null) : null,
       PromoTipo: factor <= 1 ? (producto.PromoTipo || null) : null,
       PromoCantMin: factor <= 1 ? (parseFloat(producto.PromoCantMin) || 0) : 0,
       PromoDescPorc: factor <= 1 ? (parseFloat(producto.PromoDescPorc) || 0) : 0,
@@ -923,7 +1011,10 @@ function renderCart() {
         return `
           <div class="cart-item">
             <div class="cart-item__main">
-              <div class="cart-item__name">${escapeHtml(item.Nombre)}</div>
+              <div class="cart-item__name">
+                ${escapeHtml(item.Nombre)}
+                ${parseInt(item.EsPrecioVariable) === 1 ? ' <span style="font-size: 0.68rem; padding: 0.1rem 0.35rem; border-radius: 4px; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);"><i class="fa-solid fa-tag"></i> Var</span>' : ''}
+              </div>
               <div class="cart-item__unit">$${formatNumber(item.PrecioVenta)} c/u ${promoBadgeHtml}</div>
             </div>
 
@@ -975,13 +1066,14 @@ function renderCart() {
 
         const sku = item.CodigoBarras ? item.CodigoBarras : (item.CodigoPLU ? `PLU #${item.CodigoPLU}` : '&minus;');
         const esPesableBadge = parseInt(item.EsPesable) === 1 ? '<span style="font-size: 0.72rem; color: #818cf8; margin-left: 0.4rem;"><i class="fa-solid fa-weight-scale"></i> Kg</span>' : '';
+        const esVariableBadge = parseInt(item.EsPrecioVariable) === 1 ? '<span style="font-size: 0.68rem; padding: 0.1rem 0.35rem; border-radius: 4px; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); margin-left: 0.35rem;" title="Precio asignado en caja"><i class="fa-solid fa-tag"></i> Var</span>' : '';
 
         return `
           <tr>
             <td class="item-num" style="text-align: center;">${idx + 1}</td>
             <td class="item-sku">${sku}</td>
             <td>
-              <div class="item-desc">${escapeHtml(item.Nombre)} ${esPesableBadge}</div>
+              <div class="item-desc">${escapeHtml(item.Nombre)} ${esPesableBadge} ${esVariableBadge}</div>
             </td>
             <td class="item-price">$${formatNumber(item.PrecioVenta)}</td>
             <td style="text-align: center;">

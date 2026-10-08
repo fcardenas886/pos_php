@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stockMinimo = (float)($_POST['stock_minimo'] ?? 0);
         $activo = isset($_POST['activo']) ? 1 : 0;
         $esPesable = isset($_POST['es_pesable']) ? 1 : 0;
+        $esPrecioVariable = isset($_POST['es_precio_variable']) ? 1 : 0;
         $codigoPLU = !empty($_POST['codigo_plu']) ? trim($_POST['codigo_plu']) : null;
 
         // Validar PLU si es pesable
@@ -34,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($error)) {
-            if (!empty($nombre) && $precioVenta >= 0) {
+            if (!empty($nombre) && ($precioVenta >= 0 || $esPrecioVariable)) {
                 try {
                     if ($id) {
                         $stmt = $pdo->prepare("
@@ -42,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             SET CodigoBarras = :codigo, Nombre = :nombre, CategoriaID = :cat,
                                 PrecioVenta = :precio, CostoCompra = :costo,
                                 StockMinimo = :stockmin, Activo = :activo,
-                                EsPesable = :espesable, CodigoPLU = :plu
+                                EsPesable = :espesable, EsPrecioVariable = :esvariable, CodigoPLU = :plu
                             WHERE ProductoID = :id
                         ");
                         $stmt->execute([
@@ -54,13 +55,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ':stockmin' => $stockMinimo,
                             ':activo' => $activo,
                             ':espesable' => $esPesable,
+                            ':esvariable' => $esPrecioVariable,
                             ':plu' => $codigoPLU,
                             ':id' => $id
                         ]);
                     } else {
                         $stmt = $pdo->prepare("
-                            INSERT INTO productos (CodigoBarras, Nombre, CategoriaID, PrecioVenta, CostoCompra, Stock, StockMinimo, Activo, EsPesable, CodigoPLU)
-                            VALUES (:codigo, :nombre, :cat, :precio, :costo, :stock, :stockmin, :activo, :espesable, :plu)
+                            INSERT INTO productos (CodigoBarras, Nombre, CategoriaID, PrecioVenta, CostoCompra, Stock, StockMinimo, Activo, EsPesable, EsPrecioVariable, CodigoPLU)
+                            VALUES (:codigo, :nombre, :cat, :precio, :costo, :stock, :stockmin, :activo, :espesable, :esvariable, :plu)
                         ");
                         $stmt->execute([
                             ':codigo' => $codigo,
@@ -72,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ':stockmin' => $stockMinimo,
                             ':activo' => $activo,
                             ':espesable' => $esPesable,
+                            ':esvariable' => $esPrecioVariable,
                             ':plu' => $codigoPLU
                         ]);
                     }
