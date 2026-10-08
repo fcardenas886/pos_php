@@ -1,10 +1,16 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v4.2.0');
+define('APP_VERSION', 'v4.3.0');
 
 // Novedades reales por versión, para la pantalla de bienvenida y el módulo "Acerca de".
 // Registra la cronología completa de la evolución del sistema desde su inicio.
 define('APP_CHANGELOG', [
+    'v4.3.0' => [
+        'Generación Automática de Códigos EAN-8: Asignación automática de códigos de barra estándar GS1 (prefijo 2 + secuencia interna + dígito verificador Módulo 10) para productos sin código de fábrica al guardar.',
+        'Botón de Autogeneración Rápida: Botón interactivo "⚡ Generar EAN-8" en el formulario de creación/edición de productos para asignar y previsualizar el código antes de guardar.',
+        'Módulo de Impresión de Etiquetas Térmicas / Góndola: Nueva ventana de visualización e impresión directa de etiquetas adhesivas con código de barras en SVG (JsBarcode 100% offline), nombre y precio.',
+        'Compatibilidad Universal y Códigos Cortos: Código de 8 dígitos de lectura instantánea para escáneres láser y CCD, ideal para pegatinas pequeñas, productos agrícolas, plantas o artesanías.',
+    ],
     'v4.2.0' => [
         'Productos con Precio Variable / Abierto: Soporte nativo para artículos de valor dinámico (plantas, flores, artesanías, remates o servicios) marcados en el catálogo.',
         'Ventana Emergente Rápida en el POS: Al escanear o seleccionar un producto variable, el sistema solicita de inmediato el precio de venta acordado con autofoco numérico y confirmación con Enter.',

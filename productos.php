@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/barcode_helper.php';
 checkRole(['Administrador', 'Supervisor']);
 
 $pdo = getDB();
@@ -37,6 +38,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($error)) {
             if (!empty($nombre) && ($precioVenta >= 0 || $esPrecioVariable)) {
                 try {
+                    // Si no se proporcionó código de barras, autogenerar código interno estándar EAN-8
+                    if (empty($codigo)) {
+                        $codigo = generarSiguienteEAN8($pdo);
+                    }
+
                     if ($id) {
                         $stmt = $pdo->prepare("
                             UPDATE productos

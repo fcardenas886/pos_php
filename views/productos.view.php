@@ -105,6 +105,11 @@
                     <span style="background: var(--primary); color: #fff; font-size: 0.65rem; padding: 0.1rem 0.35rem; border-radius: 10px; font-weight: bold; margin-left: 0.15rem;">+<?= (int)$p['TotalCodigosAlt'] ?></span>
                   <?php endif; ?>
                 </button>
+                <button type="button" class="btn btn-secondary" style="padding: 0.25rem 0.55rem; font-size: 0.8rem; color: #10b981;" 
+                        onclick='abrirModalImprimirEtiqueta(<?= json_encode($p, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'
+                        title="Ver / Imprimir etiqueta de código de barras">
+                  <i class="fa-solid fa-print"></i>
+                </button>
                 <form method="POST" action="productos.php" style="display:inline;">
                   <?= csrfField() ?>
                   <input type="hidden" name="action" value="toggle_activo">
@@ -138,8 +143,16 @@
       <input type="hidden" name="producto_id" id="prodIdInput" value="">
       
       <div>
-        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CÓDIGO DE BARRAS</label>
-        <input type="text" name="codigo_barras" id="prodCodigoInput" class="form-control" placeholder="Ej: 780123456789">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin: 0;">CÓDIGO DE BARRAS</label>
+          <button type="button" id="btnGenEAN8" onclick="autogenerarCodigoEAN8()" class="btn btn-secondary" style="padding: 0.2rem 0.6rem; font-size: 0.72rem; color: #818cf8; border-color: rgba(129, 140, 248, 0.3);" title="Generar código de barras interno EAN-8 oficial (8 dígitos)">
+            <i class="fa-solid fa-bolt"></i> Generar EAN-8
+          </button>
+        </div>
+        <input type="text" name="codigo_barras" id="prodCodigoInput" class="form-control" placeholder="Ej: 780123456789 o dejar vacío para autogenerar">
+        <small style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.25rem; display: block;">
+          Si dejas este campo en blanco, el sistema le asignará un código EAN-8 interno al guardar.
+        </small>
       </div>
       <div>
         <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">NOMBRE PRODUCTO *</label>
@@ -645,4 +658,286 @@ function escapeHtml(text) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+</script>
+
+<!-- Modal Imprimir Etiqueta de Código de Barras -->
+<div id="modalEtiquetaProducto" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
+  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 16px; width: 440px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-lg);">
+    
+    <!-- Header -->
+    <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-dark); display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <h2 style="font-size: 1.15rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-barcode" style="color: #10b981;"></i> Etiqueta de Código de Barras
+        </h2>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">
+          Imprime etiquetas adhesivas o flejes para tu mercadería.
+        </p>
+      </div>
+      <button type="button" onclick="cerrarModalEtiqueta()" style="background: none; border: none; font-size: 1.4rem; color: var(--text-muted); cursor: pointer;">&times;</button>
+    </div>
+
+    <!-- Body -->
+    <div style="padding: 1.25rem 1.5rem; overflow-y: auto; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+      <!-- Options toolbar -->
+      <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; background: var(--bg-dark); padding: 0.6rem 0.9rem; border-radius: 8px; border: 1px solid var(--border-dark);">
+        <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; margin: 0; user-select: none;">
+          <input type="checkbox" id="chkEtiquetaMostrarPrecio" checked onchange="actualizarVistaEtiqueta()">
+          <span>Mostrar Precio</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; margin: 0; user-select: none;">
+          <input type="checkbox" id="chkEtiquetaMostrarEmpresa" checked onchange="actualizarVistaEtiqueta()">
+          <span>Nombre Local</span>
+        </label>
+      </div>
+
+      <!-- Preview container (this is what gets printed) -->
+      <div id="printableEtiquetaArea" style="width: 100%; display: flex; justify-content: center; padding: 0.5rem 0;">
+        <div id="printableEtiquetaBox" style="background: #ffffff; color: #000000; border: 2px dashed #475569; border-radius: 8px; padding: 12px 14px; width: 280px; text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,0.12); display: flex; flex-direction: column; align-items: center; justify-content: space-between; box-sizing: border-box;">
+          <div id="etiquetaEmpresa" style="font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #475569; margin-bottom: 2px;">
+            <?= htmlspecialchars($nombreEmpresa) ?>
+          </div>
+          <div id="etiquetaNombre" style="font-size: 0.88rem; font-weight: 800; line-height: 1.2; text-transform: uppercase; margin: 2px 0 6px 0; color: #0f172a; word-break: break-word;">
+            NOMBRE DEL PRODUCTO
+          </div>
+          <div style="width: 100%; display: flex; justify-content: center; margin: 2px 0;">
+            <svg id="svgEtiquetaBarcode" style="max-width: 100%; height: auto; display: block;"></svg>
+          </div>
+          <div id="etiquetaPrecio" style="font-size: 1.35rem; font-weight: 900; color: #000000; margin-top: 4px; line-height: 1;">
+            $ 0
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center; line-height: 1.35;">
+        <i class="fa-solid fa-circle-info" style="color: #38bdf8;"></i> Compatible con impresoras térmicas de stickers (50x30mm, 58mm, 80mm) y papel de oficina.
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-dark); display: flex; justify-content: flex-end; gap: 0.5rem; background: var(--bg-dark);">
+      <button type="button" onclick="cerrarModalEtiqueta()" class="btn btn-secondary" style="padding: 0.5rem 1rem;">
+        Cerrar
+      </button>
+      <button type="button" onclick="imprimirEtiquetaDirecta()" class="btn btn-primary" style="padding: 0.5rem 1.25rem; background: #10b981; border-color: #10b981;">
+        <i class="fa-solid fa-print"></i> Imprimir Etiqueta
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Estilos para impresión directa de etiqueta */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #printableEtiquetaArea, #printableEtiquetaArea * {
+    visibility: visible !important;
+  }
+  #printableEtiquetaArea {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    background: transparent !important;
+  }
+  #printableEtiquetaBox {
+    border: none !important;
+    box-shadow: none !important;
+    margin-top: 4mm !important;
+  }
+  @page {
+    size: auto;
+    margin: 0mm;
+  }
+}
+</style>
+
+<!-- Librería JsBarcode (Offline) -->
+<script src="assets/vendor/JsBarcode.all.min.js"></script>
+
+<script>
+let currentEtiquetaProducto = null;
+
+async function autogenerarCodigoEAN8() {
+  const btn = document.getElementById('btnGenEAN8');
+  const input = document.getElementById('prodCodigoInput');
+  const originalHtml = btn.innerHTML;
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando...';
+
+  try {
+    const res = await fetch('api/generar_codigo_ean8.php');
+    const data = await res.json();
+    if (data.success && data.codigo) {
+      input.value = data.codigo;
+      input.focus();
+      input.style.borderColor = '#10b981';
+      input.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)';
+      setTimeout(() => {
+        input.style.borderColor = '';
+        input.style.boxShadow = '';
+      }, 1500);
+    } else {
+      alert(data.error || 'No se pudo generar el código EAN-8.');
+    }
+  } catch (err) {
+    alert('Error al conectar con el servidor para generar código.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+function abrirModalImprimirEtiqueta(p) {
+  if (!p) return;
+  currentEtiquetaProducto = p;
+
+  let codigo = (p.CodigoBarras || '').trim();
+  if (!codigo) {
+    if (confirm(`El producto "${p.Nombre}" no tiene código de barras asignado.\n\n¿Deseas editarlo ahora para asignarle un código EAN-8 automático?`)) {
+      abrirEditarModal(p);
+      autogenerarCodigoEAN8();
+    }
+    return;
+  }
+
+  document.getElementById('etiquetaNombre').textContent = p.Nombre || 'SIN NOMBRE';
+
+  if (parseInt(p.EsPrecioVariable) === 1) {
+    document.getElementById('etiquetaPrecio').innerHTML = '<span style="font-size: 0.95rem; font-weight: 700; color: #2563eb;">PRECIO VARIABLE</span>';
+  } else {
+    const precio = parseInt(p.PrecioVenta || 0);
+    document.getElementById('etiquetaPrecio').textContent = '$ ' + Number(precio).toLocaleString('es-CL');
+  }
+
+  actualizarVistaEtiqueta();
+  renderizarBarcodeEtiqueta(codigo);
+
+  document.getElementById('modalEtiquetaProducto').style.display = 'flex';
+}
+
+function cerrarModalEtiqueta() {
+  document.getElementById('modalEtiquetaProducto').style.display = 'none';
+  currentEtiquetaProducto = null;
+}
+
+function actualizarVistaEtiqueta() {
+  const chkPrecio = document.getElementById('chkEtiquetaMostrarPrecio');
+  const chkEmpresa = document.getElementById('chkEtiquetaMostrarEmpresa');
+  const precioEl = document.getElementById('etiquetaPrecio');
+  const empresaEl = document.getElementById('etiquetaEmpresa');
+
+  if (precioEl) precioEl.style.display = (chkPrecio && chkPrecio.checked) ? 'block' : 'none';
+  if (empresaEl) empresaEl.style.display = (chkEmpresa && chkEmpresa.checked) ? 'block' : 'none';
+}
+
+function renderizarBarcodeEtiqueta(codigo) {
+  const svgEl = document.getElementById('svgEtiquetaBarcode');
+  svgEl.innerHTML = '';
+
+  let formato = "CODE128";
+  const soloNumeros = /^\d+$/.test(codigo);
+  if (soloNumeros && codigo.length === 8) {
+    formato = "EAN8";
+  } else if (soloNumeros && codigo.length === 13) {
+    formato = "EAN13";
+  }
+
+  try {
+    JsBarcode(svgEl, codigo, {
+      format: formato,
+      width: 1.8,
+      height: 44,
+      displayValue: true,
+      fontSize: 12,
+      font: "monospace",
+      textMargin: 2,
+      margin: 4,
+      background: "#ffffff",
+      lineColor: "#000000"
+    });
+  } catch (err) {
+    console.warn('[Barcode] Reintentando con CODE128:', err);
+    try {
+      JsBarcode(svgEl, codigo, {
+        format: "CODE128",
+        width: 1.8,
+        height: 44,
+        displayValue: true,
+        fontSize: 12,
+        font: "monospace",
+        textMargin: 2,
+        margin: 4,
+        background: "#ffffff",
+        lineColor: "#000000"
+      });
+    } catch (e2) {
+      svgEl.innerHTML = `<text x="50%" y="50%" text-anchor="middle" fill="#ef4444" font-size="12">Error código: ${escapeHtml(codigo)}</text>`;
+    }
+  }
+}
+
+function imprimirEtiquetaDirecta() {
+  const boxHtml = document.getElementById('printableEtiquetaBox').outerHTML;
+  const printWindow = window.open('', '_blank', 'width=450,height=400');
+  if (printWindow) {
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Imprimir Etiqueta - ${escapeHtml(currentEtiquetaProducto?.Nombre || 'Producto')}</title>
+        <style>
+          @page { margin: 2mm; size: auto; }
+          body {
+            margin: 0;
+            padding: 4mm;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #fff;
+          }
+          #printableEtiquetaBox {
+            border: 1px solid #000 !important;
+            box-shadow: none !important;
+            width: 100% !important;
+            max-width: 60mm;
+            padding: 2mm 3mm !important;
+          }
+        </style>
+      </head>
+      <body>
+        ${boxHtml}
+        <script>
+          window.onload = function() {
+            window.focus();
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  } else {
+    window.print();
+  }
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('modalEtiquetaProducto')?.style.display === 'flex') {
+      cerrarModalEtiqueta();
+    }
+  }
+});
 </script>
