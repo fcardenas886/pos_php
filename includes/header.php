@@ -157,8 +157,8 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
     </li>
 
     <!-- Grupo: Caja y Ventas -->
-    <li class="nav-item">
-      <div class="nav-link <?= in_array($currentPage, ['caja.php', 'ventas.php', 'devoluciones.php', 'cotizaciones.php']) ? 'active' : '' ?>">
+    <li class="nav-item has-dropdown">
+      <div class="nav-link <?= in_array($currentPage, ['caja.php', 'ventas.php', 'devoluciones.php', 'cotizaciones.php']) ? 'active' : '' ?>" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
         <i class="fa-solid fa-cash-register"></i> Caja y Ventas <i class="fa-solid fa-chevron-down nav-caret"></i>
       </div>
       <ul class="dropdown-menu" style="min-width: 230px;">
@@ -181,8 +181,8 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
     </li>
 
     <!-- Grupo: Mantenedores -->
-    <li class="nav-item">
-      <div class="nav-link <?= in_array($currentPage, ['productos.php', 'actualizar_precios.php', 'categorias.php', 'clientes.php', 'promociones.php']) ? 'active' : '' ?>">
+    <li class="nav-item has-dropdown">
+      <div class="nav-link <?= in_array($currentPage, ['productos.php', 'actualizar_precios.php', 'categorias.php', 'clientes.php', 'promociones.php']) ? 'active' : '' ?>" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
         <i class="fa-solid fa-folder-open"></i> Mantenedores <i class="fa-solid fa-chevron-down nav-caret"></i>
       </div>
       <ul class="dropdown-menu">
@@ -199,8 +199,8 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
     </li>
 
     <!-- Grupo: Stock y Compras -->
-    <li class="nav-item">
-      <div class="nav-link <?= in_array($currentPage, ['kardex.php', 'ajustes.php', 'alertas_stock.php', 'inventario.php', 'notaspedido.php', 'compras.php', 'proveedores.php']) ? 'active' : '' ?>">
+    <li class="nav-item has-dropdown">
+      <div class="nav-link <?= in_array($currentPage, ['kardex.php', 'ajustes.php', 'alertas_stock.php', 'inventario.php', 'notaspedido.php', 'compras.php', 'proveedores.php']) ? 'active' : '' ?>" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
         <i class="fa-solid fa-boxes-stacked"></i> Stock y Compras <i class="fa-solid fa-chevron-down nav-caret"></i>
       </div>
       <ul class="dropdown-menu" style="min-width: 250px;">
@@ -231,11 +231,11 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
 
     <!-- Grupo: Reportes -->
     <?php if ($esSupervisorNav): ?>
-    <li class="nav-item">
-      <div class="nav-link <?= in_array($currentPage, ['reportes.php', 'reporte_utilidades.php', 'reportes_z.php']) ? 'active' : '' ?>">
+    <li class="nav-item has-dropdown">
+      <div class="nav-link <?= in_array($currentPage, ['reportes.php', 'reporte_utilidades.php', 'reportes_z.php']) ? 'active' : '' ?>" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
         <i class="fa-solid fa-chart-line"></i> Reportes <i class="fa-solid fa-chevron-down nav-caret"></i>
       </div>
-      <ul class="dropdown-menu" style="min-width: 250px;">
+      <ul class="dropdown-menu dropdown-menu-end" style="min-width: 250px;">
         <li><a href="reportes.php" class="dropdown-item"><i class="fa-solid fa-chart-pie" style="color: var(--primary);"></i> <strong>Centro de Reportes</strong></a></li>
         <li class="dropdown-divider"></li>
         <li><a href="reportes.php?tab=ventas" class="dropdown-item"><i class="fa-solid fa-money-bill-wave"></i> Ventas y Medios de Pago</a></li>
@@ -253,11 +253,11 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
 
     <!-- Grupo: Administración -->
     <?php if (in_array($user['rol'], ['Administrador', 'Supervisor'])): ?>
-    <li class="nav-item">
-      <div class="nav-link <?= in_array($currentPage, ['usuarios.php', 'cajas.php', 'configuracion.php', 'ayuda.php']) ? 'active' : '' ?>">
+    <li class="nav-item has-dropdown">
+      <div class="nav-link <?= in_array($currentPage, ['usuarios.php', 'cajas.php', 'configuracion.php', 'ayuda.php']) ? 'active' : '' ?>" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
         <i class="fa-solid fa-shield-halved"></i> Admin <i class="fa-solid fa-chevron-down nav-caret"></i>
       </div>
-      <ul class="dropdown-menu">
+      <ul class="dropdown-menu dropdown-menu-end">
         <li><a href="usuarios.php" class="dropdown-item"><i class="fa-solid fa-user-gear"></i> Usuarios y Roles</a></li>
         <li><a href="cajas.php" class="dropdown-item"><i class="fa-solid fa-cash-register"></i> Cajas Físicas</a></li>
         <li><a href="configuracion.php" class="dropdown-item"><i class="fa-solid fa-sliders"></i> Ajustes Generales</a></li>
@@ -301,6 +301,72 @@ function updateThemeIcon() {
   }
 }
 document.addEventListener('DOMContentLoaded', updateThemeIcon);
+
+// Control interactivo de menús desplegables (Hover fluido + Clic + Touch + Teclado)
+document.addEventListener('DOMContentLoaded', function() {
+  const dropdownItems = document.querySelectorAll('.nav-item.has-dropdown');
+
+  dropdownItems.forEach(function(item) {
+    const trigger = item.querySelector('.nav-link');
+    if (!trigger) return;
+
+    // Apertura y alternancia con 1 Clic o Toque en pantalla táctil
+    trigger.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const wasOpen = item.classList.contains('is-open');
+
+      // Cerrar cualquier otro menú abierto
+      dropdownItems.forEach(function(other) {
+        if (other !== item) {
+          other.classList.remove('is-open');
+          const otherTrigger = other.querySelector('.nav-link');
+          if (otherTrigger) otherTrigger.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      // Alternar estado del actual
+      if (wasOpen) {
+        item.classList.remove('is-open');
+        trigger.setAttribute('aria-expanded', 'false');
+      } else {
+        item.classList.add('is-open');
+        trigger.setAttribute('aria-expanded', 'true');
+      }
+    });
+
+    // Soporte para teclado (Enter o Espacio)
+    trigger.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        trigger.click();
+      }
+    });
+  });
+
+  // Cerrar menús al hacer clic fuera
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.nav-item.has-dropdown')) {
+      dropdownItems.forEach(function(item) {
+        item.classList.remove('is-open');
+        const trigger = item.querySelector('.nav-link');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+      });
+    }
+  });
+
+  // Cerrar con tecla Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      dropdownItems.forEach(function(item) {
+        item.classList.remove('is-open');
+        const trigger = item.querySelector('.nav-link');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+      });
+    }
+  });
+});
 </script>
 
 <main class="container">

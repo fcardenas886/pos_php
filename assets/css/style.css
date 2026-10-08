@@ -80,10 +80,25 @@ body {
   align-items: center;
   gap: 0.25rem;
   list-style: none;
+  flex-wrap: wrap;
 }
 
 .nav-item {
   position: relative;
+}
+
+.nav-item.has-dropdown > .nav-link {
+  user-select: none;
+}
+
+.nav-item.has-dropdown > .nav-link .nav-caret {
+  transition: transform 0.2s ease;
+  margin-left: 0.2rem;
+}
+
+.nav-item.has-dropdown:hover > .nav-link .nav-caret,
+.nav-item.has-dropdown.is-open > .nav-link .nav-caret {
+  transform: rotate(180deg);
 }
 
 .nav-link {
@@ -109,7 +124,7 @@ body {
   background: var(--primary);
 }
 
-/* Dropdown Menu System */
+/* Dropdown Menu System (Fluido por Hover y Robusto por Clic / Touch) */
 .dropdown-menu {
   display: none;
   position: absolute;
@@ -119,15 +134,46 @@ body {
   background: var(--surface-dark);
   border: 1px solid var(--border-dark);
   border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.55);
   padding: 0.5rem 0;
-  z-index: 200;
+  z-index: 1050;
   list-style: none;
-  margin-top: 0.2rem;
+  margin-top: 0;
+  animation: navDropdownFade 0.15s ease-out;
 }
 
-.nav-item:hover .dropdown-menu {
+/* Puente invisible de 10px para evitar desconexión del cursor al bajar hacia el menú */
+.dropdown-menu::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: transparent;
+}
+
+/* Apertura simultánea por hover y por clase .is-open (clic/touch) */
+.nav-item:hover .dropdown-menu,
+.nav-item.is-open .dropdown-menu {
   display: block;
+}
+
+/* Alineación para dropdowns pegados al borde derecho (Reportes, Admin) */
+.dropdown-menu-end {
+  left: auto !important;
+  right: 0 !important;
+}
+
+@keyframes navDropdownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .dropdown-item {
