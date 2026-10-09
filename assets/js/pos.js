@@ -1499,24 +1499,19 @@ function actualizarResumenMixto() {
   const suma = val('mixtoEfectivo') + val('mixtoTarjeta') + val('mixtoTransf') + val('mixtoFiado');
   const noEfectivo = suma - val('mixtoEfectivo');
 
-  // Vuelto (o lo que falta) en grande, igual que en efectivo
-  const wrap = document.getElementById('mixtoVueltoWrap');
-  const box = document.getElementById('mixtoVueltoBox');
-  const hayMontos = suma > 0 && noEfectivo <= total;
-  wrap.style.display = hayMontos && suma !== total ? 'block' : 'none';
-  box.classList.toggle('falta', suma < total);
-  document.getElementById('mixtoVueltoLabel').textContent = suma < total ? 'Falta por cubrir' : 'Vuelto a entregar';
+  // Mismo formato que en efectivo: Recibido | Vuelto (o Falta, en rojo)
+  const falta = suma < total;
+  document.getElementById('mixtoRecibido').textContent = `$${formatNumber(suma)}`;
+  document.getElementById('mixtoVueltoBox').classList.toggle('falta', falta);
+  document.getElementById('mixtoVueltoLabel').textContent = falta ? 'Falta' : 'Vuelto';
   document.getElementById('mixtoVuelto').textContent = `$${formatNumber(Math.abs(suma - total))}`;
 
+  // Solo se muestra un aviso cuando hay un error que corregir
   if (noEfectivo > total) {
-    el.style.color = 'var(--danger)';
+    el.style.display = 'block';
     el.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Tarjeta, transferencia y fiado no pueden superar $${formatNumber(total)}`;
-  } else if (suma >= total) {
-    el.style.color = 'var(--success)';
-    el.innerHTML = `<i class="fa-solid fa-circle-check"></i> Suma $${formatNumber(suma)}: cubre el total`;
   } else {
-    el.style.color = 'var(--danger)';
-    el.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Suma $${formatNumber(suma)}: no cubre el total`;
+    el.style.display = 'none';
   }
 }
 

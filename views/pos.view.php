@@ -262,28 +262,28 @@
 <style>
   /* ===== Modal de cobro ===== */
   #pagoModal .pm-card { background: var(--surface-dark); border: 1px solid var(--border-dark); border-radius: 22px; width: 960px; max-width: 96vw; max-height: 94vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 30px 60px rgba(0,0,0,0.55); }
-  #pagoModal .pm-head { display: flex; justify-content: space-between; align-items: center; padding: 1.1rem 1.75rem; border-bottom: 1px solid var(--border-dark); }
+  #pagoModal .pm-head { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border-dark); }
   #pagoModal .pm-head h2 { font-size: 1.25rem; font-weight: 800; margin: 0; display: flex; align-items: center; gap: 0.6rem; }
   #pagoModal .pm-head h2 i { color: var(--primary); }
   #pagoModal .pm-close { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-dark); background: transparent; color: var(--text-muted); font-size: 1rem; cursor: pointer; transition: var(--transition); }
   #pagoModal .pm-close:hover { background: rgba(239,68,68,0.15); color: var(--danger); border-color: var(--danger); }
-  #pagoModal .pm-body { display: grid; grid-template-columns: 5fr 6fr; gap: 1.5rem; padding: 1.4rem 1.75rem 1.6rem; align-items: start; }
-  #pagoModal .pm-col { display: flex; flex-direction: column; gap: 0.9rem; min-width: 0; }
+  #pagoModal .pm-body { display: grid; grid-template-columns: 5fr 6fr; gap: 1.5rem; padding: 1.1rem 1.5rem 1.25rem; align-items: start; }
+  #pagoModal .pm-col { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
   #pagoModal .pm-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-bottom: 0.35rem; }
-  #pagoModal .pm-total { position: relative; overflow: hidden; border-radius: 16px; padding: 1.1rem 1.25rem; background: linear-gradient(135deg, rgba(16,185,129,0.22), rgba(16,185,129,0.05)); border: 1px solid rgba(16,185,129,0.45); }
+  #pagoModal .pm-total { position: relative; overflow: hidden; border-radius: 16px; padding: 0.9rem 1.2rem; background: linear-gradient(135deg, rgba(16,185,129,0.22), rgba(16,185,129,0.05)); border: 1px solid rgba(16,185,129,0.45); }
   #pagoModal .pm-total::after { content: ''; position: absolute; right: -30px; top: -30px; width: 120px; height: 120px; border-radius: 50%; background: rgba(16,185,129,0.12); pointer-events: none; }
   #pagoModal .pm-total-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--success); text-transform: uppercase; }
   #pagoModal .pm-total-amount { font-size: 2.6rem; font-weight: 900; color: var(--text-main); line-height: 1.1; font-variant-numeric: tabular-nums; }
   #pagoModal .pm-total-sub { font-size: 0.8rem; color: var(--text-muted); }
   #pagoModal .pm-methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.55rem; }
-  #pagoModal .btn-metodo { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.35rem; min-height: 78px; padding: 0.65rem 0.4rem; border-radius: 14px; border: 2px solid var(--border-dark); background: rgba(148,163,184,0.06); color: var(--text-main); font-weight: 700; font-size: 0.88rem; line-height: 1.15; cursor: pointer; transition: var(--transition); }
-  #pagoModal .btn-metodo > i { font-size: 1.35rem; color: var(--m-color); transition: var(--transition); }
+  #pagoModal .btn-metodo { position: relative; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 0.5rem; min-height: 54px; padding: 0.45rem 0.4rem; border-radius: 14px; border: 2px solid var(--border-dark); background: rgba(148,163,184,0.06); color: var(--text-main); font-weight: 700; font-size: 0.88rem; line-height: 1.15; cursor: pointer; transition: var(--transition); }
+  #pagoModal .btn-metodo > i { font-size: 1.2rem; color: var(--m-color); transition: var(--transition); }
   #pagoModal .btn-metodo:hover { border-color: var(--m-color); transform: translateY(-1px); }
   #pagoModal .btn-metodo.active { border-color: var(--m-color); background: color-mix(in srgb, var(--m-color) 18%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--m-color) 28%, transparent); }
   #pagoModal .btn-metodo.active > i { transform: scale(1.12); }
-  #pagoModal .pm-check { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 50%; background: var(--m-color); color: #fff; font-size: 0.65rem; display: none; align-items: center; justify-content: center; }
+  #pagoModal .pm-check { position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%; background: var(--m-color); color: #fff; font-size: 0.65rem; display: none; align-items: center; justify-content: center; }
   #pagoModal .btn-metodo.active .pm-check { display: flex; }
-  #pagoModal .pm-panel { border-radius: 14px; border: 1px solid var(--border-dark); background: rgba(148,163,184,0.05); padding: 1rem; }
+  #pagoModal .pm-panel { border-radius: 14px; border: 1px solid var(--border-dark); background: rgba(148,163,184,0.05); padding: 0.85rem; }
   #pagoModal .pm-chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; margin-bottom: 0.85rem; }
   #pagoModal .pm-chip { padding: 0.5rem 0.2rem; border-radius: 10px; border: 1px solid var(--border-dark); background: transparent; color: var(--text-main); font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: var(--transition); white-space: nowrap; }
   #pagoModal .pm-chip:hover { border-color: var(--success); color: var(--success); }
@@ -296,7 +296,7 @@
   #pagoModal .pm-info-icon { width: 46px; height: 46px; flex-shrink: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: #fff; background: var(--m-color, var(--primary)); }
   #pagoModal .pm-info strong { display: block; font-size: 1rem; }
   #pagoModal .pm-info span { font-size: 0.8rem; color: var(--text-muted); }
-  #pagoModal .pm-confirm { padding: 1rem; font-size: 1.1rem; font-weight: 800; border-radius: 14px; letter-spacing: 0.02em; box-shadow: 0 10px 24px rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: center; gap: 0.6rem; }
+  #pagoModal .pm-confirm { position: sticky; bottom: 0; padding: 0.9rem; font-size: 1.1rem; font-weight: 800; border-radius: 14px; letter-spacing: 0.02em; box-shadow: 0 10px 24px rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: center; gap: 0.6rem; }
   #pagoModal .pm-confirm small { font-weight: 600; opacity: 0.9; font-size: 0.85rem; }
   #pagoModal .pm-desglose { position: relative; z-index: 1; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dashed rgba(16,185,129,0.35); display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.82rem; }
   #pagoModal .pm-desglose div { display: flex; justify-content: space-between; color: var(--text-muted); }
@@ -309,7 +309,9 @@
   #pagoModal .pm-badge.sin { background: rgba(148,163,184,0.1); color: var(--text-muted); border: 1px solid var(--border-dark); }
   #pagoModal .pm-canje { display: flex; gap: 0.4rem; align-items: center; }
   #pagoModal .pm-canje-ok { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.45rem 0.65rem; border-radius: 10px; background: rgba(234,179,8,0.12); border: 1px solid rgba(234,179,8,0.35); color: #facc15; font-size: 0.85rem; font-weight: 700; }
-  #pagoModal .pm-mixto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  #pagoModal .pm-mixto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 0.6rem; margin-bottom: 0.75rem; }
+  #pagoModal .pm-mixto-grid .form-control { padding-top: 0.45rem; padding-bottom: 0.45rem; }
+  #pagoModal .pm-mixto-grid .pm-label { margin-bottom: 0.2rem; }
   @media (max-width: 820px) {
     #pagoModal .pm-body { grid-template-columns: 1fr; }
     #pagoModal .pm-chips { grid-template-columns: repeat(3, 1fr); }
@@ -503,11 +505,17 @@
               <input type="number" id="mixtoFiado" class="form-control" placeholder="0" oninput="actualizarResumenMixto()">
             </div>
           </div>
-          <div id="mixtoResumen" style="margin-top: 0.6rem; font-size: 0.85rem; font-weight: 700;"></div>
-          <div id="mixtoVueltoWrap" style="display: none; margin-top: 0.6rem;">
-            <label class="pm-label" id="mixtoVueltoLabel">Vuelto a entregar</label>
-            <div id="mixtoVueltoBox" class="pm-vuelto" style="height: 3.6rem; font-size: 1.9rem; justify-content: center;"><span id="mixtoVuelto">$0</span></div>
+          <div class="pm-money">
+            <div>
+              <label class="pm-label">Recibido</label>
+              <div id="mixtoRecibido" class="form-control pm-input-big" style="display: flex; align-items: center;">$0</div>
+            </div>
+            <div>
+              <label class="pm-label" id="mixtoVueltoLabel">Vuelto</label>
+              <div id="mixtoVueltoBox" class="pm-vuelto"><span id="mixtoVuelto">$0</span></div>
+            </div>
           </div>
+          <div id="mixtoResumen" style="display: none; margin-top: 0.5rem; font-size: 0.82rem; font-weight: 700; color: var(--danger);"></div>
         </div>
 
         <button type="button" id="btnConfirmarPagoModal" onclick="confirmarPagoModal()" class="btn btn-success btn-block pm-confirm">

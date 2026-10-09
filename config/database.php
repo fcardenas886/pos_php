@@ -10,7 +10,8 @@ define('APP_CHANGELOG', [
         'Fiado dentro del Pago Mixto: Se puede dividir una venta entre efectivo, tarjeta, transferencia y fiado, validando el cupo del cliente.',
         'Vuelto en Pago Mixto: Si el efectivo entregado sobra, se calcula el vuelto y en caja se registra solo el efectivo que realmente queda.',
         'Desglose en el Cobro: Subtotal, descuento, vale y puntos canjeados junto al total a pagar.',
-        'Vuelto Grande en Pago Mixto: Cuando el efectivo sobra se muestra el vuelto a entregar en grande (o lo que falta, en rojo).',
+        'Vuelto en Pago Mixto igual que en Efectivo: Recuadros "Recibido" y "Vuelto" (o "Falta", en rojo) con el mismo diseño en ambos modos.',
+        'Cobro sin Scroll: Pantalla de pago más compacta que cabe completa en monitores de caja de 1366x768.',
     ],
     'v4.5.0' => [
         'Pantalla de Cobro Renovada: Nuevo diseño del modal de pago con el total destacado arriba, tarjetas grandes por forma de pago y paneles más claros.',
