@@ -1755,9 +1755,11 @@ function mostrarTicket(data, items, total, pagado, vuelto, pagos, meta) {
 
   const detalleEl = document.getElementById('ticketDetalle');
   detalleEl.innerHTML = items.map(i => {
-    const lineTotal = Math.roundMath.round(i.cantidad * i.PrecioVenta);
+    const lineTotal = Math.round(i.cantidad * i.PrecioVenta);
     return `<div class="tk-item-line"><span>${escapeHtml(i.Nombre).substring(0, 24)}</span><span>$${formatNumber(lineTotal)}</span></div>` +
-           `<div class="tk-item-sub">${i.cantidad} x $${formatNumber(i.PrecioVenta)}</div>`;
+           (parseInt(i.EsPesable) === 1
+             ? `<div class="tk-item-sub">${formatNumber(i.cantidad)} kg x $${formatNumber(i.PrecioVenta)}/kg</div>`
+             : `<div class="tk-item-sub">${i.cantidad} x $${formatNumber(i.PrecioVenta)}</div>`);
   }).join('');
 
   const descuento = meta.descuento || 0;

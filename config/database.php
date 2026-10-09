@@ -1,10 +1,14 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v4.4.2');
+define('APP_VERSION', 'v4.4.3');
 
 // Novedades reales por versión, para la pantalla de bienvenida y el módulo "Acerca de".
 // Registra la cronología completa de la evolución del sistema desde su inicio.
 define('APP_CHANGELOG', [
+    'v4.4.3' => [
+        'Corrección del Comprobante Post-Venta: Se arregla el error que aparecía tras confirmar la venta (la venta se grababa, pero el comprobante no se mostraba).',
+        'Pesables en el Comprobante: El detalle muestra kilos y precio por kilo (ej. 2,166 kg x $1.500/kg).',
+    ],
     'v4.4.2' => [
         'Venta con Stock Negativo en el POS: La caja ahora respeta la opción "Vender con stock negativo"; con "Permitir" se pueden agregar productos sin stock y subir su cantidad libremente.',
         'Base de Datos Compatible con Stock Negativo: Se eliminan las restricciones que rechazaban la venta (error 3819) aunque la opción estuviera activa. Requiere ejecutar la migración 0011.',
