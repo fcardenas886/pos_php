@@ -191,17 +191,17 @@
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.25rem;">
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <input type="checkbox" name="es_pesable" id="prodEsPesableInput" value="1" onchange="togglePluField()" style="width: 18px; height: 18px; cursor: pointer;">
+          <input type="checkbox" name="es_pesable" id="prodEsPesableInput" value="1" onchange="togglePluField(true)" style="width: 18px; height: 18px; cursor: pointer;">
           <label for="prodEsPesableInput" style="font-size: 0.85rem; font-weight: 600; cursor: pointer; user-select: none;">Es Pesable (Balanza)</label>
         </div>
         <div id="divProdPLU" style="display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin: 0;">CÓDIGO PLU (4 DÍG.)</label>
-            <button type="button" onclick="autogenerarCodigoPLU()" class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; color: #818cf8; border-color: rgba(129, 140, 248, 0.3);" title="<?= $modoBalanzaVista === 'manual' ? 'ID del producto × 100' : 'ID del producto con 4 dígitos' ?>">
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CÓDIGO PLU (4 DÍG.)</label>
+          <div style="display: flex; gap: 0.4rem;">
+            <input type="text" inputmode="numeric" name="codigo_plu" id="prodCodigoPLUInput" class="form-control" placeholder="Vacío = auto" maxlength="4" pattern="[0-9]{4}" title="4 dígitos numéricos" style="flex: 1; min-width: 0;">
+            <button type="button" onclick="autogenerarCodigoPLU()" class="btn btn-secondary" style="padding: 0 0.7rem; color: #818cf8; border-color: rgba(129, 140, 248, 0.4); white-space: nowrap;" title="<?= $modoBalanzaVista === 'manual' ? 'ID del producto × 100' : 'ID del producto con 4 dígitos' ?>">
               <i class="fa-solid fa-bolt"></i> Generar
             </button>
           </div>
-          <input type="text" inputmode="numeric" name="codigo_plu" id="prodCodigoPLUInput" class="form-control" placeholder="Vacío = automático" maxlength="4" pattern="[0-9]{4}" title="4 dígitos numéricos">
         </div>
       </div>
 
@@ -231,13 +231,17 @@
 </div>
 
 <script>
-function togglePluField() {
+function togglePluField(desdeCheckbox = false) {
   const isPesable = document.getElementById('prodEsPesableInput').checked;
   const divPLU = document.getElementById('divProdPLU');
   const pluInput = document.getElementById('prodCodigoPLUInput');
   
   if (isPesable) {
     divPLU.style.display = 'block';
+    // Al marcarlo recién, proponer el PLU de inmediato (se puede cambiar o regenerar)
+    if (desdeCheckbox && pluInput.value === '') {
+      autogenerarCodigoPLU();
+    }
   } else {
     divPLU.style.display = 'none';
     pluInput.value = '';
