@@ -301,12 +301,6 @@
   #pagoModal .pm-desglose { position: relative; z-index: 1; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dashed rgba(16,185,129,0.35); display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.82rem; }
   #pagoModal .pm-desglose div { display: flex; justify-content: space-between; color: var(--text-muted); }
   #pagoModal .pm-desglose .neg { color: #fbbf24; }
-  #pagoModal .pm-items { max-height: 128px; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-dark); border-radius: 12px; }
-  #pagoModal .pm-item { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.4rem 0.75rem; font-size: 0.82rem; border-bottom: 1px solid var(--border-dark); }
-  #pagoModal .pm-item:last-child { border-bottom: none; }
-  #pagoModal .pm-item span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #pagoModal .pm-item small { color: var(--text-muted); margin-left: 0.3rem; }
-  #pagoModal .pm-item b { font-variant-numeric: tabular-nums; white-space: nowrap; }
   #pagoModal .pm-cliente-card { margin-top: 0.5rem; border-radius: 12px; border: 1px solid var(--border-dark); background: rgba(148,163,184,0.05); padding: 0.7rem 0.8rem; display: flex; flex-direction: column; gap: 0.55rem; }
   #pagoModal .pm-badges { display: flex; flex-wrap: wrap; gap: 0.4rem; }
   #pagoModal .pm-badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
@@ -341,10 +335,6 @@
           <div id="pmDesglose" class="pm-desglose" style="display: none;"></div>
         </div>
 
-        <div>
-          <label class="pm-label"><i class="fa-solid fa-basket-shopping"></i> Detalle de la venta</label>
-          <div id="pmItems" class="pm-items"></div>
-        </div>
 
         <div>
           <label class="pm-label" for="clienteSelect"><i class="fa-solid fa-user"></i> Cliente</label>
@@ -514,6 +504,10 @@
             </div>
           </div>
           <div id="mixtoResumen" style="margin-top: 0.6rem; font-size: 0.85rem; font-weight: 700;"></div>
+          <div id="mixtoVueltoWrap" style="display: none; margin-top: 0.6rem;">
+            <label class="pm-label" id="mixtoVueltoLabel">Vuelto a entregar</label>
+            <div id="mixtoVueltoBox" class="pm-vuelto" style="height: 3.6rem; font-size: 1.9rem; justify-content: center;"><span id="mixtoVuelto">$0</span></div>
+          </div>
         </div>
 
         <button type="button" id="btnConfirmarPagoModal" onclick="confirmarPagoModal()" class="btn btn-success btn-block pm-confirm">

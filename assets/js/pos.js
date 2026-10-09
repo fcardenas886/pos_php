@@ -1348,15 +1348,6 @@ function getClientePago() {
   };
 }
 
-function renderItemsPago() {
-  const el = document.getElementById('pmItems');
-  if (!el) return;
-  el.innerHTML = cart.map(i => {
-    const cant = parseInt(i.EsPesable) === 1 ? `${formatNumber(i.cantidad)} kg` : `x${i.cantidad}`;
-    return `<div class="pm-item"><span>${escapeHtml(i.Nombre)}<small>${cant}</small></span><b>$${formatNumber(Math.round(i.cantidad * i.PrecioVenta) - calcularDescuentoItem(i))}</b></div>`;
-  }).join('');
-}
-
 function onClientePagoChange() {
   const cli = getClientePago();
   const card = document.getElementById('pmClienteCard');
@@ -1440,7 +1431,6 @@ function refrescarResumenPago() {
   document.getElementById('pmCanjeOk').style.display = canjeOk ? 'flex' : 'none';
   document.getElementById('pmCanjeTexto').textContent = `Usando ${formatNumber(puntosCanje)} pts (-$${formatNumber(puntosCanje)})`;
 
-  renderItemsPago();
   calcularVueltoModal();
 }
 
@@ -1508,16 +1498,25 @@ function actualizarResumenMixto() {
   const val = id => parseInt(document.getElementById(id).value) || 0;
   const suma = val('mixtoEfectivo') + val('mixtoTarjeta') + val('mixtoTransf') + val('mixtoFiado');
   const noEfectivo = suma - val('mixtoEfectivo');
+
+  // Vuelto (o lo que falta) en grande, igual que en efectivo
+  const wrap = document.getElementById('mixtoVueltoWrap');
+  const box = document.getElementById('mixtoVueltoBox');
+  const hayMontos = suma > 0 && noEfectivo <= total;
+  wrap.style.display = hayMontos && suma !== total ? 'block' : 'none';
+  box.classList.toggle('falta', suma < total);
+  document.getElementById('mixtoVueltoLabel').textContent = suma < total ? 'Falta por cubrir' : 'Vuelto a entregar';
+  document.getElementById('mixtoVuelto').textContent = `$${formatNumber(Math.abs(suma - total))}`;
+
   if (noEfectivo > total) {
     el.style.color = 'var(--danger)';
     el.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Tarjeta, transferencia y fiado no pueden superar $${formatNumber(total)}`;
   } else if (suma >= total) {
     el.style.color = 'var(--success)';
-    el.innerHTML = `<i class="fa-solid fa-circle-check"></i> Suma $${formatNumber(suma)}: cubre el total` +
-      (suma > total ? ` · vuelto $${formatNumber(suma - total)}` : '');
+    el.innerHTML = `<i class="fa-solid fa-circle-check"></i> Suma $${formatNumber(suma)}: cubre el total`;
   } else {
     el.style.color = 'var(--danger)';
-    el.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Suma $${formatNumber(suma)} · faltan $${formatNumber(total - suma)}`;
+    el.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Suma $${formatNumber(suma)}: no cubre el total`;
   }
 }
 

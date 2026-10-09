@@ -9,7 +9,8 @@ define('APP_CHANGELOG', [
         'Canje Parcial de Puntos: Al elegir un cliente se muestran sus puntos y cupo de fiado; puede usar parte o todos sus puntos (1 punto = $1) y el resto se paga con cualquier forma de pago.',
         'Fiado dentro del Pago Mixto: Se puede dividir una venta entre efectivo, tarjeta, transferencia y fiado, validando el cupo del cliente.',
         'Vuelto en Pago Mixto: Si el efectivo entregado sobra, se calcula el vuelto y en caja se registra solo el efectivo que realmente queda.',
-        'Resumen de la Venta en el Cobro: Detalle de productos y desglose de subtotal, descuento, vale y puntos junto al total a pagar.',
+        'Desglose en el Cobro: Subtotal, descuento, vale y puntos canjeados junto al total a pagar.',
+        'Vuelto Grande en Pago Mixto: Cuando el efectivo sobra se muestra el vuelto a entregar en grande (o lo que falta, en rojo).',
     ],
     'v4.5.0' => [
         'Pantalla de Cobro Renovada: Nuevo diseño del modal de pago con el total destacado arriba, tarjetas grandes por forma de pago y paneles más claros.',
