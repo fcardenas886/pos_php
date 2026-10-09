@@ -1,10 +1,16 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v4.3.2');
+define('APP_VERSION', 'v4.4.0');
 
 // Novedades reales por versión, para la pantalla de bienvenida y el módulo "Acerca de".
 // Registra la cronología completa de la evolución del sistema desde su inicio.
 define('APP_CHANGELOG', [
+    'v4.4.0' => [
+        'Balanza sin Etiqueta (Ingreso Manual): Nuevo tipo de balanza en Configuración para locales cuya balanza solo muestra el peso y no imprime código de barras.',
+        'Venta por Peso o por Monto en el POS: Al agregar un producto pesable se abre una ventana donde el cajero ingresa los kilos (el sistema calcula el precio) o el monto en pesos (el sistema calcula los kilos equivalentes), con vista previa en vivo.',
+        'Modo por Defecto Configurable: Se elige si la ventana parte en "por peso" o "por monto", y el cajero puede alternar en la misma ventana para cada venta.',
+        'Subtotales Redondeados por Línea: Los productos con kilos fraccionados muestran y cobran montos enteros en pesos, igual que el cálculo del servidor.',
+    ],
     'v4.3.2' => [
         'Ajuste Compacto y Fijo en una Sola Línea del Menú: Se eliminó el salto de línea que hacía caer "Admin" a una segunda fila y estiraba verticalmente la barra de navegación.',
         'Dimensiones Optimizadas y Anti-Wrap: Ajuste de espaciados, paddings y flexbox para que todos los accesos quepan ordenadamente en una sola fila en cualquier resolución.',

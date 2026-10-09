@@ -311,6 +311,30 @@
 
       <h2 style="font-size: 1.1rem; font-weight: 600; color: #818cf8; border-bottom: 1px solid var(--border-dark); padding-bottom: 0.4rem;">Configuración de Balanzas y Lector de Códigos (EAN-13)</h2>
 
+      <?php $balanzaModo = $config['BALANZA_MODO'] ?? 'etiqueta'; $balanzaIngreso = $config['BALANZA_INGRESO_MANUAL'] ?? 'peso'; ?>
+      <div>
+        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">TIPO DE BALANZA</label>
+        <select name="config[BALANZA_MODO]" id="balanzaModoSelect" class="form-control" onchange="toggleBalanzaModo()" required>
+          <option value="etiqueta" <?= $balanzaModo === 'etiqueta' ? 'selected' : '' ?>>Balanza con etiqueta (imprime código de barras EAN-13)</option>
+          <option value="manual" <?= $balanzaModo === 'manual' ? 'selected' : '' ?>>Balanza sin etiqueta (el cajero ingresa el dato a mano)</option>
+        </select>
+        <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.25rem;">
+          Con balanza sin etiqueta, al agregar un producto pesable el POS abre una ventana para ingresar el peso o el monto.
+        </p>
+      </div>
+
+      <div id="balanzaManualBox" style="display: <?= $balanzaModo === 'manual' ? 'block' : 'none' ?>;">
+        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">INGRESO EN CAJA PARA PRODUCTOS PESABLES</label>
+        <select name="config[BALANZA_INGRESO_MANUAL]" class="form-control">
+          <option value="peso" <?= $balanzaIngreso === 'peso' ? 'selected' : '' ?>>Por peso: el cajero ingresa los kilos y el sistema calcula el precio</option>
+          <option value="precio" <?= $balanzaIngreso === 'precio' ? 'selected' : '' ?>>Por monto: el cajero ingresa el precio y el sistema calcula los kilos</option>
+        </select>
+        <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.25rem;">
+          Es el modo que aparece por defecto; el cajero puede cambiarlo en la misma ventana para una venta puntual (ej. "deme $2.000 de queso").
+        </p>
+      </div>
+
+      <div id="balanzaEtiquetaBox" style="display: <?= $balanzaModo === 'etiqueta' ? 'flex' : 'none' ?>; flex-direction: column; gap: 1.25rem;">
       <div>
         <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">FORMATO DEL CÓDIGO DE BARRAS DE BALANZA (INDIVIDUAL)</label>
         <select name="config[BALANZA_TIPO_EAN]" class="form-control" required>
@@ -334,6 +358,7 @@
           <p style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.25rem;">Prefijo GS1 para identificar vales consolidados con monto total final (normalmente 28).</p>
         </div>
       </div>
+      </div>
 
       <button type="submit" class="btn btn-primary" style="padding: 0.85rem; font-weight: bold;">
         <i class="fa-solid fa-floppy-disk"></i> Guardar Configuración de Balanza
@@ -341,6 +366,17 @@
     </form>
   </div>
 </div>
+<script>
+function toggleBalanzaModo() {
+  const manual = document.getElementById('balanzaModoSelect').value === 'manual';
+  document.getElementById('balanzaManualBox').style.display = manual ? 'block' : 'none';
+  const etiquetaBox = document.getElementById('balanzaEtiquetaBox');
+  etiquetaBox.style.display = manual ? 'none' : 'flex';
+  // Los campos ocultos siguen enviandose para conservar su valor, pero no deben bloquear el submit
+  etiquetaBox.querySelectorAll('input, select').forEach(el => { el.required = !manual; });
+}
+toggleBalanzaModo();
+</script>
 
 <!-- PESTAÑA 5: SUPERVISIÓN EN CAJA (POS) -->
 <div id="tabSupervision" class="tab-pane" style="display: none;">

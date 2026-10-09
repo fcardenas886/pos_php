@@ -101,7 +101,7 @@ async function validarSupervisorDescuentoInline() {
   }
 
   const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
-  const subtotalBruto = cart.reduce((s, i) => s + (i.cantidad * i.PrecioVenta), 0);
+  const subtotalBruto = cart.reduce((s, i) => s + Math.round(i.cantidad * i.PrecioVenta), 0);
   const pctEfectivo = subtotalBruto > 0 ? (descGlobal / subtotalBruto) * 100 : 0;
   const detalle = `Descuento de $${formatNumber(descGlobal)} (${pctEfectivo.toFixed(1)}%)`;
 
@@ -406,7 +406,7 @@ async function procesarEntradaCodigo(inputEl) {
   const tipoEan = window.BALANZA_TIPO_EAN || 'plu_peso';
 
   // Si cumple con el estándar EAN-13 de balanza individual
-  if (code.length === 13 && code.startsWith(prefijoIndiv)) {
+  if (window.BALANZA_MODO !== 'manual' && code.length === 13 && code.startsWith(prefijoIndiv)) {
     const plu = code.substring(2, 6);
     const cantidadBruta = parseInt(code.substring(6, 11)) || 0;
 
@@ -474,7 +474,7 @@ async function procesarEntradaCodigo(inputEl) {
 
           agregarAlCarrito(match, 1, factor, precioPack, descPack, esPromoPack);
         } else {
-          agregarAlCarrito(match);
+          agregarProductoManual(match);
         }
 
         inputEl.value = '';
@@ -570,6 +570,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.addEventListener('keydown', (e) => {
+    const vpModal = document.getElementById('ventaPesoModal');
+    if (vpModal && vpModal.style.display !== 'none') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        cerrarModalVentaPeso();
+      }
+      return;
+    }
+
     // Si el modal de precio variable está abierto, cerrar con Escape
     const pvModal = document.getElementById('precioVariableModal');
     if (pvModal && pvModal.style.display !== 'none') {
@@ -736,7 +745,107 @@ async function cargarProductos(query = '') {
 
 function agregarAlCarritoId(id) {
   const p = productosCache.find(prod => prod.ProductoID == id);
-  if (p) agregarAlCarrito(p);
+  if (p) agregarProductoManual(p);
+}
+
+// Agregado sin cantidad conocida (clic en catálogo o escaneo del código propio del producto).
+// Los pesables no traen peso, así que se pide en el modal en vez de asumir 1 kg.
+function agregarProductoManual(producto) {
+  if (parseInt(producto.EsPesable) === 1 && parseInt(producto.EsPrecioVariable) !== 1) {
+    abrirModalVentaPeso(producto);
+    return;
+  }
+  agregarAlCarrito(producto);
+}
+
+let pendingVentaPesoProducto = null;
+let modoVentaPeso = 'peso';
+
+function abrirModalVentaPeso(producto) {
+  pendingVentaPesoProducto = producto;
+  document.getElementById('ventaPesoNombre').textContent = producto.Nombre;
+  document.getElementById('ventaPesoPrecioKg').textContent = `$${formatNumber(parseInt(producto.PrecioVenta) || 0)} / kg`;
+  setModoVentaPeso(window.BALANZA_INGRESO_MANUAL === 'precio' ? 'precio' : 'peso');
+  document.getElementById('ventaPesoModal').style.display = 'flex';
+}
+
+function setModoVentaPeso(modo) {
+  modoVentaPeso = modo;
+  const esPeso = modo === 'peso';
+  document.getElementById('ventaPesoTabPeso').className = 'btn ' + (esPeso ? 'btn-primary' : 'btn-secondary');
+  document.getElementById('ventaPesoTabPrecio').className = 'btn ' + (esPeso ? 'btn-secondary' : 'btn-primary');
+  document.getElementById('ventaPesoLabel').textContent = esPeso ? 'PESO (KG) *' : 'MONTO A COBRAR ($ CLP) *';
+  document.getElementById('ventaPesoUnidad').textContent = esPeso ? 'kg' : '$';
+  document.getElementById('ventaPesoAyuda').textContent = esPeso ? 'Ej: 0,535 = 535 gramos' : 'Ej: 2000 = $2.000 del producto';
+  const input = document.getElementById('ventaPesoValor');
+  input.placeholder = esPeso ? '0,000' : '0';
+  input.value = '';
+  actualizarPreviewVentaPeso();
+  setTimeout(() => input.focus(), 80);
+}
+
+// Devuelve { kg, total } o null. En modo monto busca el peso (en gramos enteros, la
+// precisión que guarda la BD) cuyo total redondeado quede más cerca del monto pedido.
+function calcularVentaPeso() {
+  const producto = pendingVentaPesoProducto;
+  if (!producto) return null;
+  const precioKg = parseInt(producto.PrecioVenta) || 0;
+  const valor = parseFloat(document.getElementById('ventaPesoValor').value.replace(',', '.'));
+  if (!(valor > 0) || precioKg <= 0) return null;
+
+  if (modoVentaPeso === 'peso') {
+    const gramos = Math.round(valor * 1000);
+    if (gramos <= 0) return null;
+    return { kg: gramos / 1000, total: Math.round(gramos * precioKg / 1000) };
+  }
+
+  const monto = Math.round(valor);
+  const base = Math.floor(monto * 1000 / precioKg);
+  let mejor = null;
+  for (const gramos of [base, base + 1]) {
+    if (gramos <= 0) continue;
+    const total = Math.round(gramos * precioKg / 1000);
+    if (!mejor || Math.abs(total - monto) < Math.abs(mejor.total - monto)) mejor = { kg: gramos / 1000, total };
+  }
+  return mejor;
+}
+
+function formatKg(kg) {
+  return kg < 1 ? `${Math.round(kg * 1000)} g` : `${kg.toLocaleString('es-CL', { maximumFractionDigits: 3 })} kg`;
+}
+
+function actualizarPreviewVentaPeso() {
+  const prev = document.getElementById('ventaPesoPreview');
+  const r = calcularVentaPeso();
+  if (!r) {
+    prev.innerHTML = (parseInt(pendingVentaPesoProducto?.PrecioVenta) || 0) <= 0
+      ? '<span style="color: var(--danger);">El producto no tiene precio por kg configurado.</span>'
+      : 'Ingrese un valor';
+    return;
+  }
+  prev.innerHTML = `<strong style="color: #fff;">${formatKg(r.kg)}</strong> &nbsp;=&nbsp; <strong style="color: var(--success); font-size: 1.15rem;">$${formatNumber(r.total)}</strong>`;
+}
+
+function cerrarModalVentaPeso() {
+  document.getElementById('ventaPesoModal').style.display = 'none';
+  pendingVentaPesoProducto = null;
+  setTimeout(() => {
+    const input = document.getElementById(modoPosLayout === 'supermercado' ? 'posSearchSuper' : 'posSearch');
+    if (input) { input.focus(); input.select(); }
+  }, 50);
+}
+
+function confirmarVentaPesoModal(event) {
+  if (event) event.preventDefault();
+  const producto = pendingVentaPesoProducto;
+  const r = calcularVentaPeso();
+  if (!producto || !r) {
+    toast('Ingrese un peso o monto válido.', 'warn');
+    document.getElementById('ventaPesoValor').focus();
+    return;
+  }
+  cerrarModalVentaPeso();
+  agregarAlCarrito(producto, r.kg);
 }
 
 let pendingPrecioVariableItem = null;
@@ -859,7 +968,8 @@ function agregarAlCarrito(producto, cantidad = 1, factor = 1, precioPack = null,
   }
 
   if (existIndex > -1) {
-    cart[existIndex].cantidad += cantidad;
+    // Redondeo a 3 decimales (gramos) para que las pesadas sumadas no arrastren error de punto flotante
+    cart[existIndex].cantidad = Math.round((cart[existIndex].cantidad + cantidad) * 1000) / 1000;
   } else {
     cart.push({
       ProductoID: producto.ProductoID,
@@ -956,7 +1066,7 @@ function calcularDescuentoItem(item) {
       const packs = Math.floor(item.cantidad / cantMin);
       const resto = item.cantidad % cantMin;
       const subtotalConPromo = (packs * precioOf) + (resto * item.PrecioVenta);
-      const subtotalNormal = item.cantidad * item.PrecioVenta;
+      const subtotalNormal = Math.round(item.cantidad * item.PrecioVenta);
       return Math.max(0, subtotalNormal - subtotalConPromo);
     }
   }
@@ -986,7 +1096,7 @@ function renderCart() {
       `;
     } else {
       container.innerHTML = cart.map((item, idx) => {
-        const subtotalNormal = item.cantidad * item.PrecioVenta;
+        const subtotalNormal = Math.round(item.cantidad * item.PrecioVenta);
         const desc = calcularDescuentoItem(item);
         const subtotalFinal = subtotalNormal - desc;
 
@@ -1048,7 +1158,7 @@ function renderCart() {
       if (superTable) superTable.style.display = 'table';
       
       superTableBody.innerHTML = cart.map((item, idx) => {
-        const subtotalNormal = item.cantidad * item.PrecioVenta;
+        const subtotalNormal = Math.round(item.cantidad * item.PrecioVenta);
         const desc = calcularDescuentoItem(item);
         const subtotalFinal = subtotalNormal - desc;
 
@@ -1131,7 +1241,7 @@ function renderCart() {
 }
 
 function getCartSubtotal() {
-  return cart.reduce((sum, item) => sum + (item.cantidad * item.PrecioVenta) - calcularDescuentoItem(item), 0);
+  return cart.reduce((sum, item) => sum + Math.round(item.cantidad * item.PrecioVenta) - calcularDescuentoItem(item), 0);
 }
 
 function getValeMontoAplicado() {
@@ -1270,7 +1380,7 @@ async function confirmarPagoModal() {
   const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
 
   // Validación de descuento que requiera supervisor
-  const subtotalBruto = cart.reduce((s, i) => s + (i.cantidad * i.PrecioVenta), 0);
+  const subtotalBruto = cart.reduce((s, i) => s + Math.round(i.cantidad * i.PrecioVenta), 0);
   const maxPorc = parseFloat(window.CONFIG_SUPERVISION?.POS_DESCUENTO_MAX_PORC ?? 5);
   const pctEfectivo = subtotalBruto > 0 ? (descGlobal / subtotalBruto) * 100 : 0;
 
@@ -1639,7 +1749,7 @@ function mostrarTicket(data, items, total, pagado, vuelto, pagos, meta) {
 
   const detalleEl = document.getElementById('ticketDetalle');
   detalleEl.innerHTML = items.map(i => {
-    const lineTotal = Math.round(i.cantidad * i.PrecioVenta);
+    const lineTotal = Math.roundMath.round(i.cantidad * i.PrecioVenta);
     return `<div class="tk-item-line"><span>${escapeHtml(i.Nombre).substring(0, 24)}</span><span>$${formatNumber(lineTotal)}</span></div>` +
            `<div class="tk-item-sub">${i.cantidad} x $${formatNumber(i.PrecioVenta)}</div>`;
   }).join('');

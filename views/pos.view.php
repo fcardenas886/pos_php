@@ -600,6 +600,56 @@
   </div>
 </div>
 
+<!-- Modal Venta por Peso (productos pesables sin etiqueta de balanza) -->
+<div id="ventaPesoModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 2800; justify-content: center; align-items: center; padding: 1rem;" onclick="if(event.target === this) cerrarModalVentaPeso()">
+  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 16px; width: 440px; max-width: 95vw; padding: 1.75rem; box-shadow: var(--shadow-lg); position: relative; display: flex; flex-direction: column; gap: 1.1rem;">
+    <button type="button" onclick="cerrarModalVentaPeso()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; line-height: 1;"><i class="fa-solid fa-xmark"></i></button>
+
+    <div>
+      <div style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; font-weight: 700; color: #818cf8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;">
+        <i class="fa-solid fa-weight-scale"></i> Producto Pesable
+      </div>
+      <h2 id="ventaPesoNombre" style="font-size: 1.25rem; font-weight: 700; color: #fff; margin: 0; line-height: 1.3;">Producto</h2>
+      <p id="ventaPesoPrecioKg" style="color: var(--text-muted); font-size: 0.85rem; margin: 0.25rem 0 0 0;">$0 / kg</p>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem;">
+      <button type="button" id="ventaPesoTabPeso" onclick="setModoVentaPeso('peso')" class="btn btn-secondary" style="flex: 1; padding: 0.6rem;">
+        <i class="fa-solid fa-weight-hanging"></i> Por peso (kg)
+      </button>
+      <button type="button" id="ventaPesoTabPrecio" onclick="setModoVentaPeso('precio')" class="btn btn-secondary" style="flex: 1; padding: 0.6rem;">
+        <i class="fa-solid fa-dollar-sign"></i> Por monto ($)
+      </button>
+    </div>
+
+    <form onsubmit="confirmarVentaPesoModal(event)" style="display: flex; flex-direction: column; gap: 1.1rem; margin: 0;">
+      <div>
+        <label id="ventaPesoLabel" for="ventaPesoValor" style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">PESO (KG) *</label>
+        <div style="position: relative;">
+          <span id="ventaPesoUnidad" style="position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%); font-size: 1.4rem; font-weight: 700; color: var(--success);">kg</span>
+          <input type="text" inputmode="decimal" id="ventaPesoValor" required class="form-control" placeholder="0,000" oninput="actualizarPreviewVentaPeso()"
+                 style="font-size: 2rem; font-weight: 800; text-align: right; padding-left: 3.2rem; padding-right: 1.25rem; height: 3.8rem; color: var(--success); border: 2px solid rgba(16, 185, 129, 0.4);"
+                 autocomplete="off">
+        </div>
+        <p id="ventaPesoAyuda" style="color: var(--text-muted); font-size: 0.75rem; margin: 0.35rem 0 0 0;">Ej: 0,535 = 535 gramos</p>
+      </div>
+
+      <div id="ventaPesoPreview" style="background: rgba(129, 140, 248, 0.08); border: 1px solid rgba(129, 140, 248, 0.25); border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.95rem; color: var(--text-muted); text-align: center;">
+        Ingrese un valor
+      </div>
+
+      <div style="display: flex; gap: 0.75rem;">
+        <button type="submit" class="btn btn-success btn-block" style="padding: 0.85rem 1rem; font-size: 1rem; font-weight: 700; flex: 2; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+          <i class="fa-solid fa-check"></i> Agregar (Enter)
+        </button>
+        <button type="button" onclick="cerrarModalVentaPeso()" class="btn btn-secondary" style="padding: 0.85rem 1rem; font-size: 0.95rem; flex: 1;">
+          Cancelar (Esc)
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 async function abrirModalConsultaPrecios() {
   document.getElementById('consultaPrecioSearch').value = '';
@@ -737,6 +787,8 @@ async function ejecutarConsultaPrecio() {
 <script>
   window.BALANZA_PREFIJO_INDIVIDUAL = "<?= htmlspecialchars($configBalanza['BALANZA_PREFIJO_INDIVIDUAL'] ?? '20') ?>";
   window.BALANZA_TIPO_EAN = "<?= htmlspecialchars($configBalanza['BALANZA_TIPO_EAN'] ?? 'plu_peso') ?>";
+  window.BALANZA_MODO = "<?= htmlspecialchars($configBalanza['BALANZA_MODO'] ?? 'etiqueta') ?>";
+  window.BALANZA_INGRESO_MANUAL = "<?= htmlspecialchars($configBalanza['BALANZA_INGRESO_MANUAL'] ?? 'peso') ?>";
   window.COTIZACION_PRELOAD = <?= $cotizacionPreload > 0 ? $cotizacionPreload : 'null' ?>;
   window.CONFIG_SUPERVISION = <?= json_encode($configSupervision) ?>;
   window.CURRENT_USER_ROL = "<?= htmlspecialchars($user['rol'] ?? 'Cajero') ?>";
