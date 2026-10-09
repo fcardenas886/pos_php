@@ -1,7 +1,7 @@
 -- =============================================================================
 -- MINIMARKET POS - ESQUEMA DE INSTALACIÓN LIMPIA (PLANTILLA BASE)
 -- Versión: v4.5.3
--- Fecha de generación: 2026-10-09 04:48:59
+-- Fecha de generación: 2026-10-09 05:29:24
 -- Contiene estructura completa de tablas + datos semilla iniciales
 -- (roles, usuario admin inicial y configuraciones por defecto).
 -- =============================================================================
@@ -777,6 +777,7 @@ CREATE TABLE `usuarios` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
 -- Datos semilla para `usuarios`
+INSERT INTO `usuarios` (`UsuarioID`, `Nombre`, `RutCuerpo`, `RutDv`, `NombreUsuario`, `PasswordHash`, `RolID`, `Activo`) VALUES ('1', 'Alejandro Silva', '15999888', 'K', 'admin', 'Demo1234!', '1', '1');
 
 -- -----------------------------------------------------------------------------
 -- Estructura de tabla: `valescanjes`
