@@ -35,13 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $codigoPLU = null;
         }
 
-        // Validar PLU si es pesable: la etiqueta EAN-13 solo admite 4 dígitos; sin etiqueta es un código libre de hasta 8
-        if ($esPesable && $codigoPLU !== null) {
-            if ($modoBalanza === 'etiqueta' && !preg_match('/^[0-9]{4}$/', $codigoPLU)) {
-                $error = 'Con balanza de etiqueta, el Código PLU debe tener exactamente 4 dígitos numéricos.';
-            } elseif ($modoBalanza === 'manual' && !preg_match('/^[0-9]{1,8}$/', $codigoPLU)) {
-                $error = 'El Código PLU debe ser numérico, de hasta 8 dígitos.';
-            }
+        // Validar PLU si es pesable: siempre 4 dígitos numéricos (lo que cabe en la etiqueta EAN-13)
+        if ($esPesable && $codigoPLU !== null && !preg_match('/^[0-9]{4}$/', $codigoPLU)) {
+            $error = 'El Código PLU debe tener exactamente 4 dígitos numéricos.';
         }
 
         if (empty($error)) {

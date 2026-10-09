@@ -86,19 +86,20 @@ if (!function_exists('generarSiguienteEAN8')) {
 }
 
 /**
- * Código PLU para productos pesables, según el tipo de balanza configurado:
- * - 'manual' (sin etiqueta): ProductoID * 100 (ej. ID 12 -> "1200"), un código corto
- *   y fácil de digitar en el POS que no se confunde con números chicos.
- * - 'etiqueta' (EAN-13 20 PPPP ...): ProductoID con 4 dígitos (ej. ID 12 -> "0012"),
- *   porque la etiqueta solo tiene espacio para 4.
+ * Código PLU para productos pesables (siempre 4 dígitos), según el tipo de balanza:
+ * - 'manual' (sin etiqueta): ProductoID * 100 (ej. ID 12 -> "1200"), un código fácil de
+ *   digitar en el POS. Si no cae entre 1000 y 9999 (ID < 10 o ID >= 100), se usa el
+ *   primer número libre desde 1000.
+ * - 'etiqueta' (EAN-13 20 PPPP ...): ProductoID con 4 dígitos (ej. ID 12 -> "0012").
+ *   Si el ID pasa de 9999, se usa el primer número libre desde 0001.
  * Si el candidato ya está ocupado por otro producto, avanza al siguiente libre.
  */
 if (!function_exists('generarCodigoPLU')) {
     function generarCodigoPLU(PDO $pdo, int $productoId, string $modoBalanza): string {
-        $esManual = $modoBalanza === 'manual';
-        $candidato = $esManual ? $productoId * 100 : $productoId;
-        if (!$esManual && $candidato > 9999) {
-            $candidato = 1;
+        $minimo = $modoBalanza === 'manual' ? 1000 : 1;
+        $candidato = $modoBalanza === 'manual' ? $productoId * 100 : $productoId;
+        if ($candidato < $minimo || $candidato > 9999) {
+            $candidato = $minimo;
         }
 
         $stmtCheck = $pdo->prepare("
@@ -106,17 +107,16 @@ if (!function_exists('generarCodigoPLU')) {
             WHERE (CodigoPLU = :plu OR CodigoBarras = :cod) AND ProductoID <> :id
             LIMIT 1
         ");
-        while (true) {
-            $plu = $esManual ? (string)$candidato : str_pad((string)$candidato, 4, '0', STR_PAD_LEFT);
-            if (strlen($plu) > ($esManual ? 8 : 4)) {
-                throw new Exception('No quedan códigos PLU disponibles.');
-            }
+        // Recorre como máximo todo el rango, volviendo al mínimo al pasar de 9999
+        for ($intentos = 0; $intentos <= 9999 - $minimo; $intentos++) {
+            $plu = str_pad((string)$candidato, 4, '0', STR_PAD_LEFT);
             $stmtCheck->execute([':plu' => $plu, ':cod' => $plu, ':id' => $productoId]);
             if (!$stmtCheck->fetchColumn()) {
                 return $plu;
             }
-            $candidato++;
+            $candidato = $candidato >= 9999 ? $minimo : $candidato + 1;
         }
+        throw new Exception('No quedan códigos PLU de 4 dígitos disponibles.');
     }
 }
 

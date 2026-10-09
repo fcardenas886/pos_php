@@ -7,7 +7,7 @@ define('APP_VERSION', 'v4.4.1');
 define('APP_CHANGELOG', [
     'v4.4.1' => [
         'Código PLU Automático: Botón "Generar" en el formulario de productos y asignación automática al guardar un pesable sin PLU.',
-        'PLU según Tipo de Balanza: Sin etiqueta se usa el ID del producto × 100 (ej. ID 12 → 1200), fácil de digitar en caja; con etiqueta EAN-13 se usa el ID con 4 dígitos (ej. 0012).',
+        'PLU de 4 Dígitos según Tipo de Balanza: Sin etiqueta se usa el ID del producto × 100 (ej. ID 12 → 1200), fácil de digitar en caja; con etiqueta EAN-13 se usa el ID con 4 dígitos (ej. 0012). Si no cabe o está ocupado, se toma el siguiente libre.',
         'Formulario de Productos Compacto: Ventana con scroll interno, campos agrupados y botones Guardar/Cancelar siempre visibles en pantallas bajas.',
     ],
     'v4.4.0' => [
