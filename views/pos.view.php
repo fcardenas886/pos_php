@@ -298,6 +298,24 @@
   #pagoModal .pm-info span { font-size: 0.8rem; color: var(--text-muted); }
   #pagoModal .pm-confirm { padding: 1rem; font-size: 1.1rem; font-weight: 800; border-radius: 14px; letter-spacing: 0.02em; box-shadow: 0 10px 24px rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: center; gap: 0.6rem; }
   #pagoModal .pm-confirm small { font-weight: 600; opacity: 0.9; font-size: 0.85rem; }
+  #pagoModal .pm-desglose { position: relative; z-index: 1; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dashed rgba(16,185,129,0.35); display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.82rem; }
+  #pagoModal .pm-desglose div { display: flex; justify-content: space-between; color: var(--text-muted); }
+  #pagoModal .pm-desglose .neg { color: #fbbf24; }
+  #pagoModal .pm-items { max-height: 128px; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-dark); border-radius: 12px; }
+  #pagoModal .pm-item { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.4rem 0.75rem; font-size: 0.82rem; border-bottom: 1px solid var(--border-dark); }
+  #pagoModal .pm-item:last-child { border-bottom: none; }
+  #pagoModal .pm-item span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pagoModal .pm-item small { color: var(--text-muted); margin-left: 0.3rem; }
+  #pagoModal .pm-item b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #pagoModal .pm-cliente-card { margin-top: 0.5rem; border-radius: 12px; border: 1px solid var(--border-dark); background: rgba(148,163,184,0.05); padding: 0.7rem 0.8rem; display: flex; flex-direction: column; gap: 0.55rem; }
+  #pagoModal .pm-badges { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  #pagoModal .pm-badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+  #pagoModal .pm-badge.pts { background: rgba(234,179,8,0.15); color: #facc15; border: 1px solid rgba(234,179,8,0.35); }
+  #pagoModal .pm-badge.cupo { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+  #pagoModal .pm-badge.sin { background: rgba(148,163,184,0.1); color: var(--text-muted); border: 1px solid var(--border-dark); }
+  #pagoModal .pm-canje { display: flex; gap: 0.4rem; align-items: center; }
+  #pagoModal .pm-canje-ok { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.45rem 0.65rem; border-radius: 10px; background: rgba(234,179,8,0.12); border: 1px solid rgba(234,179,8,0.35); color: #facc15; font-size: 0.85rem; font-weight: 700; }
+  #pagoModal .pm-mixto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
   @media (max-width: 820px) {
     #pagoModal .pm-body { grid-template-columns: 1fr; }
     #pagoModal .pm-chips { grid-template-columns: repeat(3, 1fr); }
@@ -320,18 +338,43 @@
           <div class="pm-total-label">Total a cobrar</div>
           <div id="modalMontoTotal" class="pm-total-amount">$0</div>
           <div id="modalItemsResumen" class="pm-total-sub"></div>
+          <div id="pmDesglose" class="pm-desglose" style="display: none;"></div>
+        </div>
+
+        <div>
+          <label class="pm-label"><i class="fa-solid fa-basket-shopping"></i> Detalle de la venta</label>
+          <div id="pmItems" class="pm-items"></div>
         </div>
 
         <div>
           <label class="pm-label" for="clienteSelect"><i class="fa-solid fa-user"></i> Cliente</label>
-          <select id="clienteSelect" class="form-control">
+          <select id="clienteSelect" class="form-control" onchange="onClientePagoChange()">
             <option value="" data-puntos="0">Cliente Genérico (Público General)</option>
             <?php foreach ($clientes as $cl): ?>
-              <option value="<?= $cl['ClienteID'] ?>" data-puntos="<?= $cl['PuntosAcumulados'] ?>">
+              <option value="<?= $cl['ClienteID'] ?>" data-puntos="<?= (int)$cl['PuntosAcumulados'] ?>" data-limite="<?= (int)($cl['LimiteCredito'] ?? 0) ?>" data-cupo="<?= max(0, (int)($cl['LimiteCredito'] ?? 0) - (int)($cl['SaldoDeudor'] ?? 0)) ?>">
                 <?= htmlspecialchars($cl['Nombre']) ?> (<?= number_format($cl['PuntosAcumulados'], 0, ',', '.') ?> pts)
               </option>
             <?php endforeach; ?>
           </select>
+          <div id="pmClienteCard" class="pm-cliente-card" style="display: none;">
+            <div class="pm-badges">
+              <span id="pmBadgePuntos" class="pm-badge pts"><i class="fa-solid fa-star"></i> 0 pts</span>
+              <span id="pmBadgeCupo" class="pm-badge cupo"><i class="fa-solid fa-handshake"></i> Cupo $0</span>
+            </div>
+            <div id="pmCanjeBox">
+              <div id="pmCanjeForm" class="pm-canje">
+                <input type="number" id="puntosCanjeInput" class="form-control" min="1" step="1" placeholder="Puntos a usar" style="flex: 1; min-width: 0;" onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarCanjePuntos();}">
+                <button type="button" onclick="aplicarCanjePuntos()" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-weight: 700; color: #facc15; border-color: rgba(234,179,8,0.4); white-space: nowrap;">
+                  <i class="fa-solid fa-star"></i> Usar puntos
+                </button>
+              </div>
+              <div id="pmCanjeOk" class="pm-canje-ok" style="display: none;">
+                <span><i class="fa-solid fa-circle-check"></i> <span id="pmCanjeTexto">Usando 0 pts</span></span>
+                <button type="button" onclick="quitarCanjePuntos()" class="btn btn-secondary" style="padding: 0.15rem 0.55rem; font-size: 0.75rem;">Quitar</button>
+              </div>
+              <small style="color: var(--text-muted); font-size: 0.72rem; display: block; margin-top: 0.3rem;">1 punto = $1 de descuento sobre el total.</small>
+            </div>
+          </div>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
@@ -452,7 +495,7 @@
         <!-- Panel Pago Mixto -->
         <div id="panelMixtoModal" class="pm-panel" style="display: none;">
           <label class="pm-label" style="color: #a78bfa;">Dividir el pago</label>
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+          <div class="pm-mixto-grid">
             <div>
               <label class="pm-label" for="mixtoEfectivo"><i class="fa-solid fa-money-bill-wave" style="color:#10b981"></i> Efectivo</label>
               <input type="number" id="mixtoEfectivo" class="form-control" placeholder="0" oninput="actualizarResumenMixto()">
@@ -462,8 +505,12 @@
               <input type="number" id="mixtoTarjeta" class="form-control" placeholder="0" oninput="actualizarResumenMixto()">
             </div>
             <div>
-              <label class="pm-label" for="mixtoTransf"><i class="fa-solid fa-building-columns" style="color:#06b6d4"></i> Transf.</label>
+              <label class="pm-label" for="mixtoTransf"><i class="fa-solid fa-building-columns" style="color:#06b6d4"></i> Transferencia</label>
               <input type="number" id="mixtoTransf" class="form-control" placeholder="0" oninput="actualizarResumenMixto()">
+            </div>
+            <div>
+              <label class="pm-label" for="mixtoFiado"><i class="fa-solid fa-handshake" style="color:#f59e0b"></i> Fiado</label>
+              <input type="number" id="mixtoFiado" class="form-control" placeholder="0" oninput="actualizarResumenMixto()">
             </div>
           </div>
           <div id="mixtoResumen" style="margin-top: 0.6rem; font-size: 0.85rem; font-weight: 700;"></div>

@@ -2,6 +2,7 @@
 let cart = [];
 let productosCache = [];
 let metodoSeleccionadoModal = 'Efectivo';
+let puntosCanje = 0; // puntos del cliente usados como parte del pago (1 punto = $1)
 let valeAplicado = null; // { codigo, disponible }
 let cotizacionActiva = null; // CotizacionID si la venta actual salió de una cotización
 
@@ -1225,8 +1226,7 @@ function renderCart() {
   // así que si se editan con el modal abierto hay que refrescar el total y el vuelto ahí también.
   const pagoModalEl = document.getElementById('pagoModal');
   if (pagoModalEl && pagoModalEl.style.display === 'flex') {
-    document.getElementById('modalMontoTotal').textContent = `$${formatNumber(totalFinal)}`;
-    calcularVueltoModal();
+    refrescarResumenPago();
   }
 
   // Actualizar el infoEl dinámicamente según el estado del carrito
@@ -1318,18 +1318,130 @@ function abrirModalPago() {
     return;
   }
 
-  const total = getCartTotal();
-  document.getElementById('modalMontoTotal').textContent = `$${formatNumber(total)}`;
-  const nItems = cart.length;
-  document.getElementById('modalItemsResumen').textContent = `${nItems} ${nItems === 1 ? 'producto' : 'productos'} en la venta`;
-  document.getElementById('montoRecibidoModal').value = total;
-  ['mixtoEfectivo', 'mixtoTarjeta', 'mixtoTransf'].forEach(id => { document.getElementById(id).value = ''; });
+  puntosCanje = 0;
+  document.getElementById('puntosCanjeInput').value = '';
+  ['mixtoEfectivo', 'mixtoTarjeta', 'mixtoTransf', 'mixtoFiado'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('montoRecibidoModal').value = getTotalPorPagar();
+  onClientePagoChange();
 
   // Cada venta parte en Efectivo
   setFormaPago('Efectivo', document.querySelector('.btn-metodo[data-metodo="Efectivo"]'));
 
   const modal = document.getElementById('pagoModal');
   modal.style.display = 'flex';
+}
+
+// Lo que queda por pagar con la forma de pago elegida, descontados los puntos canjeados
+function getTotalPorPagar() {
+  return Math.max(0, getCartTotal() - puntosCanje);
+}
+
+function getClientePago() {
+  const sel = document.getElementById('clienteSelect');
+  const opt = sel ? sel.selectedOptions[0] : null;
+  if (!opt || !opt.value) return null;
+  return {
+    id: opt.value,
+    puntos: parseInt(opt.dataset.puntos) || 0,
+    limite: parseInt(opt.dataset.limite) || 0,
+    cupo: parseInt(opt.dataset.cupo) || 0,
+  };
+}
+
+function renderItemsPago() {
+  const el = document.getElementById('pmItems');
+  if (!el) return;
+  el.innerHTML = cart.map(i => {
+    const cant = parseInt(i.EsPesable) === 1 ? `${formatNumber(i.cantidad)} kg` : `x${i.cantidad}`;
+    return `<div class="pm-item"><span>${escapeHtml(i.Nombre)}<small>${cant}</small></span><b>$${formatNumber(Math.round(i.cantidad * i.PrecioVenta) - calcularDescuentoItem(i))}</b></div>`;
+  }).join('');
+}
+
+function onClientePagoChange() {
+  const cli = getClientePago();
+  const card = document.getElementById('pmClienteCard');
+  if (!card) return;
+
+  // Al cambiar de cliente, el canje anterior deja de valer
+  if (puntosCanje > 0 && (!cli || cli.puntos < puntosCanje)) {
+    puntosCanje = 0;
+  }
+
+  if (!cli) {
+    card.style.display = 'none';
+  } else {
+    card.style.display = 'flex';
+    const bPts = document.getElementById('pmBadgePuntos');
+    bPts.innerHTML = `<i class="fa-solid fa-star"></i> ${formatNumber(cli.puntos)} pts`;
+    bPts.className = 'pm-badge ' + (cli.puntos > 0 ? 'pts' : 'sin');
+    const bCupo = document.getElementById('pmBadgeCupo');
+    bCupo.innerHTML = cli.limite > 0
+      ? `<i class="fa-solid fa-handshake"></i> Cupo fiado $${formatNumber(cli.cupo)}`
+      : `<i class="fa-solid fa-handshake"></i> Sin crédito`;
+    bCupo.className = 'pm-badge ' + (cli.limite > 0 && cli.cupo > 0 ? 'cupo' : 'sin');
+    document.getElementById('pmCanjeBox').style.display = cli.puntos > 0 ? 'block' : 'none';
+    const inp = document.getElementById('puntosCanjeInput');
+    inp.placeholder = `Hasta ${formatNumber(Math.min(cli.puntos, getCartTotal()))} pts`;
+  }
+  refrescarResumenPago();
+}
+
+function aplicarCanjePuntos() {
+  const cli = getClientePago();
+  if (!cli) return;
+  const inp = document.getElementById('puntosCanjeInput');
+  const maximo = Math.min(cli.puntos, getCartTotal());
+  let pts = inp.value === '' ? maximo : (parseInt(inp.value) || 0);
+  if (pts <= 0) {
+    toast('Ingresa cuántos puntos usar.', 'warn');
+    return;
+  }
+  if (pts > maximo) {
+    toast(`Se pueden usar como máximo ${formatNumber(maximo)} puntos en esta venta.`, 'info');
+    pts = maximo;
+  }
+  puntosCanje = pts;
+  inp.value = '';
+  document.getElementById('montoRecibidoModal').value = getTotalPorPagar();
+  refrescarResumenPago();
+}
+
+function quitarCanjePuntos() {
+  puntosCanje = 0;
+  document.getElementById('montoRecibidoModal').value = getTotalPorPagar();
+  refrescarResumenPago();
+}
+
+// Total, desglose, canje y paneles del modal de cobro
+function refrescarResumenPago() {
+  const totalVenta = getCartTotal();
+  if (puntosCanje > totalVenta) puntosCanje = totalVenta;
+  const porPagar = getTotalPorPagar();
+
+  document.getElementById('modalMontoTotal').textContent = `$${formatNumber(porPagar)}`;
+  const nItems = cart.length;
+  document.getElementById('modalItemsResumen').textContent = `${nItems} ${nItems === 1 ? 'producto' : 'productos'} en la venta`;
+
+  const descGlobal = parseInt(document.getElementById('descuentoGlobal').value) || 0;
+  const vale = getValeMontoAplicado();
+  const filas = [];
+  if (descGlobal > 0 || vale > 0 || puntosCanje > 0) {
+    filas.push(`<div><span>Subtotal</span><span>$${formatNumber(getCartSubtotal())}</span></div>`);
+    if (descGlobal > 0) filas.push(`<div class="neg"><span>Descuento</span><span>-$${formatNumber(descGlobal)}</span></div>`);
+    if (vale > 0) filas.push(`<div class="neg"><span>Vale aplicado</span><span>-$${formatNumber(vale)}</span></div>`);
+    if (puntosCanje > 0) filas.push(`<div class="neg"><span><i class="fa-solid fa-star"></i> Puntos canjeados</span><span>-$${formatNumber(puntosCanje)}</span></div>`);
+  }
+  const desg = document.getElementById('pmDesglose');
+  desg.innerHTML = filas.join('');
+  desg.style.display = filas.length ? 'flex' : 'none';
+
+  const canjeOk = puntosCanje > 0;
+  document.getElementById('pmCanjeForm').style.display = canjeOk ? 'none' : 'flex';
+  document.getElementById('pmCanjeOk').style.display = canjeOk ? 'flex' : 'none';
+  document.getElementById('pmCanjeTexto').textContent = `Usando ${formatNumber(puntosCanje)} pts (-$${formatNumber(puntosCanje)})`;
+
+  renderItemsPago();
+  calcularVueltoModal();
 }
 
 function cerrarModalPago() {
@@ -1378,9 +1490,10 @@ const NOMBRE_METODO_BOTON = {
 
 // El botón deja claro cuánto se cobra y con qué forma de pago
 function textoBotonConfirmarPago() {
-  const total = getCartTotal();
+  const total = getTotalPorPagar();
   const metodo = NOMBRE_METODO_BOTON[metodoSeleccionadoModal] || metodoSeleccionadoModal;
-  return `<i class="fa-solid fa-check-double"></i> COBRAR $${formatNumber(total)} <small>· ${metodo}</small>`;
+  const detalle = [puntosCanje > 0 ? 'Puntos' : null, total > 0 || puntosCanje === 0 ? metodo : null].filter(Boolean).join(' + ');
+  return `<i class="fa-solid fa-check-double"></i> COBRAR $${formatNumber(total)} <small>· ${detalle}</small>`;
 }
 
 function actualizarBotonConfirmarPago() {
@@ -1391,12 +1504,17 @@ function actualizarBotonConfirmarPago() {
 function actualizarResumenMixto() {
   const el = document.getElementById('mixtoResumen');
   if (!el) return;
-  const total = getCartTotal();
-  const suma = ['mixtoEfectivo', 'mixtoTarjeta', 'mixtoTransf']
-    .reduce((s, id) => s + (parseInt(document.getElementById(id).value) || 0), 0);
-  if (suma >= total) {
+  const total = getTotalPorPagar();
+  const val = id => parseInt(document.getElementById(id).value) || 0;
+  const suma = val('mixtoEfectivo') + val('mixtoTarjeta') + val('mixtoTransf') + val('mixtoFiado');
+  const noEfectivo = suma - val('mixtoEfectivo');
+  if (noEfectivo > total) {
+    el.style.color = 'var(--danger)';
+    el.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Tarjeta, transferencia y fiado no pueden superar $${formatNumber(total)}`;
+  } else if (suma >= total) {
     el.style.color = 'var(--success)';
-    el.innerHTML = `<i class="fa-solid fa-circle-check"></i> Suma $${formatNumber(suma)}: cubre el total`;
+    el.innerHTML = `<i class="fa-solid fa-circle-check"></i> Suma $${formatNumber(suma)}: cubre el total` +
+      (suma > total ? ` · vuelto $${formatNumber(suma - total)}` : '');
   } else {
     el.style.color = 'var(--danger)';
     el.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Suma $${formatNumber(suma)} · faltan $${formatNumber(total - suma)}`;
@@ -1404,7 +1522,7 @@ function actualizarResumenMixto() {
 }
 
 function setMontoQuick(val) {
-  const total = getCartTotal();
+  const total = getTotalPorPagar();
   const input = document.getElementById('montoRecibidoModal');
   if (val === 'exacto') {
     input.value = total;
@@ -1415,7 +1533,7 @@ function setMontoQuick(val) {
 }
 
 function calcularVueltoModal() {
-  const total = getCartTotal();
+  const total = getTotalPorPagar();
   const recibido = parseInt(document.getElementById('montoRecibidoModal').value) || 0;
   const vueltoEl = document.getElementById('vueltoModal');
   const vueltoBox = document.getElementById('vueltoModalBox');
@@ -1486,40 +1604,80 @@ async function confirmarPagoModal() {
   }
 
   let pagos = [];
-  let recibido = total;
+  const porPagar = getTotalPorPagar();
+  let recibido = porPagar;
   let vuelto = 0;
+  const cliPago = getClientePago();
 
-  if (metodoSeleccionadoModal === 'Efectivo') {
-    recibido = parseInt(document.getElementById('montoRecibidoModal').value) || total;
-    if (recibido < total) {
-      toast(`El monto recibido ($${formatNumber(recibido)}) es menor al total ($${formatNumber(total)}).`, 'warn');
+  if (puntosCanje > 0 && !clienteID) {
+    toast('Selecciona el cliente para usar sus puntos.', 'warn');
+    return;
+  }
+
+  if (porPagar <= 0) {
+    // Los puntos cubren todo: no hay otro pago que registrar
+  } else if (metodoSeleccionadoModal === 'Efectivo') {
+    recibido = parseInt(document.getElementById('montoRecibidoModal').value) || porPagar;
+    if (recibido < porPagar) {
+      toast(`El monto recibido ($${formatNumber(recibido)}) es menor a lo que falta pagar ($${formatNumber(porPagar)}).`, 'warn');
       return;
     }
-    vuelto = Math.max(0, recibido - total);
-    pagos.push({ metodo: 'Efectivo', monto: total });
+    vuelto = Math.max(0, recibido - porPagar);
+    pagos.push({ metodo: 'Efectivo', monto: porPagar });
   } else if (metodoSeleccionadoModal === 'Mixto') {
-    const efec = parseInt(document.getElementById('mixtoEfectivo').value) || 0;
-    const tarj = parseInt(document.getElementById('mixtoTarjeta').value) || 0;
-    const transf = parseInt(document.getElementById('mixtoTransf').value) || 0;
-    const sumaMixto = efec + tarj + transf;
+    const val = id => parseInt(document.getElementById(id).value) || 0;
+    const efec = val('mixtoEfectivo');
+    const tarj = val('mixtoTarjeta');
+    const transf = val('mixtoTransf');
+    const fiado = val('mixtoFiado');
+    const sumaMixto = efec + tarj + transf + fiado;
 
-    if (sumaMixto < total) {
-      toast(`La suma del pago mixto ($${formatNumber(sumaMixto)}) no cubre el total de la venta ($${formatNumber(total)}).`, 'warn');
+    if (tarj + transf + fiado > porPagar) {
+      toast(`Tarjeta, transferencia y fiado suman más que el total ($${formatNumber(porPagar)}). Solo el efectivo puede dar vuelto.`, 'warn');
       return;
     }
+    if (sumaMixto < porPagar) {
+      toast(`La suma del pago mixto ($${formatNumber(sumaMixto)}) no cubre el total ($${formatNumber(porPagar)}).`, 'warn');
+      return;
+    }
+    if (fiado > 0) {
+      if (!clienteID) {
+        toast('Selecciona el cliente para cargar una parte a fiado.', 'warn');
+        return;
+      }
+      if (cliPago && fiado > cliPago.cupo) {
+        toast(`El cliente solo tiene $${formatNumber(cliPago.cupo)} de cupo para fiado.`, 'warn');
+        return;
+      }
+    }
 
-    if (efec > 0) pagos.push({ metodo: 'Efectivo', monto: efec });
+    // El exceso solo puede venir del efectivo: se entrega como vuelto
+    vuelto = sumaMixto - porPagar;
+    recibido = sumaMixto;
+    if (efec - vuelto > 0) pagos.push({ metodo: 'Efectivo', monto: efec - vuelto });
     if (tarj > 0) pagos.push({ metodo: 'Tarjeta Debito', monto: tarj });
     if (transf > 0) pagos.push({ metodo: 'Transferencia', monto: transf });
+    if (fiado > 0) pagos.push({ metodo: 'Credito Interno', monto: fiado });
   } else if (metodoSeleccionadoModal === 'Credito' || metodoSeleccionadoModal === 'Puntos') {
     if (!clienteID) {
       toast('Debes seleccionar un Cliente para pagos a Crédito / Fiado o Puntos.', 'warn');
       return;
     }
     const metodoDb = metodoSeleccionadoModal === 'Credito' ? 'Credito Interno' : 'Puntos';
-    pagos.push({ metodo: metodoDb, monto: total });
+    pagos.push({ metodo: metodoDb, monto: porPagar });
   } else {
-    pagos.push({ metodo: metodoSeleccionadoModal, monto: total });
+    pagos.push({ metodo: metodoSeleccionadoModal, monto: porPagar });
+  }
+
+  // Puntos canjeados: un pago más, primero en la lista
+  if (puntosCanje > 0) {
+    const ptsEnPagos = pagos.filter(p => p.metodo === 'Puntos').reduce((s, p) => s + p.monto, 0);
+    if (cliPago && puntosCanje + ptsEnPagos > cliPago.puntos) {
+      toast(`El cliente tiene ${formatNumber(cliPago.puntos)} puntos; no alcanzan para este pago.`, 'warn');
+      return;
+    }
+    pagos.unshift({ metodo: 'Puntos', monto: puntosCanje });
+    recibido += puntosCanje;
   }
 
   const btn = document.getElementById('btnConfirmarPagoModal');
@@ -1581,8 +1739,9 @@ async function confirmarPagoModal() {
 
   // 2. Si no hay conexión o falló la red, encolar en IndexedDB local
   if (esOffline) {
-    if (metodoSeleccionadoModal === 'Credito' || metodoSeleccionadoModal === 'Fiado') {
-      toast('Las ventas a Crédito / Fiado no están permitidas sin conexión a internet por seguridad de saldo.', 'error');
+    // Fiado y puntos dependen del saldo real del cliente: no se aceptan sin conexión (tampoco como parte de un pago mixto)
+    if (pagos.some(p => p.metodo === 'Credito Interno' || p.metodo === 'Puntos')) {
+      toast('Las ventas con Fiado o Puntos no están permitidas sin conexión a internet por seguridad de saldo.', 'error');
       btn.disabled = false;
       btn.innerHTML = textoBotonConfirmarPago();
       return;

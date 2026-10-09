@@ -9,7 +9,7 @@ $turnoActivo = $stmtTurno->fetch();
 
 // Cargar clientes con su saldo deudor y puntos acumulados
 $clientes = $pdo->query("
-    SELECT ClienteID, Nombre, RutCuerpo, RutDv, PuntosAcumulados 
+    SELECT ClienteID, Nombre, RutCuerpo, RutDv, PuntosAcumulados, LimiteCredito, SaldoDeudor 
     FROM clientes WHERE Activo = TRUE ORDER BY Nombre ASC
 ")->fetchAll();
 
