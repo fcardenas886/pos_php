@@ -2,6 +2,7 @@
 header('Content-Type: application/json');
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/precios_helper.php';
 
 if (empty($_SESSION['usuario'])) {
     echo json_encode(['success' => false, 'error' => 'No autorizado']);
@@ -64,7 +65,7 @@ try {
             throw new Exception("Cantidad inválida para el producto ID $pid.");
         }
 
-        $stmtP = $pdo->prepare("SELECT ProductoID, Nombre, PrecioVenta, CostoCompra, Stock, EsAfecto FROM productos WHERE ProductoID = :pid FOR UPDATE");
+        $stmtP = $pdo->prepare("SELECT ProductoID, Nombre, PrecioVenta, CostoCompra, Stock, EsAfecto, EsPrecioVariable FROM productos WHERE ProductoID = :pid FOR UPDATE");
         $stmtP->execute([':pid' => $pid]);
         $prod = $stmtP->fetch();
 
@@ -76,42 +77,9 @@ try {
             throw new Exception("Stock insuficiente para '{$prod['Nombre']}'. Disponible: {$prod['Stock']} unidades (requeridas: $unidadesFisicas).");
         }
 
-        // Consultar promoción activa para este producto
-        $stmtPromo = $pdo->prepare("
-            SELECT Tipo, CantidadMinima, DescuentoPorcentaje, PrecioOferta 
-            FROM promociones 
-            WHERE ProductoID = :pid AND Activa = TRUE AND FechaInicio <= NOW() AND FechaFin >= NOW() 
-            LIMIT 1
-        ");
-        $stmtPromo->execute([':pid' => $pid]);
-        $promo = $stmtPromo->fetch();
-
-        // Determinar precio unitario de esta presentación (pack vs individual)
-        $precioUnitario = (int)$prod['PrecioVenta'];
-        if ($factor > 1) {
-            $stmtAlt = $pdo->prepare("SELECT PrecioVenta, Descripcion FROM productoscodigos WHERE ProductoID = :pid AND Cantidad = :factor LIMIT 1");
-            $stmtAlt->execute([':pid' => $pid, ':factor' => $factor]);
-            $altRow = $stmtAlt->fetch();
-
-            if ($altRow && $altRow['PrecioVenta'] !== null && (int)$altRow['PrecioVenta'] > 0) {
-                // 1. Regla: Precio fijo explícito configurado en el código alternativo
-                $precioUnitario = (int)$altRow['PrecioVenta'];
-            } elseif ($promo && $promo['Tipo'] === 'MULTIBUY' && (float)$promo['CantidadMinima'] > 0 && $factor >= (float)$promo['CantidadMinima'] && fmod($factor, (float)$promo['CantidadMinima']) == 0) {
-                // 2. Regla: Heredar automáticamente el precio de la promoción MULTIBUY activa
-                $precioUnitario = (int)round(($factor / (float)$promo['CantidadMinima']) * (int)$promo['PrecioOferta']);
-            } elseif ($promo && $promo['Tipo'] === 'DESCUENTO_UNIT' && (float)$promo['DescuentoPorcentaje'] > 0) {
-                // 2b. Regla: Heredar descuento porcentual unitario
-                $descUnit = (int)round((int)$prod['PrecioVenta'] * ((float)$promo['DescuentoPorcentaje'] / 100));
-                $precioUnitario = (int)round(((int)$prod['PrecioVenta'] - $descUnit) * $factor);
-            } elseif (!empty($item['precio_unitario']) && (int)$item['precio_unitario'] > 0) {
-                $precioUnitario = (int)$item['precio_unitario'];
-            } else {
-                // 3. Regla: Multiplicación base (sin oferta)
-                $precioUnitario = (int)round((int)$prod['PrecioVenta'] * $factor);
-            }
-        } elseif (!empty($item['precio_unitario']) && (int)$item['precio_unitario'] > 0) {
-            $precioUnitario = (int)$item['precio_unitario'];
-        }
+        // Promoción activa y precio de esta presentación (unidad, pack o precio variable)
+        $promo = obtenerPromoActiva($pdo, $pid);
+        $precioUnitario = resolverPrecioUnitario($pdo, $prod, $factor, $item['precio_unitario'] ?? 0, $promo);
 
         $descItem = 0;
 

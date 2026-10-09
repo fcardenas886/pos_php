@@ -13,6 +13,7 @@ if (!headers_sent()) {
 }
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/precios_helper.php';
 
 if (empty($_SESSION['usuario'])) {
     echo json_encode(['success' => false, 'error' => 'No autorizado']);
@@ -109,7 +110,7 @@ try {
 
                 if ($pid <= 0 || $cant <= 0) continue;
 
-                $stmtP = $pdo->prepare("SELECT ProductoID, Nombre, PrecioVenta, CostoCompra, Stock, EsAfecto FROM productos WHERE ProductoID = :pid FOR UPDATE");
+                $stmtP = $pdo->prepare("SELECT ProductoID, Nombre, PrecioVenta, CostoCompra, Stock, EsAfecto, EsPrecioVariable FROM productos WHERE ProductoID = :pid FOR UPDATE");
                 $stmtP->execute([':pid' => $pid]);
                 $prod = $stmtP->fetch(PDO::FETCH_ASSOC);
 
@@ -117,7 +118,8 @@ try {
                     throw new Exception("El producto ID $pid no fue encontrado en el catálogo del servidor.");
                 }
 
-                $precioUnitario = isset($it['precio_unitario']) ? (int)$it['precio_unitario'] : (int)$prod['PrecioVenta'];
+                // Misma regla de precio que una venta online: el precio de la caja solo vale para Precio Variable
+                $precioUnitario = resolverPrecioUnitario($pdo, $prod, $factor, $it['precio_unitario'] ?? 0, obtenerPromoActiva($pdo, $pid));
                 $subItem = (int)round($cant * $precioUnitario);
                 $subtotalBruto += $subItem;
 

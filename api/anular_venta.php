@@ -76,8 +76,9 @@ try {
     $stmtUpdV = $pdo->prepare("UPDATE ventas SET Estado = 'Anulada' WHERE VentaID = :vid");
     $stmtUpdV->execute([':vid' => $ventaID]);
 
-    // 2. Obtener detalles de la venta para devolver el stock
-    $stmtD = $pdo->prepare("SELECT ProductoID, Cantidad, PrecioUnitario FROM detalleventas WHERE VentaID = :vid");
+    // 2. Obtener detalles de la venta para devolver el stock.
+    // Un pack (FactorConversion > 1) descontó Cantidad x Factor unidades al venderse: se repone lo mismo.
+    $stmtD = $pdo->prepare("SELECT ProductoID, Cantidad, FactorConversion, PrecioUnitario FROM detalleventas WHERE VentaID = :vid");
     $stmtD->execute([':vid' => $ventaID]);
     $detalles = $stmtD->fetchAll();
 
@@ -88,15 +89,17 @@ try {
     ");
 
     foreach ($detalles as $d) {
+        $factor = (float)($d['FactorConversion'] ?? 1) > 0 ? (float)$d['FactorConversion'] : 1.0;
+        $unidadesFisicas = (float)$d['Cantidad'] * $factor;
         $stmtKardex->execute([
             ':pid' => $d['ProductoID'],
             ':pid2' => $d['ProductoID'],
             ':vid' => $ventaID,
-            ':cant' => $d['Cantidad'],
-            ':cant2' => $d['Cantidad'],
+            ':cant' => $unidadesFisicas,
+            ':cant2' => $unidadesFisicas,
             ':val' => $d['PrecioUnitario']
         ]);
-        $stmtUpdStock->execute([':cant' => $d['Cantidad'], ':pid' => $d['ProductoID']]);
+        $stmtUpdStock->execute([':cant' => $unidadesFisicas, ':pid' => $d['ProductoID']]);
     }
 
     // 3. Registrar en AuditoriaEventos si existe la tabla
