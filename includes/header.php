@@ -138,7 +138,7 @@ $changelogActual = APP_CHANGELOG[APP_VERSION] ?? [];
         <i class="fa-solid fa-store"></i>
       </div>
     <?php endif; ?>
-    <span><?= htmlspecialchars($nombreEmpresa) ?></span>
+    <span title="<?= htmlspecialchars($nombreEmpresa) ?>"><?= htmlspecialchars($nombreEmpresa) ?></span>
   </a>
 
   <ul class="nav-links">

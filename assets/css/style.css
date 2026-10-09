@@ -64,6 +64,14 @@ body {
   font-size: 1.15rem;
   flex-shrink: 0;
   white-space: nowrap;
+  max-width: 250px;
+}
+
+.brand span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
 }
 
 .brand-icon {
