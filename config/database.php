@@ -1,10 +1,16 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v4.4.3');
+define('APP_VERSION', 'v4.5.0');
 
 // Novedades reales por versión, para la pantalla de bienvenida y el módulo "Acerca de".
 // Registra la cronología completa de la evolución del sistema desde su inicio.
 define('APP_CHANGELOG', [
+    'v4.5.0' => [
+        'Pantalla de Cobro Renovada: Nuevo diseño del modal de pago con el total destacado arriba, tarjetas grandes por forma de pago y paneles más claros.',
+        'Forma de Pago Seleccionada Visible: La opción elegida se resalta con su color, borde, brillo y un check; el botón final indica el monto y el método (ej. "COBRAR $4.490 · Efectivo").',
+        'Efectivo más Claro: El billete rápido elegido queda marcado y, si el monto recibido no alcanza, se muestra "Falta $X" en rojo en lugar del vuelto.',
+        'Ayudas por Método: Tarjeta, Transferencia, Fiado y Puntos muestran una indicación breve; en Pago Mixto se ve en vivo cuánto falta para cubrir el total.',
+    ],
     'v4.4.3' => [
         'Corrección del Comprobante Post-Venta: Se arregla el error que aparecía tras confirmar la venta (la venta se grababa, pero el comprobante no se mostraba).',
         'Pesables en el Comprobante: El detalle muestra kilos y precio por kilo (ej. 2,166 kg x $1.500/kg).',

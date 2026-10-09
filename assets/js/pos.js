@@ -1320,8 +1320,13 @@ function abrirModalPago() {
 
   const total = getCartTotal();
   document.getElementById('modalMontoTotal').textContent = `$${formatNumber(total)}`;
+  const nItems = cart.length;
+  document.getElementById('modalItemsResumen').textContent = `${nItems} ${nItems === 1 ? 'producto' : 'productos'} en la venta`;
   document.getElementById('montoRecibidoModal').value = total;
-  calcularVueltoModal();
+  ['mixtoEfectivo', 'mixtoTarjeta', 'mixtoTransf'].forEach(id => { document.getElementById(id).value = ''; });
+
+  // Cada venta parte en Efectivo
+  setFormaPago('Efectivo', document.querySelector('.btn-metodo[data-metodo="Efectivo"]'));
 
   const modal = document.getElementById('pagoModal');
   modal.style.display = 'flex';
@@ -1334,16 +1339,68 @@ function cerrarModalPago() {
 function setFormaPago(metodo, btn) {
   metodoSeleccionadoModal = metodo;
 
-  document.querySelectorAll('.btn-metodo').forEach(b => b.classList.remove('active', 'btn-primary'));
-  if (btn) btn.classList.add('active', 'btn-primary');
+  document.querySelectorAll('.btn-metodo').forEach(b => b.classList.toggle('active', b === btn));
 
   const pnlEfec = document.getElementById('panelEfectivoModal');
   const pnlMix = document.getElementById('panelMixtoModal');
-  const pnlVale = document.getElementById('panelValeModal');
+  const pnlInfo = document.getElementById('panelInfoMetodoModal');
 
   if (pnlEfec) pnlEfec.style.display = metodo === 'Efectivo' ? 'block' : 'none';
   if (pnlMix) pnlMix.style.display = metodo === 'Mixto' ? 'block' : 'none';
-  if (pnlVale) pnlVale.style.display = metodo === 'Vale' ? 'block' : 'none';
+
+  const info = INFO_METODO_PAGO[metodo];
+  if (pnlInfo) {
+    pnlInfo.style.display = info ? 'block' : 'none';
+    if (info) {
+      const icon = document.getElementById('infoMetodoIcon');
+      icon.innerHTML = `<i class="fa-solid ${info.icono}"></i>`;
+      icon.style.setProperty('--m-color', btn ? btn.style.getPropertyValue('--m-color') : '');
+      document.getElementById('infoMetodoTitulo').textContent = info.titulo;
+      document.getElementById('infoMetodoTexto').textContent = info.texto;
+    }
+  }
+
+  if (metodo === 'Mixto') actualizarResumenMixto();
+  actualizarBotonConfirmarPago();
+}
+
+const INFO_METODO_PAGO = {
+  'Tarjeta Debito': { icono: 'fa-credit-card', titulo: 'Pago con tarjeta', texto: 'Cobra en el terminal (POS) y confirma cuando el pago esté aprobado.' },
+  'Transferencia': { icono: 'fa-building-columns', titulo: 'Pago por transferencia', texto: 'Verifica que la transferencia haya llegado antes de confirmar.' },
+  'Credito': { icono: 'fa-handshake', titulo: 'Fiado / crédito interno', texto: 'Se carga a la cuenta del cliente. Debes seleccionar un cliente.' },
+  'Puntos': { icono: 'fa-star', titulo: 'Pago con puntos', texto: 'Se descuentan los puntos acumulados del cliente seleccionado.' },
+};
+
+const NOMBRE_METODO_BOTON = {
+  'Efectivo': 'Efectivo', 'Tarjeta Debito': 'Tarjeta', 'Transferencia': 'Transferencia',
+  'Credito': 'Fiado / Crédito', 'Puntos': 'Puntos', 'Mixto': 'Pago mixto',
+};
+
+// El botón deja claro cuánto se cobra y con qué forma de pago
+function textoBotonConfirmarPago() {
+  const total = getCartTotal();
+  const metodo = NOMBRE_METODO_BOTON[metodoSeleccionadoModal] || metodoSeleccionadoModal;
+  return `<i class="fa-solid fa-check-double"></i> COBRAR $${formatNumber(total)} <small>· ${metodo}</small>`;
+}
+
+function actualizarBotonConfirmarPago() {
+  const btn = document.getElementById('btnConfirmarPagoModal');
+  if (btn && !btn.disabled) btn.innerHTML = textoBotonConfirmarPago();
+}
+
+function actualizarResumenMixto() {
+  const el = document.getElementById('mixtoResumen');
+  if (!el) return;
+  const total = getCartTotal();
+  const suma = ['mixtoEfectivo', 'mixtoTarjeta', 'mixtoTransf']
+    .reduce((s, id) => s + (parseInt(document.getElementById(id).value) || 0), 0);
+  if (suma >= total) {
+    el.style.color = 'var(--success)';
+    el.innerHTML = `<i class="fa-solid fa-circle-check"></i> Suma $${formatNumber(suma)}: cubre el total`;
+  } else {
+    el.style.color = 'var(--danger)';
+    el.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Suma $${formatNumber(suma)} · faltan $${formatNumber(total - suma)}`;
+  }
 }
 
 function setMontoQuick(val) {
@@ -1361,12 +1418,21 @@ function calcularVueltoModal() {
   const total = getCartTotal();
   const recibido = parseInt(document.getElementById('montoRecibidoModal').value) || 0;
   const vueltoEl = document.getElementById('vueltoModal');
+  const vueltoBox = document.getElementById('vueltoModalBox');
+  const vueltoLabel = document.getElementById('vueltoLabelModal');
 
-  if (recibido >= total) {
-    vueltoEl.value = `$${formatNumber(recibido - total)}`;
-  } else {
-    vueltoEl.value = '$0';
-  }
+  const falta = recibido < total;
+  vueltoEl.textContent = `$${formatNumber(falta ? total - recibido : recibido - total)}`;
+  if (vueltoBox) vueltoBox.classList.toggle('falta', falta);
+  if (vueltoLabel) vueltoLabel.textContent = falta ? 'Falta' : 'Vuelto';
+
+  document.querySelectorAll('#pagoModal .pm-chip').forEach(chip => {
+    const q = chip.dataset.quick;
+    chip.classList.toggle('active', q === 'exacto' ? recibido === total : parseInt(q) === recibido);
+  });
+
+  if (metodoSeleccionadoModal === 'Mixto') actualizarResumenMixto();
+  actualizarBotonConfirmarPago();
 }
 
 async function confirmarPagoModal() {
@@ -1504,7 +1570,7 @@ async function confirmarPagoModal() {
       } else {
         toast(errNet.message, 'error');
         btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA`;
+        btn.innerHTML = textoBotonConfirmarPago();
         return;
       }
     }
@@ -1518,13 +1584,13 @@ async function confirmarPagoModal() {
     if (metodoSeleccionadoModal === 'Credito' || metodoSeleccionadoModal === 'Fiado') {
       toast('Las ventas a Crédito / Fiado no están permitidas sin conexión a internet por seguridad de saldo.', 'error');
       btn.disabled = false;
-      btn.innerHTML = `<i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA`;
+      btn.innerHTML = textoBotonConfirmarPago();
       return;
     }
     if (valeAplicado) {
       toast('El canje de vales no está permitido sin conexión a internet.', 'error');
       btn.disabled = false;
-      btn.innerHTML = `<i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA`;
+      btn.innerHTML = textoBotonConfirmarPago();
       return;
     }
 
@@ -1542,7 +1608,7 @@ async function confirmarPagoModal() {
     } catch (errOff) {
       toast('Error crítico al guardar venta local: ' + errOff.message, 'error');
       btn.disabled = false;
-      btn.innerHTML = `<i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA`;
+      btn.innerHTML = textoBotonConfirmarPago();
       return;
     }
   }
@@ -1576,7 +1642,7 @@ async function confirmarPagoModal() {
     toast('Error post-venta: ' + errPost.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `<i class="fa-solid fa-check-double"></i> CONFIRMAR E IMPRIMIR VENTA`;
+    btn.innerHTML = textoBotonConfirmarPago();
   }
 }
 
