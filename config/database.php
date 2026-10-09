@@ -7,6 +7,7 @@ define('APP_VERSION', 'v4.4.2');
 define('APP_CHANGELOG', [
     'v4.4.2' => [
         'Venta con Stock Negativo en el POS: La caja ahora respeta la opción "Vender con stock negativo"; con "Permitir" se pueden agregar productos sin stock y subir su cantidad libremente.',
+        'Base de Datos Compatible con Stock Negativo: Se eliminan las restricciones que rechazaban la venta (error 3819) aunque la opción estuviera activa. Requiere ejecutar la migración 0011.',
     ],
     'v4.4.1' => [
         'Código PLU Automático: Botón "Generar" en el formulario de productos y asignación automática al guardar un pesable sin PLU.',
