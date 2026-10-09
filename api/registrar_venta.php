@@ -320,7 +320,10 @@ try {
     $puntosUsados = 0;
 
     foreach ($pagosList as $pago) {
-        $metodo = $pago['metodo'];
+        $metodo = $pago['metodo'] ?? 'Efectivo';
+        if (in_array($metodo, ['Credito', 'Fiado'], true)) {
+            $metodo = 'Credito Interno';
+        }
         $montoRestante = max(0, $montoTotal - $valeAplicado);
         $montoPago = (int)(($pago['monto'] ?? 0) > 0 ? $pago['monto'] : $montoRestante);
 
@@ -329,7 +332,7 @@ try {
             continue;
         }
 
-        if ($metodo === 'Credito' || $metodo === 'Fiado' || $metodo === 'Credito Interno') {
+        if ($metodo === 'Credito Interno') {
             $creditoUsado += $montoPago;
             $limite = (int)($cliente['LimiteCredito'] ?? 0);
             $saldoActual = (int)($cliente['SaldoDeudor'] ?? 0);
@@ -352,7 +355,7 @@ try {
 
         // Manejar pago a Crédito/Fiado o Puntos para Clientes
         if ($clienteID) {
-            if ($metodo === 'Credito' || $metodo === 'Fiado' || $metodo === 'Credito Interno') {
+            if ($metodo === 'Credito Interno') {
                 $stmtCred = $pdo->prepare("UPDATE clientes SET SaldoDeudor = COALESCE(SaldoDeudor, 0) + :monto WHERE ClienteID = :cid");
                 $stmtCred->execute([':monto' => $montoPago, ':cid' => $clienteID]);
             } elseif ($metodo === 'Puntos') {

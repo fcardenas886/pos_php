@@ -81,6 +81,8 @@ try {
     ");
 
     $stmtPago = $pdo->prepare("INSERT INTO pagosventa (VentaID, MetodoPago, Monto) VALUES (:vid, :metodo, :monto)");
+    $stmtAddPts = $pdo->prepare("UPDATE clientes SET PuntosAcumulados = COALESCE(PuntosAcumulados, 0) + :pts WHERE ClienteID = :cid");
+    $stmtAddCred = $pdo->prepare("UPDATE clientes SET SaldoDeudor = COALESCE(SaldoDeudor, 0) + :monto WHERE ClienteID = :cid");
 
     foreach ($input['ventas'] as $v) {
         $tempId = $v['id_temporal'] ?? '';
@@ -200,11 +202,18 @@ try {
                 foreach ($pagos as $p) {
                     $montoP = (int)($p['monto'] ?? $montoTotal);
                     if ($montoP > 0) {
+                        $metodoP = $p['metodo'] ?? 'Efectivo';
+                        if (in_array($metodoP, ['Credito', 'Fiado'], true)) {
+                            $metodoP = 'Credito Interno';
+                        }
                         $stmtPago->execute([
                             ':vid' => $ventaID,
-                            ':metodo' => $p['metodo'] ?? 'Efectivo',
+                            ':metodo' => $metodoP,
                             ':monto' => $montoP
                         ]);
+                        if ($clienteID && $metodoP === 'Credito Interno') {
+                            $stmtAddCred->execute([':monto' => $montoP, ':cid' => $clienteID]);
+                        }
                     }
                 }
             } else {
@@ -213,6 +222,11 @@ try {
                     ':metodo' => 'Efectivo',
                     ':monto' => $montoTotal
                 ]);
+            }
+
+            // 4. Sumar Puntos Ganados al Cliente si aplica
+            if ($clienteID && $puntosGanados > 0) {
+                $stmtAddPts->execute([':pts' => $puntosGanados, ':cid' => $clienteID]);
             }
 
             $pdo->commit();
