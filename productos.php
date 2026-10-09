@@ -30,9 +30,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $esPrecioVariable = isset($_POST['es_precio_variable']) ? 1 : 0;
         $codigoPLU = !empty($_POST['codigo_plu']) ? trim($_POST['codigo_plu']) : null;
 
-        // Validar PLU si es pesable
-        if ($esPesable && $codigoPLU !== null && !preg_match('/^[0-9]{4}$/', $codigoPLU)) {
-            $error = 'El Código PLU de la balanza debe tener exactamente 4 dígitos numéricos.';
+        $modoBalanza = obtenerModoBalanza($pdo);
+        if (!$esPesable) {
+            $codigoPLU = null;
+        }
+
+        // Validar PLU si es pesable: la etiqueta EAN-13 solo admite 4 dígitos; sin etiqueta es un código libre de hasta 8
+        if ($esPesable && $codigoPLU !== null) {
+            if ($modoBalanza === 'etiqueta' && !preg_match('/^[0-9]{4}$/', $codigoPLU)) {
+                $error = 'Con balanza de etiqueta, el Código PLU debe tener exactamente 4 dígitos numéricos.';
+            } elseif ($modoBalanza === 'manual' && !preg_match('/^[0-9]{1,8}$/', $codigoPLU)) {
+                $error = 'El Código PLU debe ser numérico, de hasta 8 dígitos.';
+            }
         }
 
         if (empty($error)) {
@@ -83,8 +92,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ':esvariable' => $esPrecioVariable,
                             ':plu' => $codigoPLU
                         ]);
+                        $id = (int)$pdo->lastInsertId();
                     }
-                    $message = 'Producto guardado exitosamente.';
+
+                    // Pesable sin PLU: asignarlo automáticamente a partir del ID ya conocido
+                    if ($esPesable && $codigoPLU === null) {
+                        $codigoPLU = generarCodigoPLU($pdo, $id, $modoBalanza);
+                        $pdo->prepare("UPDATE productos SET CodigoPLU = ? WHERE ProductoID = ?")->execute([$codigoPLU, $id]);
+                    }
+                    $message = 'Producto guardado exitosamente.' . ($esPesable ? " Código PLU: $codigoPLU." : '');
+                } catch (PDOException $e) {
+                    $error = ($e->errorInfo[1] ?? 0) == 1062 && str_contains($e->getMessage(), 'CodigoPLU')
+                        ? "El Código PLU $codigoPLU ya está asignado a otro producto."
+                        : 'Error al guardar el producto: ' . $e->getMessage();
                 } catch (Exception $e) {
                     $error = 'Error al guardar el producto: ' . $e->getMessage();
                 }
@@ -128,6 +148,9 @@ $productos = $stmtP->fetchAll();
 
 // Categorías para el selector
 $categorias = $pdo->query("SELECT * FROM categorias ORDER BY Nombre ASC")->fetchAll();
+
+// Tipo de balanza: define el formato del PLU que se muestra y genera en el formulario
+$modoBalanzaVista = obtenerModoBalanza($pdo);
 
 include __DIR__ . '/views/productos.view.php';
 require_once __DIR__ . '/includes/footer.php';

@@ -84,3 +84,45 @@ if (!function_exists('generarSiguienteEAN8')) {
         return $codigoCompleto;
     }
 }
+
+/**
+ * Código PLU para productos pesables, según el tipo de balanza configurado:
+ * - 'manual' (sin etiqueta): ProductoID * 100 (ej. ID 12 -> "1200"), un código corto
+ *   y fácil de digitar en el POS que no se confunde con números chicos.
+ * - 'etiqueta' (EAN-13 20 PPPP ...): ProductoID con 4 dígitos (ej. ID 12 -> "0012"),
+ *   porque la etiqueta solo tiene espacio para 4.
+ * Si el candidato ya está ocupado por otro producto, avanza al siguiente libre.
+ */
+if (!function_exists('generarCodigoPLU')) {
+    function generarCodigoPLU(PDO $pdo, int $productoId, string $modoBalanza): string {
+        $esManual = $modoBalanza === 'manual';
+        $candidato = $esManual ? $productoId * 100 : $productoId;
+        if (!$esManual && $candidato > 9999) {
+            $candidato = 1;
+        }
+
+        $stmtCheck = $pdo->prepare("
+            SELECT 1 FROM productos
+            WHERE (CodigoPLU = :plu OR CodigoBarras = :cod) AND ProductoID <> :id
+            LIMIT 1
+        ");
+        while (true) {
+            $plu = $esManual ? (string)$candidato : str_pad((string)$candidato, 4, '0', STR_PAD_LEFT);
+            if (strlen($plu) > ($esManual ? 8 : 4)) {
+                throw new Exception('No quedan códigos PLU disponibles.');
+            }
+            $stmtCheck->execute([':plu' => $plu, ':cod' => $plu, ':id' => $productoId]);
+            if (!$stmtCheck->fetchColumn()) {
+                return $plu;
+            }
+            $candidato++;
+        }
+    }
+}
+
+if (!function_exists('obtenerModoBalanza')) {
+    function obtenerModoBalanza(PDO $pdo): string {
+        $modo = $pdo->query("SELECT Valor FROM configuraciones WHERE Clave = 'BALANZA_MODO'")->fetchColumn();
+        return $modo === 'manual' ? 'manual' : 'etiqueta';
+    }
+}

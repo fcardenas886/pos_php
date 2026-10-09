@@ -135,10 +135,10 @@
 
 <!-- Modal Nuevo/Editar Producto -->
 <div id="productModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
-  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 16px; width: 450px; padding: 1.75rem; box-shadow: var(--shadow-lg);">
-    <h2 id="modalTitle" style="font-size: 1.2rem; font-weight: 700; margin-bottom: 1.25rem;">Agregar Nuevo Producto</h2>
+  <div style="background: var(--card-bg); border: 1px solid var(--border-dark); border-radius: 16px; width: 520px; max-width: 95vw; max-height: 92vh; overflow-y: auto; padding: 1.4rem 1.6rem; box-shadow: var(--shadow-lg);">
+    <h2 id="modalTitle" style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.9rem;">Agregar Nuevo Producto</h2>
     
-    <form method="POST" action="productos.php" style="display: flex; flex-direction: column; gap: 1rem;">
+    <form method="POST" action="productos.php" style="display: flex; flex-direction: column; gap: 0.75rem;">
       <?= csrfField() ?>
       <input type="hidden" name="producto_id" id="prodIdInput" value="">
       
@@ -150,10 +150,11 @@
           </button>
         </div>
         <input type="text" name="codigo_barras" id="prodCodigoInput" class="form-control" placeholder="Ej: 780123456789 o dejar vacío para autogenerar">
-        <small style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.25rem; display: block;">
-          Si dejas este campo en blanco, el sistema le asignará un código EAN-8 interno al guardar.
+        <small style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.2rem; display: block;">
+          Vacío = se asigna un EAN-8 interno al guardar.
         </small>
       </div>
+      <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 0.75rem;">
       <div>
         <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">NOMBRE PRODUCTO *</label>
         <input type="text" name="nombre" id="prodNombreInput" class="form-control" required placeholder="Ej: Coca Cola 1.5L">
@@ -165,6 +166,7 @@
             <option value="<?= $cat['CategoriaID'] ?>"><?= htmlspecialchars($cat['Nombre']) ?></option>
           <?php endforeach; ?>
         </select>
+      </div>
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
         <div>
@@ -193,8 +195,13 @@
           <label for="prodEsPesableInput" style="font-size: 0.85rem; font-weight: 600; cursor: pointer; user-select: none;">Es Pesable (Balanza)</label>
         </div>
         <div id="divProdPLU" style="display: none;">
-          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CÓDIGO PLU (4 DÍGITOS)</label>
-          <input type="text" name="codigo_plu" id="prodCodigoPLUInput" class="form-control" placeholder="Ej: 0105" maxlength="4">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin: 0;">CÓDIGO PLU<?= $modoBalanzaVista === 'etiqueta' ? ' (4 DÍG.)' : '' ?></label>
+            <button type="button" onclick="autogenerarCodigoPLU()" class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; color: #818cf8; border-color: rgba(129, 140, 248, 0.3);" title="<?= $modoBalanzaVista === 'manual' ? 'ID del producto × 100' : 'ID del producto con 4 dígitos' ?>">
+              <i class="fa-solid fa-bolt"></i> Generar
+            </button>
+          </div>
+          <input type="text" inputmode="numeric" name="codigo_plu" id="prodCodigoPLUInput" class="form-control" placeholder="Vacío = automático" maxlength="<?= $modoBalanzaVista === 'etiqueta' ? 4 : 8 ?>" pattern="<?= $modoBalanzaVista === 'etiqueta' ? '[0-9]{4}' : '[0-9]{1,8}' ?>">
         </div>
       </div>
 
@@ -215,7 +222,7 @@
         <label for="prodActivoInput" style="font-size: 0.85rem; font-weight: 600; cursor: pointer; user-select: none;">Producto Activo (disponible para venta)</label>
       </div>
 
-      <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
+      <div style="display: flex; gap: 0.75rem; margin-top: 0.25rem; position: sticky; bottom: -1.4rem; background: var(--card-bg); padding: 0.6rem 0 0.2rem;">
         <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
         <button type="button" onclick="document.getElementById('productModal').style.display='none'" class="btn btn-secondary btn-block">Cancelar</button>
       </div>
@@ -231,11 +238,21 @@ function togglePluField() {
   
   if (isPesable) {
     divPLU.style.display = 'block';
-    pluInput.required = true;
   } else {
     divPLU.style.display = 'none';
-    pluInput.required = false;
     pluInput.value = '';
+  }
+}
+
+async function autogenerarCodigoPLU() {
+  const id = document.getElementById('prodIdInput').value;
+  try {
+    const res = await fetch('api/generar_codigo_plu.php' + (id ? '?producto_id=' + encodeURIComponent(id) : ''));
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error desconocido');
+    document.getElementById('prodCodigoPLUInput').value = data.codigo;
+  } catch (e) {
+    alert('No se pudo generar el PLU: ' + e.message);
   }
 }
 

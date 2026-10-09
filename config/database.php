@@ -1,10 +1,15 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v4.4.0');
+define('APP_VERSION', 'v4.4.1');
 
 // Novedades reales por versión, para la pantalla de bienvenida y el módulo "Acerca de".
 // Registra la cronología completa de la evolución del sistema desde su inicio.
 define('APP_CHANGELOG', [
+    'v4.4.1' => [
+        'Código PLU Automático: Botón "Generar" en el formulario de productos y asignación automática al guardar un pesable sin PLU.',
+        'PLU según Tipo de Balanza: Sin etiqueta se usa el ID del producto × 100 (ej. ID 12 → 1200), fácil de digitar en caja; con etiqueta EAN-13 se usa el ID con 4 dígitos (ej. 0012).',
+        'Formulario de Productos Compacto: Ventana con scroll interno, campos agrupados y botones Guardar/Cancelar siempre visibles en pantallas bajas.',
+    ],
     'v4.4.0' => [
         'Balanza sin Etiqueta (Ingreso Manual): Nuevo tipo de balanza en Configuración para locales cuya balanza solo muestra el peso y no imprime código de barras.',
         'Venta por Peso o por Monto en el POS: Al agregar un producto pesable se abre una ventana donde el cajero ingresa los kilos (el sistema calcula el precio) o el monto en pesos (el sistema calcula los kilos equivalentes), con vista previa en vivo.',
