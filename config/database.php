@@ -1,10 +1,13 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v4.4.1');
+define('APP_VERSION', 'v4.4.2');
 
 // Novedades reales por versión, para la pantalla de bienvenida y el módulo "Acerca de".
 // Registra la cronología completa de la evolución del sistema desde su inicio.
 define('APP_CHANGELOG', [
+    'v4.4.2' => [
+        'Venta con Stock Negativo en el POS: La caja ahora respeta la opción "Vender con stock negativo"; con "Permitir" se pueden agregar productos sin stock y subir su cantidad libremente.',
+    ],
     'v4.4.1' => [
         'Código PLU Automático: Botón "Generar" en el formulario de productos y asignación automática al guardar un pesable sin PLU.',
         'PLU de 4 Dígitos según Tipo de Balanza: Sin etiqueta se usa el ID del producto × 100 (ej. ID 12 → 1200), fácil de digitar en caja; con etiqueta EAN-13 se usa el ID con 4 dígitos (ej. 0012). Si no cabe o está ocupado, se toma el siguiente libre.',

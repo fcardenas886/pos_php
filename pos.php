@@ -33,12 +33,13 @@ while ($row = $stmtLocal->fetch(PDO::FETCH_ASSOC)) {
 // Cargar configuraciones de supervisión en caja
 $stmtSup = $pdo->query("
     SELECT Clave, Valor FROM configuraciones 
-    WHERE Clave IN ('POS_REQ_SUPERVISOR_CANCELAR', 'POS_REQ_SUPERVISOR_ELIMINAR_ITEM', 'POS_DESCUENTO_MAX_PORC')
+    WHERE Clave IN ('POS_REQ_SUPERVISOR_CANCELAR', 'POS_REQ_SUPERVISOR_ELIMINAR_ITEM', 'POS_DESCUENTO_MAX_PORC', 'PERMITIR_STOCK_NEGATIVO')
 ");
 $configSupervision = [
     'POS_REQ_SUPERVISOR_CANCELAR' => 'SI',
     'POS_REQ_SUPERVISOR_ELIMINAR_ITEM' => 'SI',
     'POS_DESCUENTO_MAX_PORC' => '5',
+    'PERMITIR_STOCK_NEGATIVO' => 'false',
 ];
 while ($row = $stmtSup->fetch(PDO::FETCH_ASSOC)) {
     $configSupervision[$row['Clave']] = $row['Valor'];

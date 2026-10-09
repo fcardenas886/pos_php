@@ -962,7 +962,7 @@ function agregarAlCarrito(producto, cantidad = 1, factor = 1, precioPack = null,
 
   const unidadesNuevas = cantidad * factor;
 
-  if (totalFisicoActual + unidadesNuevas > parseFloat(producto.Stock)) {
+  if (!permiteStockNegativo() && totalFisicoActual + unidadesNuevas > parseFloat(producto.Stock)) {
     toast(`No hay suficiente stock para "${producto.Nombre}". Disponible: ${producto.Stock} unidades (en carrito: ${totalFisicoActual}).`, 'warn');
     return;
   }
@@ -996,6 +996,12 @@ function agregarAlCarrito(producto, cantidad = 1, factor = 1, precioPack = null,
 
   playBeep();
   renderCart();
+}
+
+// Configuración "Vender con stock negativo": si está permitido, el POS no bloquea por stock
+// (el backend aplica la misma regla en api/registrar_venta.php)
+function permiteStockNegativo() {
+  return window.CONFIG_SUPERVISION?.PERMITIR_STOCK_NEGATIVO === 'true';
 }
 
 async function eliminarItemCarrito(index) {
@@ -1043,7 +1049,7 @@ function cambiarCantidad(index, delta) {
     .filter((it, idx) => idx !== index && it.ProductoID === item.ProductoID)
     .reduce((sum, it) => sum + (it.cantidad * (it.factor || 1)), 0);
 
-  if ((totalFisicoOtros + (nuevaCant * factor)) > item.Stock) {
+  if (!permiteStockNegativo() && (totalFisicoOtros + (nuevaCant * factor)) > item.Stock) {
     toast(`Stock máximo disponible: ${item.Stock} unidades (${Math.floor(item.Stock / factor)} packs)`, 'warn');
     return;
   }
