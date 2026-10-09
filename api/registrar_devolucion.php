@@ -50,7 +50,12 @@ try {
     }
 
     $stmtFindP = $pdo->prepare("SELECT ProductoID FROM productos WHERE ProductoID = :id OR CodigoBarras = :barcode LIMIT 1");
-    $stmtDetalleVenta = $pdo->prepare("SELECT PrecioUnitario, Cantidad, Subtotal FROM detalleventas WHERE VentaID = :vid AND ProductoID = :pid");
+    // Todo en unidades físicas: un pack de 3 vendido cuenta como 3 unidades, sumando todas las
+    // líneas del producto en la venta (unidad suelta + packs). Así se repone el stock real.
+    $stmtDetalleVenta = $pdo->prepare("
+        SELECT SUM(Cantidad * FactorConversion) AS Unidades, SUM(Subtotal) AS Subtotal
+        FROM detalleventas WHERE VentaID = :vid AND ProductoID = :pid
+    ");
     $stmtYaDev = $pdo->prepare("
         SELECT COALESCE(SUM(dd.Cantidad), 0) FROM detalledevoluciones dd
         JOIN devoluciones d ON dd.DevolucionID = d.DevolucionID
@@ -70,23 +75,23 @@ try {
 
         $stmtDetalleVenta->execute([':vid' => $ventaID, ':pid' => $productoID]);
         $detalleVenta = $stmtDetalleVenta->fetch();
-        $precioUnitario = (int)($detalleVenta['PrecioUnitario'] ?? 0);
-        if (!$detalleVenta || $precioUnitario <= 0) {
+        $unidadesVendidas = (float)($detalleVenta['Unidades'] ?? 0);
+        if ($unidadesVendidas <= 0) {
             throw new Exception("El producto ID $productoID no pertenece a la venta #$ventaID.");
         }
 
         $stmtYaDev->execute([':vid' => $ventaID, ':pid' => $productoID]);
         $yaDevuelto = (float)$stmtYaDev->fetchColumn();
-        $disponible = (float)$detalleVenta['Cantidad'] - $yaDevuelto;
+        $disponible = round($unidadesVendidas - $yaDevuelto, 3);
 
-        if ($cantidad > $disponible) {
+        if (round($cantidad, 3) > $disponible) {
             throw new Exception("Solo quedan $disponible unidades disponibles para devolver del producto ID $productoID en la venta #$ventaID.");
         }
 
-        // Reembolsar lo realmente pagado por unidad (Subtotal/Cantidad), no el precio de
-        // lista: si el producto tenía una promoción activa, PrecioUnitario no refleja
-        // el descuento que ya se aplicó al cobrar.
-        $precioEfectivo = (float)$detalleVenta['Subtotal'] / (float)$detalleVenta['Cantidad'];
+        // Reembolsar lo realmente pagado por unidad (Subtotal / unidades), no el precio de
+        // lista: incluye promociones y el precio rebajado del pack.
+        $precioEfectivo = (float)$detalleVenta['Subtotal'] / $unidadesVendidas;
+        $precioUnitario = (int)round($precioEfectivo);
         $montoItem = (int)round($cantidad * $precioEfectivo);
         $montoDevueltoTotal += $montoItem;
 

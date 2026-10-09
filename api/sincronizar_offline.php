@@ -162,6 +162,7 @@ try {
             $ventaID = (int)$pdo->lastInsertId();
 
             // 2. Insertar detalles y actualizar stock
+            $stockCorriente = [];
             foreach ($itemsProcesados as $ip) {
                 $stmtDetalle->execute([
                     ':vid' => $ventaID,
@@ -181,7 +182,10 @@ try {
                     ':pid' => $ip['prod']['ProductoID']
                 ]);
 
-                $nuevoStock = $ip['prod']['Stock'] - $ip['unidadesFisicas'];
+                // Saldo encadenado: si el producto aparece en varias líneas, cada una parte del saldo de la anterior
+                $pidK = $ip['prod']['ProductoID'];
+                $stockCorriente[$pidK] = ($stockCorriente[$pidK] ?? (float)$ip['prod']['Stock']) - $ip['unidadesFisicas'];
+                $nuevoStock = $stockCorriente[$pidK];
                 $stmtKardex->execute([
                     ':pid' => $ip['prod']['ProductoID'],
                     ':vid' => $ventaID,

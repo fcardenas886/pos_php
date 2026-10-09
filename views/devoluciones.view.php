@@ -280,16 +280,16 @@ async function buscarBoletaDevolucion() {
       throw new Error('La boleta ingresada ya se encuentra anulada.');
     }
 
-    if (data.detalles.length === 0) {
+    if (data.devolucion.length === 0) {
       throw new Error('La boleta no registra ningún producto.');
     }
 
-    if (data.detalles.every(i => i.disponible <= 0)) {
+    if (data.devolucion.every(i => i.disponible <= 0)) {
       throw new Error('Esta boleta ya no tiene productos disponibles para devolver (todo fue devuelto anteriormente).');
     }
 
     ventaEnDevolucion = ventaId;
-    detallesVentaDevolucion = data.detalles;
+    detallesVentaDevolucion = data.devolucion;
     itemsDevolucion = [];
 
     // Poblar select. Los productos ya devueltos por completo se muestran deshabilitados,

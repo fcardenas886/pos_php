@@ -53,6 +53,7 @@ try {
     // 1. Verificar stock y procesar ítems del carrito (aplicando promociones activas en backend)
     $subtotalBruto = 0;
     $itemsProcesados = [];
+    $unidadesPorProducto = []; // unidades pedidas por producto sumando todas sus líneas (unidad + packs)
 
     foreach ($input['items'] as $item) {
         $pid = (int)$item['producto_id'];
@@ -73,8 +74,9 @@ try {
             throw new Exception("El producto ID $pid no fue encontrado.");
         }
 
-        if (!$permitirStockNegativo && $prod['Stock'] < $unidadesFisicas) {
-            throw new Exception("Stock insuficiente para '{$prod['Nombre']}'. Disponible: {$prod['Stock']} unidades (requeridas: $unidadesFisicas).");
+        $unidadesPorProducto[$pid] = ($unidadesPorProducto[$pid] ?? 0) + $unidadesFisicas;
+        if (!$permitirStockNegativo && $prod['Stock'] < $unidadesPorProducto[$pid]) {
+            throw new Exception("Stock insuficiente para '{$prod['Nombre']}'. Disponible: {$prod['Stock']} unidades (requeridas: {$unidadesPorProducto[$pid]}).");
         }
 
         // Promoción activa y precio de esta presentación (unidad, pack o precio variable)
@@ -248,6 +250,7 @@ try {
         VALUES (:pid, 'VENTA', :vid, :cant_fisica, :saldo, :val)
     ");
 
+    $stockCorriente = [];
     foreach ($itemsProcesados as $item) {
         $p = $item['prod'];
         $cant = $item['cant'];
@@ -269,7 +272,9 @@ try {
 
         $stmtUpdStock->execute([':cant_fisica' => $unidadesFisicas, ':pid' => $p['ProductoID']]);
 
-        $nuevoStock = $p['Stock'] - $unidadesFisicas;
+        // Saldo encadenado: si el producto aparece en varias líneas, cada una parte del saldo de la anterior
+        $stockCorriente[$p['ProductoID']] = ($stockCorriente[$p['ProductoID']] ?? (float)$p['Stock']) - $unidadesFisicas;
+        $nuevoStock = $stockCorriente[$p['ProductoID']];
         $stmtKardex->execute([
             ':pid' => $p['ProductoID'],
             ':vid' => $ventaID,

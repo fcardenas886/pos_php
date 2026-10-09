@@ -1,10 +1,15 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v4.5.2');
+define('APP_VERSION', 'v4.5.3');
 
 // Novedades reales por versión, para la pantalla de bienvenida y el módulo "Acerca de".
 // Registra la cronología completa de la evolución del sistema desde su inicio.
 define('APP_CHANGELOG', [
+    'v4.5.3' => [
+        'Devoluciones en Unidades Reales: Al devolver se cuentan unidades físicas sumando unidades sueltas y packs (un pack de 3 son 3 unidades); se repone el stock real y se reembolsa lo efectivamente pagado por unidad.',
+        'Kardex Correcto con Líneas Repetidas: Si un producto aparece en varias líneas de una venta (ej. suelto + pack), el saldo del kardex se encadena correctamente.',
+        'Control de Stock Acumulado: La validación de stock suma todas las líneas del mismo producto, para no vender más de lo disponible repartiéndolo en varias líneas.',
+    ],
     'v4.5.2' => [
         'Precios Protegidos en el Servidor: El precio enviado por la caja solo se acepta en productos de Precio Variable; el resto se calcula siempre desde el catálogo (unidad, pack, promoción), también en ventas sincronizadas desde modo offline.',
         'Anulación de Ventas con Packs: Al anular, se repone el stock completo de cada pack (ej. un pack de 3 devuelve 3 unidades, no 1) y el kardex lo registra igual.',

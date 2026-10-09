@@ -43,7 +43,7 @@ try {
     // 2. Obtener detalle de productos vendidos y cantidad ya devuelta
     $stmtD = $pdo->prepare("
         SELECT dv.ProductoID, dv.Cantidad, dv.FactorConversion, dv.PrecioUnitario, dv.CostoUnitario, dv.Descuento, dv.Subtotal, dv.EsAfecto,
-               COALESCE(dv.NombreItem, p.Nombre) AS Nombre, p.CodigoBarras,
+               COALESCE(dv.NombreItem, p.Nombre) AS Nombre, p.Nombre AS NombreBase, p.CodigoBarras,
                COALESCE((
                    SELECT SUM(dd.Cantidad)
                    FROM detalledevoluciones dd
@@ -57,6 +57,32 @@ try {
     ");
     $stmtD->execute([':id' => $id]);
     $detalles = $stmtD->fetchAll(PDO::FETCH_ASSOC);
+
+    // 2b. Resumen para devoluciones: por producto y en unidades físicas (un pack de 3 cuenta 3),
+    // sumando todas sus líneas. Las devoluciones se registran en estas mismas unidades.
+    $devolucionPorProducto = [];
+    foreach ($detalles as $d) {
+        $pid = (int)$d['ProductoID'];
+        $factor = (float)($d['FactorConversion'] ?? 1) > 0 ? (float)$d['FactorConversion'] : 1.0;
+        if (!isset($devolucionPorProducto[$pid])) {
+            $devolucionPorProducto[$pid] = [
+                'producto_id' => $pid,
+                'nombre' => $d['NombreBase'],
+                'cantidad' => 0.0,
+                'subtotal' => 0,
+                'ya_devuelto' => (float)$d['CantidadYaDevuelta'],
+            ];
+        }
+        $devolucionPorProducto[$pid]['cantidad'] += (float)$d['Cantidad'] * $factor;
+        $devolucionPorProducto[$pid]['subtotal'] += (int)$d['Subtotal'];
+    }
+    foreach ($devolucionPorProducto as &$dp) {
+        $dp['cantidad'] = round($dp['cantidad'], 3);
+        $dp['disponible'] = max(0, round($dp['cantidad'] - $dp['ya_devuelto'], 3));
+        // Precio realmente pagado por unidad (incluye promociones y precio de pack)
+        $dp['precio'] = $dp['cantidad'] > 0 ? (int)round($dp['subtotal'] / $dp['cantidad']) : 0;
+    }
+    unset($dp);
 
     // 3. Obtener métodos de pago registrados para esta venta
     $stmtP = $pdo->prepare("
@@ -226,7 +252,8 @@ try {
                 'subtotal' => (int)$d['Subtotal'],
                 'es_afecto' => (bool)$d['EsAfecto']
             ];
-        }, $detalles)
+        }, $detalles),
+        'devolucion' => array_values($devolucionPorProducto)
     ]);
 
 } catch (Exception $e) {
