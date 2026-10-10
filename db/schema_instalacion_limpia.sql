@@ -78,6 +78,9 @@ CREATE TABLE `cajas` (
   PRIMARY KEY (`CajaID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
+-- Datos semilla para `cajas`
+INSERT INTO `cajas` (`CajaID`, `Nombre`, `Activa`) VALUES (1, 'Caja Principal 01', 1);
+
 -- -----------------------------------------------------------------------------
 -- Estructura de tabla: `categorias`
 -- -----------------------------------------------------------------------------
@@ -256,6 +259,7 @@ CREATE TABLE `detalleajustesstock` (
   `AjusteStockID` int NOT NULL,
   `ProductoID` int NOT NULL,
   `Cantidad` decimal(10,3) NOT NULL,
+  `CostoUnitario` int NOT NULL DEFAULT 0,
   `TipoMovimiento` varchar(10) COLLATE utf8mb4_spanish_ci NOT NULL,
   PRIMARY KEY (`DetalleAjusteStockID`),
   KEY `FK_DetalleAjustes_Ajustes` (`AjusteStockID`),

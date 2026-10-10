@@ -150,8 +150,16 @@
 
       <!-- Motivo -->
       <div>
-        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">MOTIVO DEL AJUSTE *</label>
-        <input type="text" id="ajusteMotivo" class="form-control" required placeholder="Ej: Merma por vencimiento, Devolución a proveedor">
+        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.4rem;">MOTIVO PRINCIPAL DEL AJUSTE *</label>
+        <select id="ajusteTipoMotivo" class="form-control" onchange="onTipoMotivoChange()" style="margin-bottom: 0.5rem;">
+          <option value="Vencimiento">⚠️ Vencimiento / Caducidad (Merma)</option>
+          <option value="Daño / Rotura">💥 Daño / Rotura / Deterioro (Merma)</option>
+          <option value="Pérdida / Descuadre">🔍 Pérdida / Descuadre de Conteo (Merma)</option>
+          <option value="Consumo Interno">☕ Consumo Interno / Personal (Merma)</option>
+          <option value="Conteo Físico">📋 Ajuste por Conteo Físico / Inventario</option>
+          <option value="Otro">✏️ Otro / Personalizado</option>
+        </select>
+        <input type="text" id="ajusteMotivoDetalle" class="form-control" placeholder="Detalle u observación opcional (Ej: Lote 45 vencido en bodega)">
       </div>
 
       <!-- Acciones de guardar / cerrar -->
@@ -173,12 +181,22 @@ function abrirAjusteModal() {
   document.getElementById('ajusteProveedorSelect').value = '';
   document.getElementById('ajusteDocRef').value = '';
   document.getElementById('ajusteAddProducto').selectedIndex = 0;
-  document.getElementById('ajusteAddCantidad').value = '';
-  document.getElementById('ajusteMotivo').value = '';
+  document.getElementById('ajusteTipoMotivo').value = 'Vencimiento';
+  document.getElementById('ajusteMotivoDetalle').value = '';
   
   toggleAjusteEsDevolucion();
   renderItemsAjuste();
   document.getElementById('ajusteModal').style.display = 'flex';
+}
+
+function onTipoMotivoChange() {
+  const tipo = document.getElementById('ajusteTipoMotivo').value;
+  const inputDet = document.getElementById('ajusteMotivoDetalle');
+  if (tipo === 'Otro') {
+    inputDet.placeholder = 'Describe el motivo específico aquí *';
+  } else {
+    inputDet.placeholder = 'Detalle u observación opcional (Ej: Lote 45 vencido en bodega)';
+  }
 }
 
 function cerrarAjusteModal() {
@@ -284,14 +302,25 @@ async function confirmarAjuste() {
   const esDev = document.getElementById('ajusteEsDevolucion').checked;
   const proveedorID = document.getElementById('ajusteProveedorSelect').value;
   const docRef = document.getElementById('ajusteDocRef').value.trim();
-  const motivo = document.getElementById('ajusteMotivo').value.trim();
+  const tipoMotivo = document.getElementById('ajusteTipoMotivo').value;
+  const detalle = document.getElementById('ajusteMotivoDetalle').value.trim();
+
+  let motivo = tipoMotivo;
+  if (esDev) {
+    motivo = docRef ? `Devolución Proveedor (${docRef})` : 'Devolución a Proveedor';
+  } else if (tipoMotivo === 'Otro') {
+    if (!detalle) {
+      alert("Por favor ingresa la descripción del motivo personalizado.");
+      document.getElementById('ajusteMotivoDetalle').focus();
+      return;
+    }
+    motivo = detalle;
+  } else if (detalle) {
+    motivo = `${tipoMotivo} - ${detalle}`;
+  }
 
   if (esDev && !proveedorID) {
     alert("Por favor, selecciona un proveedor para la devolución.");
-    return;
-  }
-  if (!motivo) {
-    alert("Ingresa el motivo del ajuste.");
     return;
   }
 

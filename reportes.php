@@ -53,7 +53,7 @@ if ($fechaInicio > $fechaFin) {
 }
 
 $tab = $_GET['tab'] ?? 'ventas';
-$tabsValidos = ['ventas', 'productos', 'inventario', 'cajeros', 'creditos', 'compras', 'utilidades'];
+$tabsValidos = ['ventas', 'productos', 'inventario', 'cajeros', 'creditos', 'compras', 'utilidades', 'mermas'];
 if (!in_array($tab, $tabsValidos)) {
     $tab = 'ventas';
 }
@@ -249,6 +249,7 @@ if ($tab === 'inventario') {
             SUM(CASE WHEN Stock > 0 THEN 1 ELSE 0 END) AS ProductosConStock,
             SUM(CASE WHEN Stock <= 0 THEN 1 ELSE 0 END) AS ProductosAgotados,
             SUM(CASE WHEN Stock > 0 AND Stock <= StockMinimo THEN 1 ELSE 0 END) AS ProductosBajoStock,
+            SUM(CASE WHEN CostoCompra = 0 OR CostoCompra IS NULL THEN 1 ELSE 0 END) AS ProductosSinCosto,
             COALESCE(SUM(Stock), 0) AS TotalUnidadesFisicas,
             COALESCE(SUM(Stock * CostoCompra), 0) AS ValorTotalCosto,
             COALESCE(SUM(Stock * PrecioVenta), 0) AS ValorTotalVenta
@@ -257,13 +258,14 @@ if ($tab === 'inventario') {
     ");
     $kpiInventario = $stmtInvGlobal->fetch(PDO::FETCH_ASSOC);
     $margenPotencialTotal = $kpiInventario['ValorTotalVenta'] - $kpiInventario['ValorTotalCosto'];
-    $margenPotencialPorc = $kpiInventario['ValorTotalVenta'] > 0 
-        ? round(($margenPotencialTotal / $kpiInventario['ValorTotalVenta']) * 100, 1) 
+    $margenPotencialPorc = $kpiInventario['ValorTotalCosto'] > 0 
+        ? round(($margenPotencialTotal / $kpiInventario['ValorTotalCosto']) * 100, 1) 
         : 0;
 
     // Desglose por Categoría
     $stmtCatInv = $pdo->query("
         SELECT 
+            p.CategoriaID,
             COALESCE(c.Nombre, 'Sin Categoría') AS Categoria,
             COUNT(p.ProductoID) AS TotalItems,
             COALESCE(SUM(p.Stock), 0) AS StockTotal,
@@ -272,10 +274,70 @@ if ($tab === 'inventario') {
         FROM productos p
         LEFT JOIN categorias c ON p.CategoriaID = c.CategoriaID
         WHERE p.Activo = 1
-        GROUP BY p.CategoriaID
+        GROUP BY p.CategoriaID, c.Nombre
         ORDER BY ValorCosto DESC
     ");
     $categoriasInventario = $stmtCatInv->fetchAll(PDO::FETCH_ASSOC);
+
+    // Filtros opcionales para la lista de productos
+    $catId = (int)($_GET['categoria_id'] ?? 0);
+    $filtroStock = $_GET['filtro_stock'] ?? 'todos';
+    $buscar = trim($_GET['q'] ?? '');
+
+    $whereProd = ["p.Activo = 1"];
+    $paramsProd = [];
+
+    if ($catId > 0) {
+        $whereProd[] = "p.CategoriaID = :cat";
+        $paramsProd[':cat'] = $catId;
+    }
+
+    if ($filtroStock === 'con_stock') {
+        $whereProd[] = "p.Stock > 0";
+    } elseif ($filtroStock === 'sin_costo') {
+        $whereProd[] = "(p.CostoCompra = 0 OR p.CostoCompra IS NULL)";
+    } elseif ($filtroStock === 'agotados') {
+        $whereProd[] = "p.Stock <= 0";
+    } elseif ($filtroStock === 'bajo_stock') {
+        $whereProd[] = "p.Stock > 0 AND p.Stock <= p.StockMinimo";
+    }
+
+    if ($buscar !== '') {
+        $whereProd[] = "(p.Nombre LIKE :q OR p.CodigoBarras LIKE :q OR p.CodigoPLU LIKE :q)";
+        $paramsProd[':q'] = "%$buscar%";
+    }
+
+    $whereProdSql = implode(' AND ', $whereProd);
+
+    // Listado Detallado de Productos con Stock, Costo y Valorización
+    $stmtProdInv = $pdo->prepare("
+        SELECT 
+            p.ProductoID,
+            p.CodigoBarras,
+            p.CodigoPLU,
+            p.Nombre,
+            p.CategoriaID,
+            COALESCE(c.Nombre, 'Sin Categoría') AS Categoria,
+            p.Stock,
+            p.StockMinimo,
+            p.UnidadMedida,
+            p.CostoCompra,
+            p.PrecioVenta,
+            p.EsPesable,
+            p.EsPrecioVariable,
+            ROUND(p.Stock * p.CostoCompra) AS TotalCosto,
+            ROUND(p.Stock * p.PrecioVenta) AS TotalVenta,
+            ROUND((p.Stock * p.PrecioVenta) - (p.Stock * p.CostoCompra)) AS MargenTotal
+        FROM productos p
+        LEFT JOIN categorias c ON p.CategoriaID = c.CategoriaID
+        WHERE $whereProdSql
+        ORDER BY TotalCosto DESC, p.Nombre ASC
+    ");
+    $stmtProdInv->execute($paramsProd);
+    $productosInventario = $stmtProdInv->fetchAll(PDO::FETCH_ASSOC);
+
+    // Lista de categorías para el selector
+    $categorias = $pdo->query("SELECT CategoriaID, Nombre FROM categorias ORDER BY Nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // TAB 4: RENDIMIENTO DE CAJEROS Y CUADRATURAS
@@ -336,8 +398,12 @@ if ($tab === 'cajeros') {
 if ($tab === 'utilidades') {
     $stmtUtil = $pdo->prepare("
         SELECT 
+            p.ProductoID,
             p.Nombre AS Producto,
-            c.Nombre AS Categoria,
+            p.CodigoBarras,
+            p.CodigoPLU,
+            COALESCE(p.CategoriaID, 0) AS CategoriaID,
+            COALESCE(c.Nombre, 'Sin Categoría') AS Categoria,
             SUM(dv.Cantidad) AS CantidadVendida,
             SUM(dv.Subtotal) AS TotalVentas,
             SUM(dv.Cantidad * dv.CostoUnitario) AS TotalCosto,
@@ -347,8 +413,8 @@ if ($tab === 'utilidades') {
         JOIN productos p ON dv.ProductoID = p.ProductoID
         LEFT JOIN categorias c ON p.CategoriaID = c.CategoriaID
         WHERE v.Estado = 'Completada' AND DATE(v.FechaVenta) BETWEEN :inicio AND :fin
-        GROUP BY p.ProductoID
-        ORDER BY UtilidadEstimada DESC
+        GROUP BY p.ProductoID, c.Nombre
+        ORDER BY Categoria ASC, UtilidadEstimada DESC
     ");
     $stmtUtil->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
     $reporteUtilidades = $stmtUtil->fetchAll(PDO::FETCH_ASSOC);
@@ -356,12 +422,71 @@ if ($tab === 'utilidades') {
     $totalVentasUtil = 0;
     $totalCostoUtil = 0;
     $totalUtilidadMonto = 0;
+    $utilidadesPorCategoria = [];
 
     foreach ($reporteUtilidades as $r) {
-        $totalVentasUtil += $r['TotalVentas'];
-        $totalCostoUtil += $r['TotalCosto'];
-        $totalUtilidadMonto += $r['UtilidadEstimada'];
+        $catId = (int)$r['CategoriaID'];
+        $catNombre = $r['Categoria'] ?: 'Sin Categoría';
+
+        if (!isset($utilidadesPorCategoria[$catId])) {
+            $utilidadesPorCategoria[$catId] = [
+                'CategoriaID' => $catId,
+                'Categoria' => $catNombre,
+                'TotalVentas' => 0,
+                'TotalCosto' => 0,
+                'UtilidadEstimada' => 0,
+                'CantidadVendida' => 0,
+                'ProductosCount' => 0,
+                'Productos' => []
+            ];
+        }
+
+        $utilidadesPorCategoria[$catId]['TotalVentas'] += (int)$r['TotalVentas'];
+        $utilidadesPorCategoria[$catId]['TotalCosto'] += (int)$r['TotalCosto'];
+        $utilidadesPorCategoria[$catId]['UtilidadEstimada'] += (int)$r['UtilidadEstimada'];
+        $utilidadesPorCategoria[$catId]['CantidadVendida'] += (float)$r['CantidadVendida'];
+        $utilidadesPorCategoria[$catId]['ProductosCount']++;
+        $utilidadesPorCategoria[$catId]['Productos'][] = $r;
+
+        $totalVentasUtil += (int)$r['TotalVentas'];
+        $totalCostoUtil += (int)$r['TotalCosto'];
+        $totalUtilidadMonto += (int)$r['UtilidadEstimada'];
     }
+
+    // Ordenar categorías por mayor utilidad estimada
+    uasort($utilidadesPorCategoria, function($a, $b) {
+        return $b['UtilidadEstimada'] <=> $a['UtilidadEstimada'];
+    });
+
+    // Lista de categorías para selector
+    $categoriasUtilSelector = [];
+    foreach ($utilidadesPorCategoria as $c) {
+        $categoriasUtilSelector[] = [
+            'CategoriaID' => $c['CategoriaID'],
+            'Nombre' => $c['Categoria'],
+            'ItemsCount' => $c['ProductosCount']
+        ];
+    }
+
+    // Pérdidas por Mermas al Costo en el período
+    $stmtMermasPeriodo = $pdo->prepare("
+        SELECT 
+            COALESCE(SUM(da.Cantidad), 0) AS TotalUnidadesMermadas,
+            COALESCE(SUM(da.Cantidad * COALESCE(NULLIF(da.CostoUnitario, 0), p.CostoCompra, 0)), 0) AS TotalMermasCosto,
+            COALESCE(SUM(da.Cantidad * p.PrecioVenta), 0) AS TotalMermasVenta
+        FROM ajustesstock a
+        JOIN detalleajustesstock da ON a.AjusteStockID = da.AjusteStockID
+        JOIN productos p ON da.ProductoID = p.ProductoID
+        WHERE da.TipoMovimiento = 'SALIDA' 
+          AND a.ProveedorID IS NULL
+          AND DATE(a.FechaAjuste) BETWEEN :inicio AND :fin
+    ");
+    $stmtMermasPeriodo->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    $kpiMermasUtil = $stmtMermasPeriodo->fetch(PDO::FETCH_ASSOC);
+
+    $totalMermasCosto = (int)$kpiMermasUtil['TotalMermasCosto'];
+    $totalMermasUnidades = (float)$kpiMermasUtil['TotalUnidadesMermadas'];
+    $utilidadRealNeta = $totalUtilidadMonto - $totalMermasCosto;
 }
 
 // TAB 6: CARTERA DE CLIENTES Y FIADOS (CUENTAS POR COBRAR)
@@ -500,6 +625,86 @@ if ($tab === 'compras') {
     $comprasList = $stmtComprasList->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// TAB 8: AUDITORÍA DE MERMAS Y PÉRDIDAS DE MERCADERÍA
+if ($tab === 'mermas') {
+    // 1. KPIs Generales de Mermas en el Período
+    $stmtKpiMermas = $pdo->prepare("
+        SELECT 
+            COUNT(DISTINCT a.AjusteStockID) AS TotalEventosMermas,
+            COUNT(da.DetalleAjusteStockID) AS TotalLineasAfectadas,
+            COALESCE(SUM(da.Cantidad), 0) AS TotalUnidadesMermadas,
+            COALESCE(SUM(da.Cantidad * COALESCE(NULLIF(da.CostoUnitario, 0), p.CostoCompra, 0)), 0) AS TotalPerdidaCosto,
+            COALESCE(SUM(da.Cantidad * p.PrecioVenta), 0) AS TotalPerdidaVenta
+        FROM ajustesstock a
+        JOIN detalleajustesstock da ON a.AjusteStockID = da.AjusteStockID
+        JOIN productos p ON da.ProductoID = p.ProductoID
+        WHERE da.TipoMovimiento = 'SALIDA' 
+          AND a.ProveedorID IS NULL
+          AND DATE(a.FechaAjuste) BETWEEN :inicio AND :fin
+    ");
+    $stmtKpiMermas->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    $kpiMermas = $stmtKpiMermas->fetch(PDO::FETCH_ASSOC);
+
+    // 2. Desglose y Agrupación por Motivo de Merma
+    $stmtMotivos = $pdo->prepare("
+        SELECT 
+            CASE 
+                WHEN a.Motivo LIKE 'Vencimiento%' THEN 'Vencimiento / Caducidad'
+                WHEN a.Motivo LIKE 'Daño%' OR a.Motivo LIKE 'Rotura%' OR a.Motivo LIKE 'Deterioro%' THEN 'Daño / Rotura'
+                WHEN a.Motivo LIKE 'Pérdida%' OR a.Motivo LIKE 'Descuadre%' OR a.Motivo LIKE 'Robo%' THEN 'Pérdida / Descuadre'
+                WHEN a.Motivo LIKE 'Consumo Interno%' OR a.Motivo LIKE 'Consumo Personal%' THEN 'Consumo Interno'
+                WHEN a.Motivo LIKE 'Conteo Físico%' OR a.Motivo LIKE 'Inventario%' THEN 'Conteo Físico'
+                ELSE 'Otros / Personalizado'
+            END AS GrupoMotivo,
+            COUNT(da.DetalleAjusteStockID) AS CantidadItems,
+            COALESCE(SUM(da.Cantidad), 0) AS TotalUnidades,
+            COALESCE(SUM(da.Cantidad * COALESCE(NULLIF(da.CostoUnitario, 0), p.CostoCompra, 0)), 0) AS PerdidaCosto,
+            COALESCE(SUM(da.Cantidad * p.PrecioVenta), 0) AS PerdidaVenta
+        FROM ajustesstock a
+        JOIN detalleajustesstock da ON a.AjusteStockID = da.AjusteStockID
+        JOIN productos p ON da.ProductoID = p.ProductoID
+        WHERE da.TipoMovimiento = 'SALIDA' 
+          AND a.ProveedorID IS NULL
+          AND DATE(a.FechaAjuste) BETWEEN :inicio AND :fin
+        GROUP BY GrupoMotivo
+        ORDER BY PerdidaCosto DESC
+    ");
+    $stmtMotivos->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    $mermasPorMotivo = $stmtMotivos->fetchAll(PDO::FETCH_ASSOC);
+
+    // 3. Listado Detallado de Registros de Merma
+    $stmtDetalleMermas = $pdo->prepare("
+        SELECT 
+            a.AjusteStockID,
+            a.FechaAjuste,
+            a.Motivo,
+            a.DocReferencia,
+            u.Nombre AS Usuario,
+            p.ProductoID,
+            p.CodigoBarras,
+            p.CodigoPLU,
+            p.Nombre AS Producto,
+            COALESCE(c.Nombre, 'Sin Categoría') AS Categoria,
+            da.Cantidad,
+            COALESCE(NULLIF(da.CostoUnitario, 0), p.CostoCompra, 0) AS CostoUnitario,
+            p.PrecioVenta,
+            ROUND(da.Cantidad * COALESCE(NULLIF(da.CostoUnitario, 0), p.CostoCompra, 0)) AS PerdidaCosto,
+            ROUND(da.Cantidad * p.PrecioVenta) AS PerdidaVenta
+        FROM ajustesstock a
+        JOIN usuarios u ON a.UsuarioID = u.UsuarioID
+        JOIN detalleajustesstock da ON a.AjusteStockID = da.AjusteStockID
+        JOIN productos p ON da.ProductoID = p.ProductoID
+        LEFT JOIN categorias c ON p.CategoriaID = c.CategoriaID
+        WHERE da.TipoMovimiento = 'SALIDA' 
+          AND a.ProveedorID IS NULL
+          AND DATE(a.FechaAjuste) BETWEEN :inicio AND :fin
+        ORDER BY a.FechaAjuste DESC, a.AjusteStockID DESC
+        LIMIT 200
+    ");
+    $stmtDetalleMermas->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    $detalleMermas = $stmtDetalleMermas->fetchAll(PDO::FETCH_ASSOC);
+}
+
 // ----------------------------------------------------
 // 3. EXPORTACIÓN A CSV PARA EXCEL
 // ----------------------------------------------------
@@ -587,20 +792,43 @@ if ($esExport) {
         fputcsv($out, ['Total Productos Activos', $kpiInventario['TotalProductos']], $delimiter);
         fputcsv($out, ['Valor Total a Costo de Compra', $kpiInventario['ValorTotalCosto']], $delimiter);
         fputcsv($out, ['Valor Total a Precio de Venta', $kpiInventario['ValorTotalVenta']], $delimiter);
-        fputcsv($out, ['Margen Potencial Total', $margenPotencialTotal . " ($margenPotencialPorc%)"], $delimiter);
+        fputcsv($out, ['Margen Potencial Total (s/Costo)', $margenPotencialTotal . ($kpiInventario['ValorTotalCosto'] > 0 ? " (+$margenPotencialPorc%)" : " (S/C)")], $delimiter);
         fputcsv($out, [], $delimiter);
 
         fputcsv($out, ['DESGLOSE POR CATEGORIA'], $delimiter);
-        fputcsv($out, ['Categoria', 'Cantidad Items', 'Stock Total', 'Valor a Costo ($)', 'Valor a Venta ($)', 'Margen Potencial ($)'], $delimiter);
+        fputcsv($out, ['Categoria', 'Cantidad Items', 'Stock Total', 'Valor a Costo ($)', 'Valor a Venta ($)', 'Margen Potencial ($)', 'Margen % s/Costo'], $delimiter);
         foreach ($categoriasInventario as $ci) {
             $margenCat = $ci['ValorVenta'] - $ci['ValorCosto'];
+            $pctCat = $ci['ValorCosto'] > 0 ? round(($margenCat / $ci['ValorCosto']) * 100, 1) . '%' : 'S/C';
             fputcsv($out, [
                 $ci['Categoria'],
                 $ci['TotalItems'],
                 $ci['StockTotal'],
                 $ci['ValorCosto'],
                 $ci['ValorVenta'],
-                $margenCat
+                $margenCat,
+                $pctCat
+            ], $delimiter);
+        }
+
+        fputcsv($out, [], $delimiter);
+        fputcsv($out, ['DETALLE VALORIZADO POR PRODUCTO (LISTADO Y COSTOS)'], $delimiter);
+        fputcsv($out, ['Codigo', 'Producto', 'Categoria', 'Stock Fisico', 'Costo Unitario ($)', 'Precio Venta ($)', 'Total Costo ($)', 'Total Venta ($)', 'Margen Potencial ($)', 'Margen % s/Costo'], $delimiter);
+        foreach ($productosInventario as $pi) {
+            $margenItem = $pi['TotalVenta'] - $pi['TotalCosto'];
+            $pctItem = $pi['CostoCompra'] > 0 ? round((($pi['PrecioVenta'] - $pi['CostoCompra']) / $pi['CostoCompra']) * 100, 1) . '%' : 'S/C';
+            $cod = $pi['CodigoBarras'] ?: ($pi['CodigoPLU'] ? 'PLU:' . $pi['CodigoPLU'] : 'Sin Codigo');
+            fputcsv($out, [
+                $cod,
+                $pi['Nombre'],
+                $pi['Categoria'],
+                (float)$pi['Stock'],
+                $pi['CostoCompra'],
+                $pi['PrecioVenta'],
+                $pi['TotalCosto'],
+                $pi['TotalVenta'],
+                $margenItem,
+                $pctItem
             ], $delimiter);
         }
     } elseif ($tab === 'cajeros') {
@@ -639,13 +867,16 @@ if ($esExport) {
         fputcsv($out, ['REPORTE DE UTILIDADES Y MARGENES POR PRODUCTO'], $delimiter);
         fputcsv($out, ["Periodo: $fechaInicio a $fechaFin"], $delimiter);
         fputcsv($out, ['Total Ventas', $totalVentasUtil], $delimiter);
-        fputcsv($out, ['Total Costo', $totalCostoUtil], $delimiter);
-        fputcsv($out, ['Utilidad Neta', $totalUtilidadMonto], $delimiter);
+        fputcsv($out, ['Utilidad Bruta en Ventas', $totalUtilidadMonto], $delimiter);
+        fputcsv($out, ['(-) Total Perdidas por Mermas', $totalMermasCosto], $delimiter);
+        fputcsv($out, ['Utilidad Real Neta Final', $utilidadRealNeta], $delimiter);
+        $margenPromedioCsv = $totalCostoUtil > 0 ? round(($totalUtilidadMonto / $totalCostoUtil) * 100, 1) . '%' : 'S/C';
+        fputcsv($out, ['Margen Promedio Global (s/Costo)', $margenPromedioCsv], $delimiter);
         fputcsv($out, [], $delimiter);
 
-        fputcsv($out, ['Producto', 'Categoria', 'Unidades Vendidas', 'Venta Total ($)', 'Costo Total ($)', 'Utilidad ($)', 'Margen %'], $delimiter);
+        fputcsv($out, ['Producto', 'Categoria', 'Unidades Vendidas', 'Venta Total ($)', 'Costo Total ($)', 'Utilidad ($)', 'Margen % s/Costo'], $delimiter);
         foreach ($reporteUtilidades as $ru) {
-            $mPorc = $ru['TotalVentas'] > 0 ? round(($ru['UtilidadEstimada'] / $ru['TotalVentas']) * 100, 1) : 0;
+            $mPorc = $ru['TotalCosto'] > 0 ? round(($ru['UtilidadEstimada'] / $ru['TotalCosto']) * 100, 1) . '%' : 'S/C';
             fputcsv($out, [
                 $ru['Producto'],
                 $ru['Categoria'] ?: 'General',
@@ -653,7 +884,7 @@ if ($esExport) {
                 $ru['TotalVentas'],
                 $ru['TotalCosto'],
                 $ru['UtilidadEstimada'],
-                $mPorc . '%'
+                $mPorc
             ], $delimiter);
         }
     } elseif ($tab === 'creditos') {
@@ -735,6 +966,47 @@ if ($esExport) {
                 $comp['MontoNeto'],
                 $comp['MontoIva'],
                 $comp['MontoTotal']
+            ], $delimiter);
+        }
+    } elseif ($tab === 'mermas') {
+        fputcsv($out, ['REPORTE DE AUDITORIA DE MERMAS Y PERDIDAS DE MERCADERIA'], $delimiter);
+        fputcsv($out, ["Periodo: $fechaInicio a $fechaFin"], $delimiter);
+        fputcsv($out, ['Total Unidades Mermadas', $kpiMermas['TotalUnidadesMermadas']], $delimiter);
+        fputcsv($out, ['Total Perdida a Costo de Compra ($)', $kpiMermas['TotalPerdidaCosto']], $delimiter);
+        fputcsv($out, ['Total Venta Perdida No Percibida ($)', $kpiMermas['TotalPerdidaVenta']], $delimiter);
+        fputcsv($out, ['Cantidad de Incidentes / Registros', $kpiMermas['TotalLineasAfectadas']], $delimiter);
+        fputcsv($out, [], $delimiter);
+
+        fputcsv($out, ['DESGLOSE DE PERDIDAS POR MOTIVO'], $delimiter);
+        fputcsv($out, ['Motivo', 'Registros', 'Unidades Mermadas', 'Perdida al Costo ($)', 'Venta Perdida ($)'], $delimiter);
+        foreach ($mermasPorMotivo as $mpm) {
+            fputcsv($out, [
+                $mpm['GrupoMotivo'],
+                $mpm['CantidadItems'],
+                $mpm['TotalUnidades'],
+                $mpm['PerdidaCosto'],
+                $mpm['PerdidaVenta']
+            ], $delimiter);
+        }
+
+        fputcsv($out, [], $delimiter);
+        fputcsv($out, ['DETALLE INDIVIDUAL DE MERMAS EN EL PERIODO'], $delimiter);
+        fputcsv($out, ['Fecha', 'N° Ajuste', 'Codigo', 'Producto', 'Categoria', 'Cantidad', 'Costo Unit. ($)', 'P. Venta ($)', 'Perdida Costo ($)', 'Venta Perdida ($)', 'Motivo Detallado', 'Registrado Por'], $delimiter);
+        foreach ($detalleMermas as $dm) {
+            $cod = $dm['CodigoBarras'] ?: ($dm['CodigoPLU'] ? 'PLU:' . $dm['CodigoPLU'] : 'Sin Codigo');
+            fputcsv($out, [
+                $dm['FechaAjuste'],
+                '#' . $dm['AjusteStockID'],
+                $cod,
+                $dm['Producto'],
+                $dm['Categoria'],
+                (float)$dm['Cantidad'],
+                $dm['CostoUnitario'],
+                $dm['PrecioVenta'],
+                $dm['PerdidaCosto'],
+                $dm['PerdidaVenta'],
+                $dm['Motivo'],
+                $dm['Usuario']
             ], $delimiter);
         }
     }

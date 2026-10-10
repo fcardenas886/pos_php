@@ -114,7 +114,7 @@
           <th style="padding: 0.85rem 1rem; width: 150px;">Nuevo Costo ($)</th>
           <th style="padding: 0.85rem 1rem; width: 140px;">Venta Actual</th>
           <th style="padding: 0.85rem 1rem; width: 170px;">Nuevo Precio Venta ($)</th>
-          <th style="padding: 0.85rem 1rem; width: 130px; text-align: center;">Margen %</th>
+          <th style="padding: 0.85rem 1rem; width: 130px; text-align: center;">Margen % s/Costo</th>
           <th style="padding: 0.85rem 1rem; width: 150px; text-align: center;">Packs Vinculados</th>
           <th style="padding: 0.85rem 1rem; width: 60px; text-align: center;">Quitar</th>
         </tr>
@@ -502,8 +502,8 @@ async function agregarItemABatch(producto, renderInmediato = true) {
 }
 
 function calcularMargen(precioVenta, costo) {
-  if (!precioVenta || precioVenta <= 0) return 0;
-  const margen = ((precioVenta - costo) / precioVenta) * 100;
+  if (!costo || costo <= 0) return null;
+  const margen = ((precioVenta - costo) / costo) * 100;
   return Math.round(margen * 10) / 10;
 }
 
@@ -558,8 +558,20 @@ function renderBatchTable() {
     const margen = calcularMargen(item.NuevoPrecio, item.NuevoCosto);
 
     let margenBadgeClass = 'badge-success';
-    if (margen < 0) margenBadgeClass = 'badge-danger';
-    else if (margen < 15) margenBadgeClass = 'badge-warning';
+    let margenText = '';
+    if (margen === null) {
+      margenBadgeClass = 'badge-warning';
+      margenText = 'S/C';
+    } else if (margen < 0) {
+      margenBadgeClass = 'badge-danger';
+      margenText = `${margen}%`;
+    } else if (margen < 15) {
+      margenBadgeClass = 'badge-warning';
+      margenText = `+${margen}%`;
+    } else {
+      margenBadgeClass = 'badge-success';
+      margenText = `+${margen}%`;
+    }
 
     const diff = item.NuevoPrecio - item.PrecioOriginal;
     let diffHtml = '';
@@ -620,8 +632,8 @@ function renderBatchTable() {
           ${diffHtml}
         </td>
         <td style="padding: 0.75rem 1rem; text-align: center;">
-          <span class="badge ${margenBadgeClass}" style="font-size: 0.82rem; font-weight: 800; padding: 0.3rem 0.6rem;">
-            ${margen}%
+          <span class="badge ${margenBadgeClass}" style="font-size: 0.82rem; font-weight: 800; padding: 0.3rem 0.6rem;" title="${margen === null ? 'Sin costo de compra cargado' : 'Margen sobre costo'}">
+            ${margenText}
           </span>
         </td>
         <td style="padding: 0.75rem 1rem; text-align: center;">

@@ -22,8 +22,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception('Ya tienes un turno de caja abierto. Ciérralo antes de abrir uno nuevo.');
             }
 
-            $stmt = $pdo->prepare("INSERT INTO turnos (CajaID, UsuarioID, MontoApertura, Estado) VALUES (1, :uid, :monto, 'Abierto')");
-            $stmt->execute([':uid' => $user['id'], ':monto' => $montoApertura]);
+            // Validar o auto-crear caja si la tabla está vacía o no existe
+            $cajaID = (int)($_POST['caja_id'] ?? 0);
+            if ($cajaID <= 0) {
+                $cajaID = (int)$pdo->query("SELECT CajaID FROM cajas WHERE Activa = 1 ORDER BY CajaID ASC LIMIT 1")->fetchColumn();
+                if (!$cajaID) {
+                    $pdo->query("INSERT INTO cajas (CajaID, Nombre, Activa) VALUES (1, 'Caja Principal 01', 1)");
+                    $cajaID = 1;
+                }
+            } else {
+                $chkCaja = $pdo->prepare("SELECT COUNT(*) FROM cajas WHERE CajaID = ?");
+                $chkCaja->execute([$cajaID]);
+                if (!$chkCaja->fetchColumn()) {
+                    $cajaID = (int)$pdo->query("SELECT CajaID FROM cajas WHERE Activa = 1 ORDER BY CajaID ASC LIMIT 1")->fetchColumn() ?: 1;
+                }
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO turnos (CajaID, UsuarioID, MontoApertura, Estado) VALUES (:caja, :uid, :monto, 'Abierto')");
+            $stmt->execute([':caja' => $cajaID, ':uid' => $user['id'], ':monto' => $montoApertura]);
             $message = 'Caja abierta exitosamente con ' . formatCLP($montoApertura);
             $redirigirPos = true;
         } catch (Exception $e) {
@@ -160,8 +176,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Consultar Turno Activo
-$stmtTurno = $pdo->prepare("SELECT * FROM turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' ORDER BY TurnoID DESC LIMIT 1");
+// Consultar Turno Activo (con nombre de la caja física)
+$stmtTurno = $pdo->prepare("
+    SELECT t.*, c.Nombre AS NombreCaja 
+    FROM turnos t 
+    JOIN cajas c ON t.CajaID = c.CajaID 
+    WHERE t.UsuarioID = :uid AND t.Estado = 'Abierto' 
+    ORDER BY t.TurnoID DESC LIMIT 1
+");
 $stmtTurno->execute([':uid' => $user['id']]);
 $turnoActivo = $stmtTurno->fetch();
 
@@ -207,7 +229,12 @@ $stmtHist = $pdo->query("
     JOIN usuarios u ON t.UsuarioID = u.UsuarioID 
     ORDER BY t.TurnoID DESC LIMIT 10
 ");
-$historialTurnos = $stmtHist->fetchAll();
+// Cargar cajas activas disponibles
+$cajasDisponibles = $pdo->query("SELECT * FROM cajas WHERE Activa = 1 ORDER BY CajaID ASC")->fetchAll();
+if (empty($cajasDisponibles)) {
+    $pdo->query("INSERT INTO cajas (CajaID, Nombre, Activa) VALUES (1, 'Caja Principal 01', 1)");
+    $cajasDisponibles = $pdo->query("SELECT * FROM cajas WHERE Activa = 1 ORDER BY CajaID ASC")->fetchAll();
+}
 
 // Cargar la vista HTML
 include __DIR__ . '/views/caja.view.php';

@@ -1,10 +1,33 @@
 <?php
 // Version de la app: unica fuente de verdad, para que login y footer nunca queden desincronizados.
-define('APP_VERSION', 'v4.5.3');
+define('APP_VERSION', 'v4.7.1');
 
 // Novedades reales por versión, para la pantalla de bienvenida y el módulo "Acerca de".
 // Registra la cronología completa de la evolución del sistema desde su inicio.
 define('APP_CHANGELOG', [
+    'v4.7.1' => [
+        'Utilidades por Categoría Desplegables: Vista jerárquica tipo acordeón que agrupa ventas y ganancias por categoría, permitiendo expandir y colapsar para ver el detalle de cada producto.',
+        'Selector y Filtro de Categorías en Utilidades: Menú desplegable para aislar rápidamente cualquier categoría específica con auto-apertura instantánea.',
+        'Búsqueda Inteligente en Tiempo Real: El buscador expande de inmediato las categorías que contienen productos coincidentes (por nombre, código de barra o PLU).',
+        'Controles de Expansión Masiva: Botones de "Expandir" y "Colapsar" para abrir o cerrar todas las categorías de un solo clic.',
+    ],
+    'v4.7.0' => [
+        'Módulo de Mermas y Pérdidas: Auditoría completa de bajas por vencimiento, roturas, consumo interno o descuadres valorizados al costo de compra y precio de venta con exportación a Excel.',
+        'Utilidad Real Neta: Deducción contable de pérdidas por merma sobre la ganancia bruta de ventas (Utilidad Neta = Ganancia Ventas - Mermas).',
+        'Tipificación de Motivos en Ajustes de Stock: Selector estructurado con motivos clasificados (Vencimiento, Daño/Rotura, Pérdida, Consumo Interno) y detalle personalizado.',
+        'Congelamiento de Costo Unitario en Mermas: Nueva columna en detalle de ajustes para preservar el costo histórico de cada artículo dado de baja.',
+    ],
+    'v4.6.1' => [
+        'Márgenes Calculados sobre Costo (Mark-up): Adopción del estándar intuitivo del comerciante ((Venta - Costo) / Costo * 100), donde comprar a $1.000 y vender a $1.300 refleja un 30% de ganancia real.',
+        'Tratamiento de Productos Sin Costo (S/C): Se reemplaza el falso margen del 100% por insignias claras de "S/C" (Sin Costo) en inventario, utilidades y actualizador de precios.',
+        'KPI de Margen Promedio sobre Costo: Incorporación de tarjeta de rendimiento consolidado en el módulo de Utilidades.',
+    ],
+    'v4.6.0' => [
+        'Reporte de Inventario Valorizado Detallado: Desglose completo de productos con costos unitarios, precios de venta, stock actual, capital total inmovilizado y cálculo de márgenes con exportación a Excel.',
+        'Detección de Productos sin Costo: Alerta visual y filtro rápido para identificar artículos con costo $0 en inventario.',
+        'Soporte y Blindaje Multi-Caja: Asignación y memoria de caja física por equipo (localStorage), resolución de apertura y visualización destacada en POS.',
+        'Buscador del POS Optimizado en 1 Línea: Barra compacta en una sola fila sin salto vertical, con máxima amplitud para el lector de código de barras.',
+    ],
     'v4.5.3' => [
         'Devoluciones en Unidades Reales: Al devolver se cuentan unidades físicas sumando unidades sueltas y packs (un pack de 3 son 3 unidades); se repone el stock real y se reembolsa lo efectivamente pagado por unidad.',
         'Kardex Correcto con Líneas Repetidas: Si un producto aparece en varias líneas de una venta (ej. suelto + pack), el saldo del kardex se encadena correctamente.',

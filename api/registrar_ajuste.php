@@ -49,9 +49,10 @@ try {
     $ajusteID = $pdo->lastInsertId();
 
     // Preparar sentencias
+    $stmtCosto = $pdo->prepare("SELECT CostoCompra FROM productos WHERE ProductoID = :pid");
     $stmtDA = $pdo->prepare("
-        INSERT INTO detalleajustesstock (AjusteStockID, ProductoID, Cantidad, TipoMovimiento)
-        VALUES (:aid, :pid, :cant, :tipo)
+        INSERT INTO detalleajustesstock (AjusteStockID, ProductoID, Cantidad, CostoUnitario, TipoMovimiento)
+        VALUES (:aid, :pid, :cant, :costo, :tipo)
     ");
     
     $stmtAddStock = $pdo->prepare("UPDATE productos SET Stock = Stock + :cant WHERE ProductoID = :pid");
@@ -76,11 +77,16 @@ try {
             throw new Exception("Cantidad o Producto inválido.");
         }
 
+        // Obtener costo de compra para valorización precisa de la merma
+        $stmtCosto->execute([':pid' => $productoID]);
+        $costoUnitario = (int)$stmtCosto->fetchColumn();
+
         // Insertar detalle
         $stmtDA->execute([
             ':aid' => $ajusteID,
             ':pid' => $productoID,
             ':cant' => $cantidad,
+            ':costo' => $costoUnitario,
             ':tipo' => $tipo
         ]);
 

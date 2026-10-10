@@ -3,7 +3,13 @@ require_once __DIR__ . '/includes/header.php';
 $pdo = getDB();
 
 // Verificar si el usuario actual tiene un turno activo/abierto
-$stmtTurno = $pdo->prepare("SELECT TurnoID FROM turnos WHERE UsuarioID = :uid AND Estado = 'Abierto' ORDER BY TurnoID DESC LIMIT 1");
+$stmtTurno = $pdo->prepare("
+    SELECT t.TurnoID, t.CajaID, c.Nombre AS NombreCaja 
+    FROM turnos t 
+    JOIN cajas c ON t.CajaID = c.CajaID 
+    WHERE t.UsuarioID = :uid AND t.Estado = 'Abierto' 
+    ORDER BY t.TurnoID DESC LIMIT 1
+");
 $stmtTurno->execute([':uid' => $user['id']]);
 $turnoActivo = $stmtTurno->fetch();
 

@@ -34,29 +34,39 @@
   <!-- Columna Izquierda: Catálogo y Búsqueda (Se oculta automáticamente en Modo Supermercado) -->
   <div class="pos-catalog">
     
-    <div class="pos-search-bar" style="display: flex; gap: 0.75rem; align-items: center;">
-      <div style="position: relative; flex: 1;">
-        <i class="fa-solid fa-barcode" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.2rem;"></i>
-        <input type="search" id="posSearch" name="pos_search_barcode_<?= time() ?>" class="form-control" placeholder="Escanear código de barras o buscar por nombre..." style="padding-left: 2.8rem; font-size: 1.1rem;" autofocus autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+    <div class="pos-search-bar" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: nowrap; padding: 0.5rem 0.75rem;">
+      <div style="position: relative; flex: 1; min-width: 0;">
+        <i class="fa-solid fa-barcode" style="position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.1rem;"></i>
+        <input type="search" id="posSearch" name="pos_search_barcode_<?= time() ?>" class="form-control" placeholder="Escanear código de barras o buscar por nombre..." style="padding-left: 2.6rem; font-size: 0.98rem; height: 38px; width: 100%;" autofocus autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
       </div>
-      <!-- Indicador compacto de conectividad en línea con versión (Interactivo: clic para alternar simulación) -->
-      <div id="posPillOnline" onclick="toggleModoOfflineManual()" style="cursor: pointer; display: flex; align-items: center; gap: 0.4rem; padding: 0.55rem 0.85rem; border-radius: 8px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; font-size: 0.82rem; font-weight: 600; white-space: nowrap; user-select: none; transition: all 0.2s ease;" title="Conectado al servidor en tiempo real. Versión <?= APP_VERSION ?>. Clic para simular modo offline.">
-        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-        <span>En Línea</span>
-        <span style="font-size: 0.72rem; opacity: 0.75; font-weight: 500; margin-left: 0.15rem; border-left: 1px solid rgba(16, 185, 129, 0.3); padding-left: 0.35rem;"><?= APP_VERSION ?></span>
+      
+      <div style="display: flex; gap: 0.4rem; align-items: center; flex-shrink: 0; white-space: nowrap;">
+        <!-- Indicador de Caja Asignada al Turno -->
+        <?php if (!empty($turnoActivo['NombreCaja'])): ?>
+        <div style="display: flex; align-items: center; gap: 0.35rem; height: 38px; padding: 0 0.65rem; border-radius: 8px; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.3); color: #818cf8; font-size: 0.8rem; font-weight: 600;" title="Caja física asignada a tu turno">
+          <i class="fa-solid fa-cash-register"></i>
+          <span><?= htmlspecialchars($turnoActivo['NombreCaja']) ?></span>
+        </div>
+        <?php endif; ?>
+
+        <!-- Indicador compacto de conectividad en línea con versión (Interactivo: clic para alternar simulación) -->
+        <div id="posPillOnline" onclick="toggleModoOfflineManual()" style="cursor: pointer; display: flex; align-items: center; gap: 0.35rem; height: 38px; padding: 0 0.65rem; border-radius: 8px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; font-size: 0.8rem; font-weight: 600; user-select: none; transition: all 0.2s ease;" title="Conectado al servidor en tiempo real. Versión <?= APP_VERSION ?>. Clic para simular modo offline.">
+          <span style="width: 7px; height: 7px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+          <span>En Línea</span>
+          <span style="font-size: 0.7rem; opacity: 0.75; font-weight: 500; margin-left: 0.1rem; border-left: 1px solid rgba(16, 185, 129, 0.3); padding-left: 0.25rem;"><?= APP_VERSION ?></span>
+        </div>
+
+        <button type="button" id="btnCotizaciones" onclick="abrirModalCotizaciones()" class="btn btn-secondary" style="height: 38px; padding: 0 0.75rem; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem;" title="Ventas Pausadas / Cotizaciones">
+          <i class="fa-solid fa-clock-rotate-left"></i> Pendientes
+        </button>
+        <button type="button" id="btnMovimientoCaja" onclick="abrirModalMovimiento()" class="btn btn-secondary" style="height: 38px; padding: 0 0.75rem; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem;" title="Registrar Ingreso o Retiro de Caja">
+          <i class="fa-solid fa-cash-register"></i> Retiro / Ingreso
+        </button>
+
+        <!-- Elementos ocultos para compatibilidad con scripts JS (impresora directa y gaveta rápida) -->
+        <a href="configuracion.php" id="printerStatusBadge" style="display: none;"></a>
+        <button type="button" id="btnAbrirGavetaDirecta" onclick="abrirGavetaRapida()" style="display: none;"></button>
       </div>
-      <a href="configuracion.php" id="printerStatusBadge" class="badge badge-secondary" style="text-decoration: none; padding: 0.6rem 0.75rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem;" title="Configurar Impresora Directa">
-        <i class="fa-solid fa-print"></i> Impresora
-      </a>
-      <button type="button" id="btnAbrirGavetaDirecta" onclick="abrirGavetaRapida()" class="btn btn-secondary" style="padding: 0.75rem 0.9rem; font-size: 0.85rem; font-weight: 600;" title="Abrir Cajón / Gaveta de Dinero (Ctrl + F10)">
-        <i class="fa-solid fa-cash-register"></i> Abrir Gaveta
-      </button>
-      <button type="button" id="btnCotizaciones" onclick="abrirModalCotizaciones()" class="btn btn-secondary" style="padding: 0.75rem 1rem; font-size: 0.9rem;" title="Ventas Pausadas / Cotizaciones">
-        <i class="fa-solid fa-clock-rotate-left"></i> Pendientes
-      </button>
-      <button type="button" id="btnMovimientoCaja" onclick="abrirModalMovimiento()" class="btn btn-secondary" style="padding: 0.75rem 1rem; font-size: 0.9rem;" title="Registrar Ingreso o Retiro de Caja">
-        <i class="fa-solid fa-cash-register"></i> Retiro / Ingreso
-      </button>
     </div>
 
     <!-- Píldoras de Categorías para Modo Táctil -->

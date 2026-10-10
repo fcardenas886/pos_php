@@ -113,6 +113,29 @@
       <form method="POST" action="caja.php">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="apertura">
+        <?php if (!empty($cajasDisponibles) && count($cajasDisponibles) > 1): ?>
+          <div style="margin-bottom: 1rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CAJA REGISTRADORA</label>
+            <select name="caja_id" id="selectCajaApertura" class="form-control" style="font-size: 0.95rem; font-weight: 600;" onchange="try{localStorage.setItem('pos_caja_preferida', this.value)}catch(e){}">
+              <?php foreach ($cajasDisponibles as $cj): ?>
+                <option value="<?= $cj['CajaID'] ?>"><?= htmlspecialchars($cj['Nombre']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <script>
+            (function() {
+              try {
+                const pref = localStorage.getItem('pos_caja_preferida');
+                const sel = document.getElementById('selectCajaApertura');
+                if (pref && sel) {
+                  sel.value = pref;
+                }
+              } catch(e) {}
+            })();
+          </script>
+        <?php elseif (!empty($cajasDisponibles)): ?>
+          <input type="hidden" name="caja_id" value="<?= (int)$cajasDisponibles[0]['CajaID'] ?>">
+        <?php endif; ?>
         <div style="margin-bottom: 1.25rem;">
           <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">MONTO DE APERTURA ($)</label>
           <input type="number" name="monto_apertura" class="form-control" value="20000" required style="font-size: 1.1rem; font-weight: bold;">
@@ -129,6 +152,10 @@
       
       <!-- Información Básica -->
       <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.25rem; font-size: 0.85rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+          <span style="color: var(--text-muted);">Caja Física:</span>
+          <strong style="color: #818cf8;"><i class="fa-solid fa-cash-register"></i> <?= htmlspecialchars($turnoActivo['NombreCaja'] ?? 'Caja Principal') ?></strong>
+        </div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
           <span style="color: var(--text-muted);">Cajero Activo:</span>
           <strong><?= htmlspecialchars($user['nombre']) ?></strong>

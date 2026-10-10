@@ -10,7 +10,7 @@
 
   <div class="report-actions" style="display: flex; gap: 0.6rem; align-items: center;">
     <!-- Botón Exportar a Excel -->
-    <a href="reportes.php?tab=<?= urlencode($tab) ?>&inicio=<?= urlencode($fechaInicio) ?>&fin=<?= urlencode($fechaFin) ?><?= !empty($catId) ? '&categoria_id=' . (int)$catId : '' ?>&export=csv" 
+    <a href="reportes.php?tab=<?= urlencode($tab) ?>&inicio=<?= urlencode($fechaInicio) ?>&fin=<?= urlencode($fechaFin) ?><?= !empty($catId) ? '&categoria_id=' . (int)$catId : '' ?><?= !empty($filtroStock) && $filtroStock !== 'todos' ? '&filtro_stock=' . urlencode($filtroStock) : '' ?><?= !empty($buscar) ? '&q=' . urlencode($buscar) : '' ?>&export=csv" 
        class="btn btn-secondary" style="padding: 0.6rem 1rem; font-size: 0.875rem; display: flex; align-items: center; gap: 0.45rem; border-color: rgba(34, 197, 94, 0.3); color: #22c55e;"
        title="Descargar este reporte formateado para Microsoft Excel">
       <i class="fa-solid fa-file-excel"></i> Exportar a Excel (CSV)
@@ -52,6 +52,10 @@
   <a href="reportes.php?tab=utilidades&inicio=<?= urlencode($fechaInicio) ?>&fin=<?= urlencode($fechaFin) ?>" 
      class="report-tab-btn <?= $tab === 'utilidades' ? 'active' : '' ?>">
     <i class="fa-solid fa-sack-dollar"></i> Utilidades y Márgenes
+  </a>
+  <a href="reportes.php?tab=mermas&inicio=<?= urlencode($fechaInicio) ?>&fin=<?= urlencode($fechaFin) ?>" 
+     class="report-tab-btn <?= $tab === 'mermas' ? 'active' : '' ?>">
+    <i class="fa-solid fa-trash-can"></i> Mermas y Pérdidas
   </a>
 </div>
 
@@ -526,7 +530,7 @@
       <div class="stat-info">
         <h3>Margen Potencial Global</h3>
         <div class="stat-value" style="color: #818cf8;"><?= formatCLP($margenPotencialTotal) ?></div>
-        <small style="color: #818cf8; font-size: 0.75rem;">Rentabilidad teórica: <strong><?= $margenPotencialPorc ?>%</strong></small>
+        <small style="color: #818cf8; font-size: 0.75rem;">Rentabilidad s/costo: <strong><?= $kpiInventario['ValorTotalCosto'] > 0 ? '+' . $margenPotencialPorc . '%' : 'S/C' ?></strong></small>
       </div>
       <div class="stat-icon" style="background: rgba(79, 70, 229, 0.15); color: #818cf8;">
         <i class="fa-solid fa-percent"></i>
@@ -564,10 +568,15 @@
       <span class="badge badge-danger" style="padding: 0.4rem 0.75rem; font-size: 0.82rem;">
         <i class="fa-solid fa-circle-xmark"></i> <?= $kpiInventario['ProductosAgotados'] ?> Agotados
       </span>
+      <?php if (!empty($kpiInventario['ProductosSinCosto'])): ?>
+      <button type="button" onclick="setFiltroStock('sin_costo')" class="badge badge-warning" style="padding: 0.4rem 0.75rem; font-size: 0.82rem; border: none; cursor: pointer; background: rgba(245, 158, 11, 0.2); color: #fbbf24;" title="Ver productos que no tienen costo cargado">
+        <i class="fa-solid fa-triangle-exclamation"></i> <?= $kpiInventario['ProductosSinCosto'] ?> Sin Costo Registrado
+      </button>
+      <?php endif; ?>
     </div>
   </div>
 
-  <!-- Tabla: Desglose y Valorización por Categoría -->
+  <!-- Tabla 1: Desglose y Valorización por Categoría -->
   <div class="table-card">
     <div class="table-header" style="display: flex; justify-content: space-between; align-items: center;">
       <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0;">
@@ -585,28 +594,399 @@
           <th style="text-align: right;">Valor Costo ($)</th>
           <th style="text-align: right;">Valor Venta ($)</th>
           <th style="text-align: right;">Margen Estimado ($)</th>
-          <th style="text-align: right;">Margen %</th>
+          <th style="text-align: right;">Margen % s/Costo</th>
         </tr>
       </thead>
       <tbody>
         <?php foreach ($categoriasInventario as $ci): ?>
           <?php 
             $margenCat = $ci['ValorVenta'] - $ci['ValorCosto'];
-            $pctCat = $ci['ValorVenta'] > 0 ? round(($margenCat / $ci['ValorVenta']) * 100, 1) : 0;
+            $pctCat = $ci['ValorCosto'] > 0 ? round(($margenCat / $ci['ValorCosto']) * 100, 1) : null;
           ?>
           <tr>
-            <td><strong style="color: var(--text-main);"><?= htmlspecialchars($ci['Categoria']) ?></strong></td>
+            <td>
+              <a href="javascript:void(0)" onclick="filtrarPorCategoria(<?= (int)$ci['CategoriaID'] ?>)" style="color: var(--text-main); font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;" title="Filtrar listado de productos por esta categoría">
+                <i class="fa-solid fa-filter" style="font-size: 0.75rem; color: var(--primary);"></i>
+                <?= htmlspecialchars($ci['Categoria']) ?>
+              </a>
+            </td>
             <td style="text-align: center;"><?= $ci['TotalItems'] ?></td>
             <td style="text-align: center; font-weight: 600;"><?= number_format($ci['StockTotal'], 0, ',', '.') ?> u</td>
             <td style="text-align: right; color: #fbbf24; font-family: monospace; font-weight: 600;"><?= formatCLP($ci['ValorCosto']) ?></td>
             <td style="text-align: right; color: var(--text-main); font-family: monospace; font-weight: 600;"><?= formatCLP($ci['ValorVenta']) ?></td>
             <td style="text-align: right; color: var(--success); font-family: monospace; font-weight: 700;"><?= formatCLP($margenCat) ?></td>
-            <td style="text-align: right;"><span class="badge badge-success"><?= $pctCat ?>%</span></td>
+            <td style="text-align: right;">
+              <?php if ($pctCat === null): ?>
+                <span class="badge badge-warning" title="Categoría sin costo cargado">S/C</span>
+              <?php elseif ($pctCat > 0): ?>
+                <span class="badge badge-success">+<?= $pctCat ?>%</span>
+              <?php elseif ($pctCat < 0): ?>
+                <span class="badge badge-danger"><?= $pctCat ?>%</span>
+              <?php else: ?>
+                <span class="badge badge-secondary">0%</span>
+              <?php endif; ?>
+            </td>
           </tr>
         <?php endforeach; ?>
       </tbody>
     </table>
   </div>
+
+  <!-- ============================================================== -->
+  <!-- TABLA 2: LISTADO DETALLADO DE PRODUCTOS Y VALORIZACIÓN CON COSTOS -->
+  <!-- ============================================================== -->
+  <div class="table-card" style="margin-top: 2rem;" id="seccionProductosInventario">
+    <div class="table-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-boxes-stacked" style="color: var(--primary);"></i> Detalle Valorizado por Producto y Costos
+        </h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.2rem 0 0 0;">
+          Listado individual de artículos con stock físico, costo unitario de compra, precio de venta y capital total inmovilizado.
+        </p>
+      </div>
+
+      <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <a href="actualizar_precios.php" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.35rem 0.75rem; color: #f59e0b; border-color: rgba(245, 158, 11, 0.3);">
+          <i class="fa-solid fa-bolt"></i> Actualizador Rápido Precios/Costos
+        </a>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda en Vivo -->
+    <div style="background: rgba(255, 255, 255, 0.02); border-bottom: 1px solid var(--border-dark); padding: 0.85rem 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.85rem;">
+      
+      <!-- Buscador y Selector de Categoría -->
+      <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+        <div style="position: relative;">
+          <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: var(--text-muted);"></i>
+          <input type="text" id="buscadorProdInv" class="form-control" placeholder="Buscar por nombre o código..." 
+                 value="<?= htmlspecialchars($buscar) ?>"
+                 style="padding-left: 2rem; font-size: 0.85rem; width: 250px;" 
+                 oninput="filtrarProductosInventario()">
+        </div>
+
+        <select id="filtroCatInv" class="form-control" style="font-size: 0.85rem; width: auto; padding: 0.4rem 0.75rem;" onchange="filtrarProductosInventario()">
+          <option value="0">Todas las Categorías</option>
+          <?php foreach ($categorias as $cat): ?>
+            <option value="<?= $cat['CategoriaID'] ?>" <?= $catId == $cat['CategoriaID'] ? 'selected' : '' ?>>
+              <?= htmlspecialchars($cat['Nombre']) ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
+      <!-- Chips de Filtro Rápido de Estado -->
+      <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;" id="chipsEstadoFiltro">
+        <button type="button" class="btn btn-secondary chip-inv-btn active" data-filtro="todos" onclick="setFiltroStock('todos', this)" style="padding: 0.3rem 0.65rem; font-size: 0.78rem;">
+          Todos (<?= $kpiInventario['TotalProductos'] ?>)
+        </button>
+        <button type="button" class="btn btn-secondary chip-inv-btn" data-filtro="con_stock" onclick="setFiltroStock('con_stock', this)" style="padding: 0.3rem 0.65rem; font-size: 0.78rem;">
+          <i class="fa-solid fa-check" style="color: var(--success);"></i> Con Stock (<?= $kpiInventario['ProductosConStock'] ?>)
+        </button>
+        <button type="button" class="btn btn-secondary chip-inv-btn" data-filtro="sin_costo" onclick="setFiltroStock('sin_costo', this)" style="padding: 0.3rem 0.65rem; font-size: 0.78rem; border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+          <i class="fa-solid fa-triangle-exclamation"></i> Sin Costo $0 (<?= $kpiInventario['ProductosSinCosto'] ?>)
+        </button>
+        <?php if ($kpiInventario['ProductosAgotados'] > 0): ?>
+        <button type="button" class="btn btn-secondary chip-inv-btn" data-filtro="agotados" onclick="setFiltroStock('agotados', this)" style="padding: 0.3rem 0.65rem; font-size: 0.78rem; color: var(--danger);">
+          Agotados (<?= $kpiInventario['ProductosAgotados'] ?>)
+        </button>
+        <?php endif; ?>
+      </div>
+
+    </div>
+
+    <!-- Indicador / Contador en Vivo -->
+    <div style="padding: 0.6rem 1.25rem; background: rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; font-size: 0.82rem; color: var(--text-muted); border-bottom: 1px solid var(--border-dark);">
+      <div>
+        <span id="contadorItemsInv" style="font-weight: 700; color: var(--text-main);"><?= count($productosInventario) ?></span> productos visibles
+      </div>
+      <div style="display: flex; gap: 1.25rem; flex-wrap: wrap;">
+        <span>Stock: <strong id="sumStockInv" style="color: var(--text-main); font-family: monospace;">0</strong> u</span>
+        <span>Costo Total: <strong id="sumCostoInv" style="color: #fbbf24; font-family: monospace;">$0</strong></span>
+        <span>Venta Total: <strong id="sumVentaInv" style="color: var(--success); font-family: monospace;">$0</strong></span>
+        <span>Margen: <strong id="sumMargenInv" style="color: #818cf8; font-family: monospace;">$0</strong></span>
+      </div>
+    </div>
+
+    <!-- Tabla de Productos -->
+    <div style="overflow-x: auto;">
+      <table class="table" id="tablaDetalleInventario">
+        <thead>
+          <tr>
+            <th style="width: 45px; text-align: center;">#</th>
+            <th style="min-width: 125px;">Código</th>
+            <th style="min-width: 200px;">Producto</th>
+            <th>Categoría</th>
+            <th style="text-align: center;">Stock</th>
+            <th style="text-align: right;">Costo Unit.</th>
+            <th style="text-align: right;">Precio Venta</th>
+            <th style="text-align: right; color: #fbbf24;">Total Costo ($)</th>
+            <th style="text-align: right; color: var(--success);">Total Venta ($)</th>
+            <th style="text-align: right; color: #818cf8;">Margen Est.</th>
+            <th style="text-align: right;">Margen % s/Costo</th>
+            <th style="text-align: center; width: 75px;">Acción</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyProdsInv">
+          <?php if (empty($productosInventario)): ?>
+            <tr id="filaSinProds"><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 2rem;">No se encontraron productos para los filtros seleccionados.</td></tr>
+          <?php else: ?>
+            <?php $num = 1; foreach ($productosInventario as $p): ?>
+              <?php 
+                $costo = (int)$p['CostoCompra'];
+                $precio = (int)$p['PrecioVenta'];
+                $stock = (float)$p['Stock'];
+                $totCosto = (int)$p['TotalCosto'];
+                $totVenta = (int)$p['TotalVenta'];
+                $margen = $totVenta - $totCosto;
+                $pctMargen = $costo > 0 ? round((($precio - $costo) / $costo) * 100, 1) : null;
+                $sinCosto = ($costo === 0);
+              ?>
+              <tr class="fila-prod-inv" 
+                  data-nombre="<?= htmlspecialchars(mb_strtolower($p['Nombre'])) ?>"
+                  data-codigo="<?= htmlspecialchars(mb_strtolower($p['CodigoBarras'] . ' ' . ($p['CodigoPLU'] ?? ''))) ?>"
+                  data-categoria-id="<?= (int)$p['CategoriaID'] ?>"
+                  data-stock="<?= $stock ?>"
+                  data-costo="<?= $costo ?>"
+                  data-sincosto="<?= $sinCosto ? '1' : '0' ?>"
+                  data-total-costo="<?= $totCosto ?>"
+                  data-total-venta="<?= $totVenta ?>"
+                  data-margen="<?= $margen ?>">
+                
+                <td style="text-align: center; color: var(--text-muted); font-size: 0.8rem;"><?= $num++ ?></td>
+                
+                <td>
+                  <code style="font-size: 0.8rem;"><?= htmlspecialchars($p['CodigoBarras'] ?: ($p['CodigoPLU'] ? 'PLU:'.$p['CodigoPLU'] : 'S/C')) ?></code>
+                </td>
+                
+                <td>
+                  <strong style="color: var(--text-main); font-size: 0.9rem;"><?= htmlspecialchars($p['Nombre']) ?></strong>
+                  <?php if (!empty($p['EsPesable'])): ?>
+                    <span class="badge badge-warning" style="font-size: 0.65rem; padding: 0.1rem 0.3rem;">Kg</span>
+                  <?php endif; ?>
+                  <?php if (!empty($p['EsPrecioVariable'])): ?>
+                    <span class="badge badge-info" style="font-size: 0.65rem; padding: 0.1rem 0.3rem;">Variable</span>
+                  <?php endif; ?>
+                </td>
+                
+                <td style="font-size: 0.85rem; color: var(--text-muted);"><?= htmlspecialchars($p['Categoria']) ?></td>
+                
+                <td style="text-align: center;">
+                  <?php if ($stock <= 0): ?>
+                    <span class="badge badge-danger">0 u</span>
+                  <?php elseif ($stock <= $p['StockMinimo']): ?>
+                    <span class="badge badge-warning"><?= $stock ?> u</span>
+                  <?php else: ?>
+                    <strong style="color: #38bdf8;"><?= $stock ?></strong> <span style="font-size: 0.75rem; color: var(--text-muted);">u</span>
+                  <?php endif; ?>
+                </td>
+                
+                <td style="text-align: right; font-family: monospace; font-size: 0.88rem;">
+                  <?php if ($sinCosto): ?>
+                    <span class="badge badge-warning" title="Este producto no tiene costo de compra asignado" style="font-size: 0.75rem; font-family: sans-serif;">
+                      ⚠️ $0
+                    </span>
+                  <?php else: ?>
+                    <span style="color: #fbbf24;"><?= formatCLP($costo) ?></span>
+                  <?php endif; ?>
+                </td>
+                
+                <td style="text-align: right; font-family: monospace; font-size: 0.88rem; color: var(--text-main);">
+                  <?= formatCLP($precio) ?>
+                </td>
+                
+                <td style="text-align: right; font-family: monospace; font-weight: 700; color: #fbbf24; font-size: 0.9rem;">
+                  <?= formatCLP($totCosto) ?>
+                </td>
+                
+                <td style="text-align: right; font-family: monospace; font-weight: 700; color: var(--success); font-size: 0.9rem;">
+                  <?= formatCLP($totVenta) ?>
+                </td>
+                
+                <td style="text-align: right; font-family: monospace; font-weight: 700; color: #818cf8; font-size: 0.9rem;">
+                  <?= formatCLP($margen) ?>
+                </td>
+                
+                <td style="text-align: right; font-size: 0.85rem;">
+                  <?php if ($sinCosto): ?>
+                    <span class="badge badge-warning" title="Sin costo de compra cargado" style="font-size: 0.75rem;">S/C</span>
+                  <?php elseif ($pctMargen > 0): ?>
+                    <span class="badge badge-success">+<?= $pctMargen ?>%</span>
+                  <?php elseif ($pctMargen < 0): ?>
+                    <span class="badge badge-danger"><?= $pctMargen ?>%</span>
+                  <?php else: ?>
+                    <span class="badge badge-secondary">0%</span>
+                  <?php endif; ?>
+                </td>
+                
+                <td style="text-align: center;">
+                  <a href="productos.php?q=<?= urlencode($p['CodigoBarras'] ?: $p['Nombre']) ?>" 
+                     class="btn btn-secondary" 
+                     style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" 
+                     title="Editar este producto en el catálogo">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </a>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          <?php endif; ?>
+        </tbody>
+        <tfoot style="background: rgba(0,0,0,0.3); font-weight: 700; border-top: 2px solid var(--border-dark);">
+          <tr>
+            <td colspan="4" style="text-align: right; color: var(--text-main);" id="tfootCount">
+              Total Visible
+            </td>
+            <td style="text-align: center; color: #38bdf8;" id="tfootStock">
+              0 u
+            </td>
+            <td colspan="2" style="text-align: right; color: var(--text-muted); font-size: 0.8rem;">
+              SUBTOTALES VALORIZADOS:
+            </td>
+            <td style="text-align: right; color: #fbbf24; font-family: monospace; font-size: 0.95rem;" id="tfootCosto">
+              $0
+            </td>
+            <td style="text-align: right; color: var(--success); font-family: monospace; font-size: 0.95rem;" id="tfootVenta">
+              $0
+            </td>
+            <td style="text-align: right; color: #818cf8; font-family: monospace; font-size: 0.95rem;" id="tfootMargen">
+              $0
+            </td>
+            <td style="text-align: right;" id="tfootMargenPct">
+              <span class="badge badge-success">0%</span>
+            </td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <script>
+  let filtroStockActivo = 'todos';
+
+  function setFiltroStock(tipo, btn) {
+    filtroStockActivo = tipo;
+    document.querySelectorAll('#chipsEstadoFiltro .chip-inv-btn').forEach(b => {
+      b.classList.remove('active');
+      b.style.background = '';
+      b.style.color = '';
+    });
+    if (btn) {
+      btn.classList.add('active');
+      btn.style.background = 'var(--primary)';
+      btn.style.color = '#fff';
+    } else {
+      const matchBtn = document.querySelector(`#chipsEstadoFiltro [data-filtro="${tipo}"]`);
+      if (matchBtn) {
+        matchBtn.classList.add('active');
+        matchBtn.style.background = 'var(--primary)';
+        matchBtn.style.color = '#fff';
+      }
+    }
+    filtrarProductosInventario();
+    document.getElementById('seccionProductosInventario')?.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function filtrarPorCategoria(catId) {
+    const sel = document.getElementById('filtroCatInv');
+    if (sel) {
+      sel.value = catId;
+      filtrarProductosInventario();
+      document.getElementById('seccionProductosInventario')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  function filtrarProductosInventario() {
+    const q = (document.getElementById('buscadorProdInv')?.value || '').toLowerCase().trim();
+    const cat = document.getElementById('filtroCatInv')?.value || '0';
+    const filas = document.querySelectorAll('.fila-prod-inv');
+    
+    let count = 0;
+    let sumStock = 0;
+    let sumCosto = 0;
+    let sumVenta = 0;
+    let sumMargen = 0;
+
+    filas.forEach((tr) => {
+      const nombre = tr.getAttribute('data-nombre') || '';
+      const codigo = tr.getAttribute('data-codigo') || '';
+      const catId = tr.getAttribute('data-categoria-id') || '0';
+      const stock = parseFloat(tr.getAttribute('data-stock') || '0');
+      const costo = parseFloat(tr.getAttribute('data-costo') || '0');
+      const sinCosto = tr.getAttribute('data-sincosto') === '1';
+      const totCosto = parseFloat(tr.getAttribute('data-total-costo') || '0');
+      const totVenta = parseFloat(tr.getAttribute('data-total-venta') || '0');
+      const margen = parseFloat(tr.getAttribute('data-margen') || '0');
+
+      let visible = true;
+
+      // Filtro texto
+      if (q && !nombre.includes(q) && !codigo.includes(q)) {
+        visible = false;
+      }
+
+      // Filtro categoría
+      if (visible && cat !== '0' && catId !== cat) {
+        visible = false;
+      }
+
+      // Filtro chips
+      if (visible) {
+        if (filtroStockActivo === 'con_stock' && stock <= 0) visible = false;
+        if (filtroStockActivo === 'sin_costo' && !sinCosto) visible = false;
+        if (filtroStockActivo === 'agotados' && stock > 0) visible = false;
+      }
+
+      if (visible) {
+        tr.style.display = '';
+        count++;
+        sumStock += stock;
+        sumCosto += totCosto;
+        sumVenta += totVenta;
+        sumMargen += margen;
+      } else {
+        tr.style.display = 'none';
+      }
+    });
+
+    const fmtCLP = (num) => '$' + Math.round(num).toLocaleString('es-CL');
+
+    // Actualizar indicadores
+    const contEl = document.getElementById('contadorItemsInv');
+    if (contEl) contEl.textContent = count;
+    const sStockEl = document.getElementById('sumStockInv');
+    if (sStockEl) sStockEl.textContent = sumStock.toLocaleString('es-CL');
+    const sCostoEl = document.getElementById('sumCostoInv');
+    if (sCostoEl) sCostoEl.textContent = fmtCLP(sumCosto);
+    const sVentaEl = document.getElementById('sumVentaInv');
+    if (sVentaEl) sVentaEl.textContent = fmtCLP(sumVenta);
+    const sMargenEl = document.getElementById('sumMargenInv');
+    if (sMargenEl) sMargenEl.textContent = fmtCLP(sumMargen);
+
+    // Actualizar fila tfoot
+    const tfCount = document.getElementById('tfootCount');
+    if (tfCount) tfCount.textContent = count + ' productos';
+    const tfStock = document.getElementById('tfootStock');
+    if (tfStock) tfStock.textContent = sumStock.toLocaleString('es-CL') + ' u';
+    const tfCosto = document.getElementById('tfootCosto');
+    if (tfCosto) tfCosto.textContent = fmtCLP(sumCosto);
+    const tfVenta = document.getElementById('tfootVenta');
+    if (tfVenta) tfVenta.textContent = fmtCLP(sumVenta);
+    const tfMargen = document.getElementById('tfootMargen');
+    if (tfMargen) tfMargen.textContent = fmtCLP(sumMargen);
+    const pctG = sumCosto > 0 ? '+' + ((sumMargen / sumCosto) * 100).toFixed(1) + '%' : (sumVenta > 0 ? 'S/C' : '0%');
+    const tfPct = document.getElementById('tfootMargenPct');
+    if (tfPct) tfPct.innerHTML = `<span class="badge ${sumCosto > 0 && sumMargen >= 0 ? 'badge-success' : (sumCosto > 0 ? 'badge-danger' : 'badge-warning')}">${pctG}</span>`;
+  }
+
+  // Inicializar al cargar
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', filtrarProductosInventario);
+  } else {
+    filtrarProductosInventario();
+  }
+  </script>
 
 <?php endif; ?>
 
@@ -779,69 +1159,336 @@
     </p>
   </div>
 
-  <div class="grid-stats" style="margin-bottom: 1.5rem;">
+  <?php 
+    $margenPromedioUtil = $totalCostoUtil > 0 ? round(($totalUtilidadMonto / $totalCostoUtil) * 100, 1) : null;
+  ?>
+  <div class="grid-stats" style="margin-bottom: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
     <div class="stat-card">
       <div class="stat-info">
         <h3>Total Ingresos Venta</h3>
         <div class="stat-value"><?= formatCLP($totalVentasUtil) ?></div>
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Facturado en el período</small>
       </div>
       <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--success);"><i class="fa-solid fa-chart-line"></i></div>
     </div>
+
     <div class="stat-card">
       <div class="stat-info">
         <h3>Total Costo Mercadería</h3>
         <div class="stat-value" style="color: var(--warning);"><?= formatCLP($totalCostoUtil) ?></div>
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Costo de lo vendido</small>
       </div>
       <div class="stat-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--warning);"><i class="fa-solid fa-boxes-stacked"></i></div>
     </div>
+
     <div class="stat-card">
       <div class="stat-info">
-        <h3>Utilidad Neta Estimada</h3>
+        <h3>Utilidad Bruta Ventas</h3>
         <div class="stat-value" style="color: #818cf8;"><?= formatCLP($totalUtilidadMonto) ?></div>
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Ganancia s/ventas</small>
       </div>
       <div class="stat-icon" style="background: rgba(79, 70, 229, 0.15); color: #818cf8;"><i class="fa-solid fa-sack-dollar"></i></div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-info">
+        <h3>(-) Pérdidas por Mermas</h3>
+        <div class="stat-value" style="color: var(--danger);"><?= formatCLP($totalMermasCosto) ?></div>
+        <small>
+          <a href="reportes.php?tab=mermas&inicio=<?= urlencode($fechaInicio) ?>&fin=<?= urlencode($fechaFin) ?>" style="color: #f87171; text-decoration: none; font-size: 0.75rem; font-weight: 600;">
+            <?= $totalMermasUnidades ?> u mermadas <i class="fa-solid fa-arrow-right" style="font-size: 0.65rem;"></i>
+          </a>
+        </small>
+      </div>
+      <div class="stat-icon" style="background: rgba(239, 68, 68, 0.15); color: var(--danger);"><i class="fa-solid fa-trash-can"></i></div>
+    </div>
+
+    <div class="stat-card" style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.05);">
+      <div class="stat-info">
+        <h3 style="color: var(--success); font-weight: 700;">Utilidad Real Neta</h3>
+        <div class="stat-value" style="color: #34d399; font-weight: 800; font-size: 1.6rem;"><?= formatCLP($utilidadRealNeta) ?></div>
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Limpio (Ventas - Mermas)</small>
+      </div>
+      <div class="stat-icon" style="background: rgba(16, 185, 129, 0.2); color: var(--success);"><i class="fa-solid fa-wallet"></i></div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-info">
+        <h3>Margen Prom. s/Costo</h3>
+        <div class="stat-value" style="color: #38bdf8;"><?= $margenPromedioUtil !== null ? '+' . $margenPromedioUtil . '%' : 'S/C' ?></div>
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Rentabilidad comercial</small>
+      </div>
+      <div class="stat-icon" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;"><i class="fa-solid fa-percent"></i></div>
     </div>
   </div>
 
   <div class="table-card">
-    <div class="table-header">
-      <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0;">Desglose de Margen por Producto</h3>
+    <div class="table-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-folder-tree" style="color: var(--primary);"></i> Desglose de Utilidades por Categoría y Productos
+        </h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.2rem 0 0 0;">
+          Haz clic en cualquier categoría para expandir o colapsar sus productos vendidos.
+        </p>
+      </div>
+
+      <!-- Controles de Filtro y Expansión -->
+      <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <input type="text" id="buscadorUtilLive" oninput="filtrarUtilidadesLive()" class="form-control" placeholder="Buscar producto o código..." style="padding: 0.4rem 0.75rem; font-size: 0.82rem; width: 210px;">
+        
+        <select id="filtroCategoriaUtil" onchange="onFiltroCategoriaUtilChange()" class="form-control" style="padding: 0.4rem 0.75rem; font-size: 0.82rem; width: auto; font-weight: 600;">
+          <option value="todas">Todas las categorías (<?= count($utilidadesPorCategoria) ?>)</option>
+          <?php foreach ($categoriasUtilSelector as $catSel): ?>
+            <option value="<?= $catSel['CategoriaID'] ?>"><?= htmlspecialchars($catSel['Nombre']) ?> (<?= $catSel['ItemsCount'] ?>)</option>
+          <?php endforeach; ?>
+        </select>
+
+        <button type="button" onclick="toggleTodasCategoriasUtil(true)" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.35rem;" title="Expandir todas las categorías">
+          <i class="fa-solid fa-angles-down"></i> Expandir
+        </button>
+        <button type="button" onclick="toggleTodasCategoriasUtil(false)" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.35rem;" title="Colapsar todas las categorías">
+          <i class="fa-solid fa-angles-up"></i> Colapsar
+        </button>
+      </div>
     </div>
 
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Producto</th>
-          <th>Categoría</th>
-          <th style="text-align: center;">Unidades</th>
-          <th style="text-align: right;">Venta Total</th>
-          <th style="text-align: right;">Costo Total</th>
-          <th style="text-align: right;">Ganancia Neta</th>
-          <th style="text-align: right;">Margen %</th>
-        </tr>
-      </thead>
-      <tbody>
-        <?php if (empty($reporteUtilidades)): ?>
-          <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay ventas registradas en el período seleccionado.</td></tr>
-        <?php else: ?>
-          <?php foreach ($reporteUtilidades as $row): ?>
-            <?php 
-              $margen = $row['TotalVentas'] > 0 ? round(($row['UtilidadEstimada'] / $row['TotalVentas']) * 100, 1) : 0;
-            ?>
-            <tr>
-              <td style="font-weight: 600; color: #fff;"><?= htmlspecialchars($row['Producto']) ?></td>
-              <td><?= htmlspecialchars($row['Categoria'] ?: 'General') ?></td>
-              <td style="text-align: center;"><strong><?= $row['CantidadVendida'] ?></strong> u</td>
-              <td style="text-align: right; font-family: monospace;"><?= formatCLP($row['TotalVentas']) ?></td>
-              <td style="text-align: right; color: var(--text-muted); font-family: monospace;"><?= formatCLP($row['TotalCosto']) ?></td>
-              <td style="text-align: right; font-weight: 700; color: var(--success); font-family: monospace;"><?= formatCLP($row['UtilidadEstimada']) ?></td>
-              <td style="text-align: right;"><span class="badge badge-success"><?= $margen ?>%</span></td>
-            </tr>
-          <?php endforeach; ?>
-        <?php endif; ?>
-      </tbody>
-    </table>
+    <div style="overflow-x: auto;">
+      <table class="table" id="tablaUtilidadesCategorias">
+        <thead>
+          <tr>
+            <th style="min-width: 250px;">Categoría / Producto</th>
+            <th style="text-align: center; width: 110px;">Unidades</th>
+            <th style="text-align: right; width: 140px;">Venta Total ($)</th>
+            <th style="text-align: right; width: 140px;">Costo Total ($)</th>
+            <th style="text-align: right; width: 140px; color: var(--success);">Ganancia Neta</th>
+            <th style="text-align: right; width: 130px;">Margen % s/Costo</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyUtilidades">
+          <?php if (empty($utilidadesPorCategoria)): ?>
+            <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">No hay ventas registradas en el período seleccionado.</td></tr>
+          <?php else: ?>
+            <?php foreach ($utilidadesPorCategoria as $cId => $cat): ?>
+              <?php 
+                $margenCat = $cat['TotalCosto'] > 0 ? round(($cat['UtilidadEstimada'] / $cat['TotalCosto']) * 100, 1) : null;
+              ?>
+              <!-- Fila Maestra de Categoría (Clickeable para expandir/colapsar) -->
+              <tr class="fila-categoria-util" 
+                  data-cat-id="<?= $cId ?>"
+                  onclick="toggleCategoriaUtil(<?= $cId ?>)"
+                  style="background: rgba(30, 41, 59, 0.75); border-left: 4px solid var(--primary); cursor: pointer; user-select: none;">
+                <td>
+                  <div style="display: flex; align-items: center; gap: 0.65rem;">
+                    <i class="fa-solid fa-chevron-right chevron-cat-util" id="chevron_cat_<?= $cId ?>" style="font-size: 0.75rem; color: var(--primary); transition: transform 0.2s ease;"></i>
+                    <i class="fa-solid fa-folder" style="color: var(--primary); font-size: 0.95rem;"></i>
+                    <strong style="color: #fff; font-size: 0.92rem;"><?= htmlspecialchars($cat['Categoria']) ?></strong>
+                    <span class="badge badge-secondary" style="font-size: 0.72rem; padding: 0.15rem 0.45rem; opacity: 0.85;">
+                      <?= $cat['ProductosCount'] ?> <?= $cat['ProductosCount'] === 1 ? 'artículo' : 'artículos' ?>
+                    </span>
+                  </div>
+                </td>
+                <td style="text-align: center; font-weight: 700; color: #38bdf8;">
+                  <?= number_format($cat['CantidadVendida'], 0, ',', '.') ?> u
+                </td>
+                <td style="text-align: right; font-family: monospace; font-weight: 700; color: var(--text-main);">
+                  <?= formatCLP($cat['TotalVentas']) ?>
+                </td>
+                <td style="text-align: right; font-family: monospace; font-weight: 600; color: #fbbf24;">
+                  <?= formatCLP($cat['TotalCosto']) ?>
+                </td>
+                <td style="text-align: right; font-family: monospace; font-weight: 800; color: var(--success); font-size: 0.95rem;">
+                  <?= formatCLP($cat['UtilidadEstimada']) ?>
+                </td>
+                <td style="text-align: right;">
+                  <?php if ($margenCat === null): ?>
+                    <span class="badge badge-warning" title="Sin costo registrado">S/C</span>
+                  <?php elseif ($margenCat > 0): ?>
+                    <span class="badge badge-success" style="font-size: 0.82rem; font-weight: 700;">+<?= $margenCat ?>%</span>
+                  <?php elseif ($margenCat < 0): ?>
+                    <span class="badge badge-danger"><?= $margenCat ?>%</span>
+                  <?php else: ?>
+                    <span class="badge badge-secondary">0%</span>
+                  <?php endif; ?>
+                </td>
+              </tr>
+
+              <!-- Filas Hijas: Productos pertenecientes a esta categoría -->
+              <?php foreach ($cat['Productos'] as $prod): ?>
+                <?php 
+                  $margenProd = $prod['TotalCosto'] > 0 ? round(($prod['UtilidadEstimada'] / $prod['TotalCosto']) * 100, 1) : null;
+                  $codProd = $prod['CodigoBarras'] ?: ($prod['CodigoPLU'] ? 'PLU:'.$prod['CodigoPLU'] : '');
+                ?>
+                <tr class="fila-producto-util cat-child-<?= $cId ?>" 
+                    data-cat-id="<?= $cId ?>"
+                    data-nombre="<?= htmlspecialchars(mb_strtolower($prod['Producto'])) ?>"
+                    data-codigo="<?= htmlspecialchars(mb_strtolower($codProd)) ?>"
+                    data-unidades="<?= (float)$prod['CantidadVendida'] ?>"
+                    data-venta="<?= (int)$prod['TotalVentas'] ?>"
+                    data-costo="<?= (int)$prod['TotalCosto'] ?>"
+                    data-utilidad="<?= (int)$prod['UtilidadEstimada'] ?>"
+                    style="display: none; background: rgba(15, 23, 42, 0.45); border-bottom: 1px solid rgba(255,255,255,0.04);">
+                  <td style="padding-left: 2.75rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <i class="fa-solid fa-angle-right" style="color: var(--text-muted); font-size: 0.75rem; opacity: 0.5;"></i>
+                      <span style="color: #cbd5e1; font-weight: 500; font-size: 0.875rem;"><?= htmlspecialchars($prod['Producto']) ?></span>
+                      <?php if ($codProd): ?>
+                        <code style="font-size: 0.75rem; opacity: 0.7;"><?= htmlspecialchars($codProd) ?></code>
+                      <?php endif; ?>
+                    </div>
+                  </td>
+                  <td style="text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                    <?= (float)$prod['CantidadVendida'] ?> u
+                  </td>
+                  <td style="text-align: right; font-family: monospace; font-size: 0.85rem; color: var(--text-main);">
+                    <?= formatCLP($prod['TotalVentas']) ?>
+                  </td>
+                  <td style="text-align: right; font-family: monospace; font-size: 0.85rem; color: #fbbf24;">
+                    <?= formatCLP($prod['TotalCosto']) ?>
+                  </td>
+                  <td style="text-align: right; font-family: monospace; font-weight: 700; font-size: 0.88rem; color: var(--success);">
+                    <?= formatCLP($prod['UtilidadEstimada']) ?>
+                  </td>
+                  <td style="text-align: right; font-size: 0.82rem;">
+                    <?php if ($margenProd === null): ?>
+                      <span class="badge badge-warning" style="font-size: 0.72rem;">S/C</span>
+                    <?php elseif ($margenProd > 0): ?>
+                      <span class="badge badge-success" style="font-size: 0.75rem;">+<?= $margenProd ?>%</span>
+                    <?php elseif ($margenProd < 0): ?>
+                      <span class="badge badge-danger" style="font-size: 0.75rem;"><?= $margenProd ?>%</span>
+                    <?php else: ?>
+                      <span class="badge badge-secondary" style="font-size: 0.75rem;">0%</span>
+                    <?php endif; ?>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+
+            <?php endforeach; ?>
+          <?php endif; ?>
+        </tbody>
+        <tfoot style="background: rgba(15,23,42,0.85); font-weight: 700; border-top: 2px solid var(--border-dark);">
+          <tr>
+            <td style="padding: 0.85rem 1rem;">TOTAL CONSOLIDADO:</td>
+            <td style="text-align: center; color: #38bdf8;" id="tfUtilUnidades">
+              <?= number_format(array_sum(array_column($reporteUtilidades, 'CantidadVendida')), 0, ',', '.') ?> u
+            </td>
+            <td style="text-align: right; font-family: monospace; color: var(--text-main);" id="tfUtilVenta"><?= formatCLP($totalVentasUtil) ?></td>
+            <td style="text-align: right; font-family: monospace; color: #fbbf24;" id="tfUtilCosto"><?= formatCLP($totalCostoUtil) ?></td>
+            <td style="text-align: right; font-family: monospace; color: var(--success); font-size: 1rem;" id="tfUtilGanancia"><?= formatCLP($totalUtilidadMonto) ?></td>
+            <td style="text-align: right;" id="tfUtilMargen">
+              <?php if ($margenPromedioUtil !== null): ?>
+                <span class="badge badge-success" style="font-size: 0.85rem;">+<?= $margenPromedioUtil ?>%</span>
+              <?php else: ?>
+                <span class="badge badge-warning">S/C</span>
+              <?php endif; ?>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
   </div>
+
+  <script>
+  const estadoCategoriasUtil = {};
+
+  function toggleCategoriaUtil(catId, forzarEstado = null) {
+    const filasHijas = document.querySelectorAll(`.cat-child-${catId}`);
+    const chevron = document.getElementById(`chevron_cat_${catId}`);
+    
+    const estaAbierto = forzarEstado !== null ? !forzarEstado : (estadoCategoriasUtil[catId] || false);
+    const nuevoEstado = !estaAbierto;
+    estadoCategoriasUtil[catId] = nuevoEstado;
+
+    filasHijas.forEach(f => {
+      f.style.display = nuevoEstado ? 'table-row' : 'none';
+    });
+
+    if (chevron) {
+      chevron.style.transform = nuevoEstado ? 'rotate(90deg)' : 'rotate(0deg)';
+    }
+  }
+
+  function toggleTodasCategoriasUtil(abrir) {
+    const filasCat = document.querySelectorAll('.fila-categoria-util');
+    filasCat.forEach(fc => {
+      const catId = fc.getAttribute('data-cat-id');
+      if (fc.style.display !== 'none') {
+        toggleCategoriaUtil(catId, abrir);
+      }
+    });
+  }
+
+  function onFiltroCategoriaUtilChange() {
+    const selVal = document.getElementById('filtroCategoriaUtil').value;
+    const filasCat = document.querySelectorAll('.fila-categoria-util');
+    const filasProd = document.querySelectorAll('.fila-producto-util');
+
+    if (selVal === 'todas') {
+      filasCat.forEach(fc => fc.style.display = '');
+      filasProd.forEach(fp => {
+        const catId = fp.getAttribute('data-cat-id');
+        fp.style.display = estadoCategoriasUtil[catId] ? 'table-row' : 'none';
+      });
+    } else {
+      filasCat.forEach(fc => {
+        const cId = fc.getAttribute('data-cat-id');
+        if (cId === selVal) {
+          fc.style.display = '';
+          toggleCategoriaUtil(cId, true);
+        } else {
+          fc.style.display = 'none';
+          document.querySelectorAll(`.cat-child-${cId}`).forEach(fp => fp.style.display = 'none');
+        }
+      });
+    }
+  }
+
+  function filtrarUtilidadesLive() {
+    const q = (document.getElementById('buscadorUtilLive')?.value || '').toLowerCase().trim();
+    const selCat = document.getElementById('filtroCategoriaUtil')?.value || 'todas';
+    const filasCat = document.querySelectorAll('.fila-categoria-util');
+
+    filasCat.forEach(fc => {
+      const catId = fc.getAttribute('data-cat-id');
+      const hijas = document.querySelectorAll(`.cat-child-${catId}`);
+      
+      if (selCat !== 'todas' && selCat !== catId) {
+        fc.style.display = 'none';
+        hijas.forEach(h => h.style.display = 'none');
+        return;
+      }
+
+      if (!q) {
+        fc.style.display = '';
+        hijas.forEach(h => {
+          h.style.display = estadoCategoriasUtil[catId] ? 'table-row' : 'none';
+        });
+        return;
+      }
+
+      let matchesEnCat = 0;
+      hijas.forEach(h => {
+        const nombre = h.getAttribute('data-nombre') || '';
+        const codigo = h.getAttribute('data-codigo') || '';
+        if (nombre.includes(q) || codigo.includes(q)) {
+          h.style.display = 'table-row';
+          matchesEnCat++;
+        } else {
+          h.style.display = 'none';
+        }
+      });
+
+      if (matchesEnCat > 0) {
+        fc.style.display = '';
+        const chevron = document.getElementById(`chevron_cat_${catId}`);
+        if (chevron) chevron.style.transform = 'rotate(90deg)';
+        estadoCategoriasUtil[catId] = true;
+      } else {
+        fc.style.display = 'none';
+      }
+    });
+  }
+  </script>
 
 <?php endif; ?>
 
@@ -1200,4 +1847,283 @@
   </div>
 
 <?php endif; ?>
+
+<!-- ============================================================== -->
+<!-- PESTAÑA 8: AUDITORÍA DE MERMAS Y PÉRDIDAS DE MERCADERÍA -->
+<!-- ============================================================== -->
+<?php if ($tab === 'mermas'): ?>
+
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+    <div>
+      <h2 style="font-size: 1.15rem; font-weight: 700; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fa-solid fa-trash-can" style="color: var(--danger);"></i> Auditoría de Mermas, Roturas y Pérdidas
+      </h2>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0.2rem 0 0 0;">
+        Control de mercadería dada de baja por vencimiento, roturas, consumo interno o descuadres valorizados al costo real.
+      </p>
+    </div>
+    <div>
+      <a href="ajustes.php" class="btn btn-secondary" style="font-size: 0.85rem; display: flex; align-items: center; gap: 0.45rem;">
+        <i class="fa-solid fa-sliders" style="color: var(--primary);"></i> Ir a Ajustes Manuales
+      </a>
+    </div>
+  </div>
+
+  <!-- KPIs de Mermas -->
+  <div class="grid-stats" style="margin-bottom: 1.5rem;">
+    <div class="stat-card">
+      <div class="stat-info">
+        <h3>Unidades Mermadas</h3>
+        <div class="stat-value" style="color: var(--danger);"><?= number_format((float)$kpiMermas['TotalUnidadesMermadas'], 0, ',', '.') ?> <span style="font-size: 1rem; color: var(--text-muted);">u</span></div>
+        <small style="color: var(--text-muted); font-size: 0.75rem;"><?= (int)$kpiMermas['TotalLineasAfectadas'] ?> líneas / artículos afectados</small>
+      </div>
+      <div class="stat-icon" style="background: rgba(239, 68, 68, 0.15); color: var(--danger);">
+        <i class="fa-solid fa-box-archive"></i>
+      </div>
+    </div>
+
+    <div class="stat-card" style="border-color: rgba(239, 68, 68, 0.3);">
+      <div class="stat-info">
+        <h3>Pérdida Total al Costo</h3>
+        <div class="stat-value" style="color: #ef4444; font-weight: 800;"><?= formatCLP($kpiMermas['TotalPerdidaCosto']) ?></div>
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Capital propio del negocio perdido</small>
+      </div>
+      <div class="stat-icon" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+        <i class="fa-solid fa-circle-dollar-to-slot"></i>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-info">
+        <h3>Venta Perdida No Percibida</h3>
+        <div class="stat-value" style="color: var(--warning);"><?= formatCLP($kpiMermas['TotalPerdidaVenta']) ?></div>
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Ingreso potencial que no entró a caja</small>
+      </div>
+      <div class="stat-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--warning);">
+        <i class="fa-solid fa-receipt"></i>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-info">
+        <h3>Ajustes por Merma</h3>
+        <div class="stat-value" style="color: #818cf8;"><?= (int)$kpiMermas['TotalEventosMermas'] ?></div>
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Operaciones de baja en el período</small>
+      </div>
+      <div class="stat-icon" style="background: rgba(129, 140, 248, 0.15); color: #818cf8;">
+        <i class="fa-solid fa-clipboard-list"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla 1: Desglose por Motivo de Merma -->
+  <div class="table-card" style="margin-bottom: 2rem;">
+    <div class="table-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fa-solid fa-chart-pie" style="color: var(--primary);"></i> Pérdidas Agrupadas por Causa / Motivo
+      </h3>
+      <span style="font-size: 0.8rem; color: var(--text-muted);"><?= count($mermasPorMotivo) ?> motivos identificados</span>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Causa / Motivo de la Merma</th>
+          <th style="text-align: center;">N° Artículos</th>
+          <th style="text-align: center;">Unidades</th>
+          <th style="text-align: right;">Pérdida al Costo ($)</th>
+          <th style="text-align: right;">Venta No Percibida ($)</th>
+          <th style="width: 200px; text-align: center;">% de la Pérdida Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if (empty($mermasPorMotivo)): ?>
+          <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay pérdidas registradas en este período. ¡Excelente control de stock!</td></tr>
+        <?php else: ?>
+          <?php foreach ($mermasPorMotivo as $mp): ?>
+            <?php 
+              $totalCostoBase = (int)$kpiMermas['TotalPerdidaCosto'];
+              $pctPerdida = $totalCostoBase > 0 ? round(($mp['PerdidaCosto'] / $totalCostoBase) * 100, 1) : 0;
+            ?>
+            <tr>
+              <td>
+                <strong style="color: var(--text-main); font-size: 0.9rem;"><?= htmlspecialchars($mp['GrupoMotivo']) ?></strong>
+              </td>
+              <td style="text-align: center;"><?= $mp['CantidadItems'] ?></td>
+              <td style="text-align: center; font-weight: 600; color: #38bdf8;"><?= number_format($mp['TotalUnidades'], 0, ',', '.') ?> u</td>
+              <td style="text-align: right; color: var(--danger); font-family: monospace; font-weight: 700;"><?= formatCLP($mp['PerdidaCosto']) ?></td>
+              <td style="text-align: right; color: var(--warning); font-family: monospace; font-weight: 600;"><?= formatCLP($mp['PerdidaVenta']) ?></td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div style="flex: 1; height: 7px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden;">
+                    <div style="width: <?= min(100, $pctPerdida) ?>%; height: 100%; background: var(--danger); border-radius: 4px;"></div>
+                  </div>
+                  <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); min-width: 45px; text-align: right;"><?= $pctPerdida ?>%</span>
+                </div>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Tabla 2: Listado Detallado de Incidentes de Merma -->
+  <div class="table-card">
+    <div class="table-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-list-check" style="color: var(--primary);"></i> Detalle de Artículos Mermados en el Período
+        </h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.2rem 0 0 0;">
+          Trazabilidad completa con responsable, fecha exacta y costo unitario.
+        </p>
+      </div>
+
+      <!-- Filtros en vivo -->
+      <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+        <input type="text" id="buscadorMermas" oninput="filtrarMermasLive()" class="form-control" placeholder="Buscar producto o código..." style="padding: 0.4rem 0.75rem; font-size: 0.82rem; width: 220px;">
+        <select id="filtroMotivoMerma" onchange="filtrarMermasLive()" class="form-control" style="padding: 0.4rem 0.75rem; font-size: 0.82rem; width: auto;">
+          <option value="">Todos los motivos</option>
+          <option value="vencimiento">Vencimiento</option>
+          <option value="daño">Daño / Rotura</option>
+          <option value="pérdida">Pérdida / Descuadre</option>
+          <option value="consumo">Consumo Interno</option>
+          <option value="conteo">Conteo Físico</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="table" id="tablaDetalleMermas">
+        <thead>
+          <tr>
+            <th style="width: 45px; text-align: center;">#</th>
+            <th style="min-width: 130px;">Fecha</th>
+            <th style="min-width: 120px;">Código</th>
+            <th style="min-width: 180px;">Producto</th>
+            <th>Categoría</th>
+            <th style="text-align: center;">Cant. Baja</th>
+            <th style="text-align: right;">Costo Unit.</th>
+            <th style="text-align: right; color: var(--danger);">Pérdida Costo ($)</th>
+            <th style="text-align: right; color: var(--warning);">Venta Perdida</th>
+            <th>Motivo Registrado</th>
+            <th>Usuario</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyMermas">
+          <?php if (empty($detalleMermas)): ?>
+            <tr><td colspan="11" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">No se encontraron mermas para el período seleccionado.</td></tr>
+          <?php else: ?>
+            <?php $i = 1; foreach ($detalleMermas as $dm): ?>
+              <?php 
+                $motivoLower = mb_strtolower($dm['Motivo']);
+                $badgeMotivo = 'badge-secondary';
+                if (str_contains($motivoLower, 'vencimiento')) $badgeMotivo = 'badge-danger';
+                elseif (str_contains($motivoLower, 'daño') || str_contains($motivoLower, 'rotura')) $badgeMotivo = 'badge-warning';
+                elseif (str_contains($motivoLower, 'consumo')) $badgeMotivo = 'badge-info';
+              ?>
+              <tr class="fila-merma" 
+                  data-nombre="<?= htmlspecialchars(mb_strtolower($dm['Producto'])) ?>" 
+                  data-codigo="<?= htmlspecialchars(mb_strtolower($dm['CodigoBarras'] . ' ' . ($dm['CodigoPLU'] ?? ''))) ?>"
+                  data-motivo="<?= htmlspecialchars($motivoLower) ?>"
+                  data-cant="<?= (float)$dm['Cantidad'] ?>"
+                  data-costo-total="<?= (int)$dm['PerdidaCosto'] ?>"
+                  data-venta-total="<?= (int)$dm['PerdidaVenta'] ?>">
+                
+                <td style="text-align: center; color: var(--text-muted); font-size: 0.8rem;"><?= $i++ ?></td>
+                <td style="color: var(--text-muted); font-size: 0.82rem; white-space: nowrap;">
+                  <?= date('d/m/Y H:i', strtotime($dm['FechaAjuste'])) ?>
+                  <span style="font-size: 0.72rem; color: #818cf8; display: block;">#Ajuste <?= $dm['AjusteStockID'] ?></span>
+                </td>
+                <td>
+                  <code style="font-size: 0.8rem;"><?= htmlspecialchars($dm['CodigoBarras'] ?: ($dm['CodigoPLU'] ? 'PLU:'.$dm['CodigoPLU'] : 'S/C')) ?></code>
+                </td>
+                <td>
+                  <strong style="color: var(--text-main); font-size: 0.88rem;"><?= htmlspecialchars($dm['Producto']) ?></strong>
+                </td>
+                <td style="color: var(--text-muted); font-size: 0.82rem;"><?= htmlspecialchars($dm['Categoria']) ?></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-danger" style="font-weight: 700; font-size: 0.82rem;">-<?= (float)$dm['Cantidad'] ?> u</span>
+                </td>
+                <td style="text-align: right; font-family: monospace; font-size: 0.85rem; color: #fbbf24;">
+                  <?= formatCLP($dm['CostoUnitario']) ?>
+                </td>
+                <td style="text-align: right; font-family: monospace; font-weight: 700; color: var(--danger); font-size: 0.9rem;">
+                  <?= formatCLP($dm['PerdidaCosto']) ?>
+                </td>
+                <td style="text-align: right; font-family: monospace; font-weight: 600; color: var(--warning); font-size: 0.85rem;">
+                  <?= formatCLP($dm['PerdidaVenta']) ?>
+                </td>
+                <td>
+                  <span class="badge <?= $badgeMotivo ?>" style="font-size: 0.75rem;">
+                    <?= htmlspecialchars($dm['Motivo']) ?>
+                  </span>
+                  <?php if (!empty($dm['DocReferencia'])): ?>
+                    <small style="color: var(--text-muted); display: block; font-size: 0.72rem;">Ref: <?= htmlspecialchars($dm['DocReferencia']) ?></small>
+                  <?php endif; ?>
+                </td>
+                <td style="color: var(--text-muted); font-size: 0.82rem;"><?= htmlspecialchars($dm['Usuario']) ?></td>
+              </tr>
+            <?php endforeach; ?>
+          <?php endif; ?>
+        </tbody>
+        <tfoot style="background: rgba(15,23,42,0.6); font-weight: 700; border-top: 1px solid var(--border-dark);">
+          <tr>
+            <td colspan="5" style="padding: 0.85rem 1rem;">TOTAL VISIBLE:</td>
+            <td style="text-align: center; color: var(--danger);" id="tfMermasCant"><?= number_format((float)$kpiMermas['TotalUnidadesMermadas'], 0, ',', '.') ?> u</td>
+            <td></td>
+            <td style="text-align: right; color: var(--danger); font-family: monospace; font-size: 1rem;" id="tfMermasCosto"><?= formatCLP($kpiMermas['TotalPerdidaCosto']) ?></td>
+            <td style="text-align: right; color: var(--warning); font-family: monospace;" id="tfMermasVenta"><?= formatCLP($kpiMermas['TotalPerdidaVenta']) ?></td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <script>
+  function filtrarMermasLive() {
+    const q = (document.getElementById('buscadorMermas')?.value || '').toLowerCase().trim();
+    const motivoFiltro = (document.getElementById('filtroMotivoMerma')?.value || '').toLowerCase().trim();
+    const filas = document.querySelectorAll('.fila-merma');
+    
+    let sumCant = 0;
+    let sumCosto = 0;
+    let sumVenta = 0;
+
+    filas.forEach((tr) => {
+      const nombre = tr.getAttribute('data-nombre') || '';
+      const codigo = tr.getAttribute('data-codigo') || '';
+      const motivo = tr.getAttribute('data-motivo') || '';
+      const cant = parseFloat(tr.getAttribute('data-cant') || '0');
+      const costo = parseFloat(tr.getAttribute('data-costo-total') || '0');
+      const venta = parseFloat(tr.getAttribute('data-venta-total') || '0');
+
+      let visible = true;
+      if (q && !nombre.includes(q) && !codigo.includes(q)) visible = false;
+      if (visible && motivoFiltro && !motivo.includes(motivoFiltro)) visible = false;
+
+      if (visible) {
+        tr.style.display = '';
+        sumCant += cant;
+        sumCosto += costo;
+        sumVenta += venta;
+      } else {
+        tr.style.display = 'none';
+      }
+    });
+
+    const fmtCLP = (num) => '$' + Math.round(num).toLocaleString('es-CL');
+    const tfCant = document.getElementById('tfMermasCant');
+    if (tfCant) tfCant.textContent = sumCant.toLocaleString('es-CL') + ' u';
+    const tfCosto = document.getElementById('tfMermasCosto');
+    if (tfCosto) tfCosto.textContent = fmtCLP(sumCosto);
+    const tfVenta = document.getElementById('tfMermasVenta');
+    if (tfVenta) tfVenta.textContent = fmtCLP(sumVenta);
+  }
+  </script>
+
+<?php endif; ?>
+
 

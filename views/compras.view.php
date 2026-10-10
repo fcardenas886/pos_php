@@ -476,9 +476,10 @@ function cargarGrillaFase2() {
   let html = '';
 
   productosCompraFase2.forEach(prod => {
-    // Calcular el margen inicial con el precio actual
-    const margin = prod.PrecioVentaActual > 0 ? Math.round(((prod.PrecioVentaActual - prod.CostoCompra) / prod.PrecioVentaActual) * 100) : 0;
-    const badgeColor = margin >= 20 ? '#10b981' : (margin >= 5 ? '#f59e0b' : '#ef4444');
+    // Calcular el margen inicial con el precio actual sobre costo
+    const margin = prod.CostoCompra > 0 ? Math.round(((prod.PrecioVentaActual - prod.CostoCompra) / prod.CostoCompra) * 100) : null;
+    const badgeColor = margin === null ? '#f59e0b' : (margin >= 25 ? '#10b981' : (margin >= 10 ? '#f59e0b' : '#ef4444'));
+    const marginText = margin === null ? 'S/C' : (margin > 0 ? `+${margin}%` : `${margin}%`);
 
     html += `
       <tr data-pid="${prod.ProductoID}" data-costo="${prod.CostoCompra}">
@@ -486,8 +487,8 @@ function cargarGrillaFase2() {
         <td style="text-align: right; font-weight: bold;">${fmt(prod.CostoCompra)}</td>
         <td style="text-align: right; color: var(--text-muted);">${fmt(prod.PrecioVentaActual)}</td>
         <td style="text-align: right;">
-          <span class="badge" id="lblMargin_${prod.ProductoID}" style="background: ${badgeColor}; color:#fff; font-size:0.8rem; font-weight:bold; padding: 0.25rem 0.5rem;">
-            ${margin}%
+          <span class="badge" id="lblMargin_${prod.ProductoID}" style="background: ${badgeColor}; color:#fff; font-size:0.8rem; font-weight:bold; padding: 0.25rem 0.5rem;" title="${margin === null ? 'Sin costo registrado' : 'Margen sobre costo'}">
+            ${marginText}
           </span>
         </td>
         <td style="text-align: right;">
@@ -508,10 +509,14 @@ function recalcularMargenItem(pid, costo) {
   const label = document.getElementById(`lblMargin_${pid}`);
   
   const pv = parseInt(input.value) || 0;
-  const margin = pv > 0 ? Math.round(((pv - costo) / pv) * 100) : -100;
-  
-  label.textContent = margin + '%';
-  const badgeColor = margin >= 20 ? '#10b981' : (margin >= 5 ? '#f59e0b' : '#ef4444');
+  if (!costo || costo <= 0) {
+    label.textContent = 'S/C';
+    label.style.background = '#f59e0b';
+    return;
+  }
+  const margin = Math.round(((pv - costo) / costo) * 100);
+  label.textContent = margin > 0 ? `+${margin}%` : `${margin}%`;
+  const badgeColor = margin >= 25 ? '#10b981' : (margin >= 10 ? '#f59e0b' : '#ef4444');
   label.style.background = badgeColor;
 }
 
